@@ -189,6 +189,14 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 （notes/cards/pending 查重留待票 06 补。）
 
+**卡片（ticket 06）**
+- `GET /kb/cards?queue=1&limit=` — **到期复习队列**（most-overdue first）；不带 queue → 卡片库 `?filter=(due|active|mastered|archived)&source=&q=&limit=&offset=`
+- `GET /kb/cards/stats` → `{due_today, active, mastered, archived, streak_days}`
+- `POST /kb/cards` `{question, answer}`（manual 来源）→ `201 {id}`；`PATCH /kb/cards/{cid}` `{question?, answer?}`；`DELETE /kb/cards/{cid}`
+- `POST /kb/cards/{cid}/review` `{grade: "forgot"|"fuzzy"|"remembered"}` → 更新后的 `KBCard`（间隔步进，客户端拿返回值刷新）
+- `POST /kb/cards/{cid}/archive` `/restore` → `{status}`
+- `KBCard`：`{id, question, answer, source_type, source_ref, source_excerpt, status(active|mastered|archived), interval_index, due_at?, last_reviewed_at?, review_count, lapse_count, created_at, updated_at}`
+
 ## 8. Wiki / Diary / Workflow
 
 - Wiki：`/api/agents/{id}/wiki/` — `stats`、`pages`、`pages/{id}`、`graph`、`generate`、`reindex-embed`、`progress`、`autogen-status`、`DELETE pages/{id}`

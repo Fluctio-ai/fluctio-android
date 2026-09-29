@@ -352,4 +352,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kbGenerating => 'Generating…';
+
+  @override
+  String get cardAdd => 'New card';
+
+  @override
+  String get cardQuestion => 'Question (front)';
+
+  @override
+  String get cardAnswer => 'Answer (back)';
+
+  @override
+  String get cardDue => 'Due';
+
+  @override
+  String get cardActive => 'Active';
+
+  @override
+  String get cardMastered => 'Mastered';
+
+  @override
+  String get cardStreak => 'Streak';
+
+  @override
+  String get cardStart => 'Start review';
+
+  @override
+  String get cardAllDone => 'Today\'s review is clear';
+
+  @override
+  String get cardReview => 'Card review';
+
+  @override
+  String get cardForgot => 'Forgot';
+
+  @override
+  String get cardFuzzy => 'Fuzzy';
+
+  @override
+  String get cardRemembered => 'Got it';
+
+  @override
+  String get cardTapToReveal => 'Tap to reveal';
+
+  @override
+  String get cardDone => 'Review complete!';
+
+  @override
+  String get cardBack => 'Back';
+
+  @override
+  String get noteUntitled => 'Untitled note';
+
+  @override
+  String get noteNew => 'New note';
+
+  @override
+  String get noteDiscard => 'Discard unsaved changes?';
+
+  @override
+  String get noteBodyHint => 'Body (Markdown)';
+
+  @override
+  String get noteAttachments => 'Attachments (read-only)';
 }

@@ -775,6 +775,132 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'生成中…'**
   String get kbGenerating;
+
+  /// No description provided for @cardAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建卡片'**
+  String get cardAdd;
+
+  /// No description provided for @cardQuestion.
+  ///
+  /// In zh, this message translates to:
+  /// **'问题（正面）'**
+  String get cardQuestion;
+
+  /// No description provided for @cardAnswer.
+  ///
+  /// In zh, this message translates to:
+  /// **'答案（背面）'**
+  String get cardAnswer;
+
+  /// No description provided for @cardDue.
+  ///
+  /// In zh, this message translates to:
+  /// **'待复习'**
+  String get cardDue;
+
+  /// No description provided for @cardActive.
+  ///
+  /// In zh, this message translates to:
+  /// **'学习中'**
+  String get cardActive;
+
+  /// No description provided for @cardMastered.
+  ///
+  /// In zh, this message translates to:
+  /// **'已掌握'**
+  String get cardMastered;
+
+  /// No description provided for @cardStreak.
+  ///
+  /// In zh, this message translates to:
+  /// **'连续天数'**
+  String get cardStreak;
+
+  /// No description provided for @cardStart.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始复习'**
+  String get cardStart;
+
+  /// No description provided for @cardAllDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'今日复习已清空'**
+  String get cardAllDone;
+
+  /// No description provided for @cardReview.
+  ///
+  /// In zh, this message translates to:
+  /// **'卡片复习'**
+  String get cardReview;
+
+  /// No description provided for @cardForgot.
+  ///
+  /// In zh, this message translates to:
+  /// **'忘了'**
+  String get cardForgot;
+
+  /// No description provided for @cardFuzzy.
+  ///
+  /// In zh, this message translates to:
+  /// **'模糊'**
+  String get cardFuzzy;
+
+  /// No description provided for @cardRemembered.
+  ///
+  /// In zh, this message translates to:
+  /// **'记得'**
+  String get cardRemembered;
+
+  /// No description provided for @cardTapToReveal.
+  ///
+  /// In zh, this message translates to:
+  /// **'点击显示答案'**
+  String get cardTapToReveal;
+
+  /// No description provided for @cardDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'复习完成！'**
+  String get cardDone;
+
+  /// No description provided for @cardBack.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回'**
+  String get cardBack;
+
+  /// No description provided for @noteUntitled.
+  ///
+  /// In zh, this message translates to:
+  /// **'无标题笔记'**
+  String get noteUntitled;
+
+  /// No description provided for @noteNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建笔记'**
+  String get noteNew;
+
+  /// No description provided for @noteDiscard.
+  ///
+  /// In zh, this message translates to:
+  /// **'放弃未保存的修改？'**
+  String get noteDiscard;
+
+  /// No description provided for @noteBodyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'正文（Markdown）'**
+  String get noteBodyHint;
+
+  /// No description provided for @noteAttachments.
+  ///
+  /// In zh, this message translates to:
+  /// **'附件（只读）'**
+  String get noteAttachments;
 }
 
 class _AppLocalizationsDelegate

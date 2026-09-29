@@ -113,8 +113,97 @@ class KbBookmark {
       );
 }
 
-/// Deep-reading payload, rendered in a compact mobile layout: core
-/// summary, chapters, curated quotes, actions.
+/// Spaced-repetition flashcard (kb_cards; docs/api/API.md §7).
+class KbCard {
+  const KbCard({
+    required this.id,
+    required this.question,
+    required this.answer,
+    this.status = 'active',
+    this.dueAt,
+    this.reviewCount = 0,
+    this.lapseCount = 0,
+    this.sourceType = '',
+  });
+
+  final String id;
+  final String question;
+  final String answer;
+  final String status;
+  final DateTime? dueAt;
+  final int reviewCount;
+  final int lapseCount;
+  final String sourceType;
+
+  factory KbCard.fromJson(Map<String, dynamic> j) => KbCard(
+        id: j['id'] as String? ?? '',
+        question: j['question'] as String? ?? '',
+        answer: j['answer'] as String? ?? '',
+        status: j['status'] as String? ?? 'active',
+        dueAt: DateTime.tryParse(j['due_at'] as String? ?? ''),
+        reviewCount: (j['review_count'] as num?)?.toInt() ?? 0,
+        lapseCount: (j['lapse_count'] as num?)?.toInt() ?? 0,
+        sourceType: j['source_type'] as String? ?? '',
+      );
+}
+
+class KbCardStats {
+  const KbCardStats({
+    this.dueToday = 0,
+    this.active = 0,
+    this.mastered = 0,
+    this.archived = 0,
+    this.streakDays = 0,
+  });
+
+  final int dueToday;
+  final int active;
+  final int mastered;
+  final int archived;
+  final int streakDays;
+
+  factory KbCardStats.fromJson(Map<String, dynamic> j) => KbCardStats(
+        dueToday: (j['due_today'] as num?)?.toInt() ?? 0,
+        active: (j['active'] as num?)?.toInt() ?? 0,
+        mastered: (j['mastered'] as num?)?.toInt() ?? 0,
+        archived: (j['archived'] as num?)?.toInt() ?? 0,
+        streakDays: (j['streak_days'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Personal note: markdown body, upsert semantics on save.
+class KbNote {
+  const KbNote({required this.id, required this.title, this.contentMd = '', this.updatedAt = ''});
+
+  final String id;
+  final String title;
+  final String contentMd;
+  final String updatedAt;
+
+  factory KbNote.fromJson(Map<String, dynamic> j) => KbNote(
+        id: j['id'] as String? ?? '',
+        title: j['title'] as String? ?? '',
+        contentMd: j['content_md'] as String? ?? '',
+        updatedAt: j['updated_at'] as String? ?? '',
+      );
+}
+
+class KbNoteAttachment {
+  const KbNoteAttachment({required this.id, required this.fileName, this.mime = '', this.size = 0});
+
+  final String id;
+  final String fileName;
+  final String mime;
+  final int size;
+
+  factory KbNoteAttachment.fromJson(Map<String, dynamic> j) => KbNoteAttachment(
+        id: j['id'] as String? ?? '',
+        fileName: j['file_name'] as String? ?? '',
+        mime: j['mime'] as String? ?? '',
+        size: (j['size'] as num?)?.toInt() ?? 0,
+      );
+}
+
 class KbInsights {
   const KbInsights({
     required this.core,

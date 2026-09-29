@@ -37,8 +37,8 @@ class KbPage extends ConsumerWidget {
       _KbEntry(l.kbDiary, LucideIcons.calendarDays, () => _soon(context, l)),
       _KbEntry(l.kbBookmarks, LucideIcons.bookmark, () => context.push('/kb/bookmarks'),
           count: bookmarks?.value?.length),
-      _KbEntry(l.kbNotes, LucideIcons.notebookPen, () => _soon(context, l)),
-      _KbEntry(l.kbCards, LucideIcons.layers, () => _soon(context, l)),
+      _KbEntry(l.kbNotes, LucideIcons.notebookPen, () => context.push('/kb/notes')),
+      _KbEntry(l.kbCards, LucideIcons.layers, () => context.push('/kb/cards')),
       _KbEntry(l.kbWiki, LucideIcons.globe, () => context.push('/wiki')),
     ];
 

@@ -347,4 +347,67 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get kbGenerating => '生成中…';
+
+  @override
+  String get cardAdd => '新建卡片';
+
+  @override
+  String get cardQuestion => '问题（正面）';
+
+  @override
+  String get cardAnswer => '答案（背面）';
+
+  @override
+  String get cardDue => '待复习';
+
+  @override
+  String get cardActive => '学习中';
+
+  @override
+  String get cardMastered => '已掌握';
+
+  @override
+  String get cardStreak => '连续天数';
+
+  @override
+  String get cardStart => '开始复习';
+
+  @override
+  String get cardAllDone => '今日复习已清空';
+
+  @override
+  String get cardReview => '卡片复习';
+
+  @override
+  String get cardForgot => '忘了';
+
+  @override
+  String get cardFuzzy => '模糊';
+
+  @override
+  String get cardRemembered => '记得';
+
+  @override
+  String get cardTapToReveal => '点击显示答案';
+
+  @override
+  String get cardDone => '复习完成！';
+
+  @override
+  String get cardBack => '返回';
+
+  @override
+  String get noteUntitled => '无标题笔记';
+
+  @override
+  String get noteNew => '新建笔记';
+
+  @override
+  String get noteDiscard => '放弃未保存的修改？';
+
+  @override
+  String get noteBodyHint => '正文（Markdown）';
+
+  @override
+  String get noteAttachments => '附件（只读）';
 }

@@ -27,6 +27,12 @@ final kbBookmarksProvider =
   return repo.bookmarks(agentId);
 });
 
+final kbNotesProvider =
+    FutureProvider.autoDispose.family<List<KbNote>, String>((ref, agentId) async {
+  final repo = KbRepo(ref.watch(apiClientProvider));
+  return repo.notes(agentId);
+});
+
 /// Typed wrappers over the KB surface (docs/api/API.md §7). Save paths
 /// return a duplicate marker when the server deduped the write.
 class KbRepo {
@@ -139,6 +145,59 @@ class KbRepo {
         await _dio.post('/api/agents/$agentId/kb/sources/$sourceId/insights/generate');
     return res.data is Map ? KbInsights.fromJson(Map<String, dynamic>.from(res.data as Map)) : null;
   }
+
+  // ---- cards (ticket 06) ----
+
+  /// Review queue: most-overdue first.
+  Future<List<KbCard>> cardQueue(String agentId, {int limit = 50}) async => _rows(
+      await _dio.get('/api/agents/$agentId/kb/cards',
+          queryParameters: {'queue': '1', 'limit': limit}),
+      KbCard.fromJson);
+
+  Future<KbCardStats> cardStats(String agentId) async {
+    final res = await _dio.get('/api/agents/$agentId/kb/cards/stats');
+    return res.data is Map
+        ? KbCardStats.fromJson(Map<String, dynamic>.from(res.data as Map))
+        : const KbCardStats();
+  }
+
+  Future<KbCard> reviewCard(String agentId, String cardId, String grade) async {
+    final res = await _dio.post('/api/agents/$agentId/kb/cards/$cardId/review',
+        data: {'grade': grade});
+    return KbCard.fromJson(Map<String, dynamic>.from(res.data as Map));
+  }
+
+  Future<void> saveCard(String agentId, String question, String answer) =>
+      _dio.post('/api/agents/$agentId/kb/cards',
+          data: {'question': question, 'answer': answer});
+
+  Future<void> archiveCard(String agentId, String cardId, bool archived) => archived
+      ? _dio.post('/api/agents/$agentId/kb/cards/$cardId/archive')
+      : _dio.post('/api/agents/$agentId/kb/cards/$cardId/restore');
+
+  // ---- notes (ticket 06) ----
+
+  Future<List<KbNote>> notes(String agentId) async {
+    final res = await _dio.get('/api/agents/$agentId/kb/notes');
+    final data = res.data is Map ? (res.data as Map)['notes'] : null;
+    if (data is! List) return [];
+    return [for (final n in data) if (n is Map) KbNote.fromJson(Map<String, dynamic>.from(n))];
+  }
+
+  /// Upsert: empty id creates, non-empty updates. Returns the note id.
+  Future<String> saveNote(String agentId,
+      {String id = '', required String title, required String contentMd}) async {
+    final res = await _dio.post('/api/agents/$agentId/kb/notes',
+        data: {'id': id, 'title': title, 'content_md': contentMd});
+    return res.data is Map ? (res.data as Map)['id'] as String? ?? '' : '';
+  }
+
+  Future<void> deleteNote(String agentId, String noteId) =>
+      _dio.delete('/api/agents/$agentId/kb/notes/$noteId');
+
+  Future<List<KbNoteAttachment>> noteAttachments(String agentId, String noteId) async => _rows(
+      await _dio.get('/api/agents/$agentId/kb/notes/$noteId/attachments'),
+      KbNoteAttachment.fromJson);
 }
 
 List<T> _rows<T>(Response res, T Function(Map<String, dynamic>) fromJson) {

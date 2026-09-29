@@ -10,7 +10,10 @@ import 'pages/chat/chat_page.dart';
 import 'pages/kb/article_detail_page.dart';
 import 'pages/kb/articles_page.dart';
 import 'pages/kb/bookmarks_page.dart';
+import 'pages/kb/card_review_page.dart';
+import 'pages/kb/cards_page.dart';
 import 'pages/kb/flash_page.dart';
+import 'pages/kb/notes_page.dart';
 import 'pages/kb/todos_page.dart';
 import 'pages/kb_page.dart';
 import 'pages/profile_page.dart';
@@ -70,6 +73,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(path: 'flash', builder: (_, _) => const KbFlashPage()),
               GoRoute(path: 'todos', builder: (_, _) => const KbTodosPage()),
               GoRoute(path: 'bookmarks', builder: (_, _) => const KbBookmarksPage()),
+              GoRoute(path: 'cards', builder: (_, _) => const KbCardsPage(), routes: [
+                GoRoute(path: 'review', builder: (_, _) => const KbCardReviewPage()),
+              ]),
+              GoRoute(path: 'notes', builder: (_, _) => const KbNotesPage()),
             ]),
           ]),
           StatefulShellBranch(routes: [GoRoute(path: '/projects', builder: (_, _) => const ProjectsPage())]),
