@@ -287,6 +287,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatAttach => 'Attach image';
 
   @override
+  String get chatCopy => 'Copy';
+
+  @override
   String get chatOnlyChip => 'Chat only';
 
   @override

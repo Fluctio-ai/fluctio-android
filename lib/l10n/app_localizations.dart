@@ -644,6 +644,12 @@ abstract class AppLocalizations {
   /// **'添加图片'**
   String get chatAttach;
 
+  /// No description provided for @chatCopy.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制'**
+  String get chatCopy;
+
   /// No description provided for @chatOnlyChip.
   ///
   /// In zh, this message translates to:

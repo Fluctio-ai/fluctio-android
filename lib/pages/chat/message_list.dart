@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -68,17 +69,65 @@ class _MessageListState extends ConsumerState<MessageList> {
             );
           }
           final entry = widget.state.entries[widget.state.entries.length - 1 - i];
+          final showRegenerate =
+              entry is AssistantEntry && i == 0 && !widget.state.turnActive;
           return _EntryIn(
             animate: _animated.add(entry.key),
-            child: switch (entry) {
-              UserEntry() => _UserBubble(entry: entry),
-              AssistantEntry() => _AssistantBubble(entry: entry, isLast: i == 0),
-              ToolEntry() => _ToolCard(entry: entry),
-              NoticeEntry() => _NoticeChip(entry: entry),
-              AuthPromptEntry() => _AuthCard(entry: entry),
-            },
+            child: GestureDetector(
+              // Long-press actions (copy / regenerate) like the web's
+              // hover toolbar, adapted for touch.
+              onLongPress: () => _messageActions(context, entry,
+                  regenerate: showRegenerate),
+              behavior: HitTestBehavior.opaque,
+              child: switch (entry) {
+                UserEntry() => _UserBubble(entry: entry),
+                AssistantEntry() => _AssistantBubble(entry: entry, isLast: i == 0),
+                ToolEntry() => _ToolCard(entry: entry),
+                NoticeEntry() => _NoticeChip(entry: entry),
+                AuthPromptEntry() => _AuthCard(entry: entry),
+              },
+            ),
           );
         },
+      ),
+    );
+  }
+
+  void _messageActions(BuildContext context, UiEntry entry, {required bool regenerate}) {
+    final l = AppLocalizations.of(context)!;
+    final text = switch (entry) {
+      UserEntry u => u.text,
+      AssistantEntry a => a.text,
+      _ => '',
+    };
+    if (text.isEmpty && !regenerate) return;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (text.isNotEmpty)
+              ListTile(
+                leading: const Icon(LucideIcons.copy, size: 20),
+                title: Text(l.chatCopy),
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: text));
+                  Navigator.of(sheetContext).pop();
+                },
+              ),
+            if (regenerate)
+              ListTile(
+                leading: const Icon(LucideIcons.rotateCcw, size: 20),
+                title: Text(l.chatRegenerate),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  ref.read(chatStoreProvider.notifier).regenerate();
+                },
+              ),
+          ],
+        ),
       ),
     );
   }

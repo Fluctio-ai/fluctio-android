@@ -283,6 +283,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatAttach => '添加图片';
 
   @override
+  String get chatCopy => '复制';
+
+  @override
   String get chatOnlyChip => '仅对话';
 
   @override

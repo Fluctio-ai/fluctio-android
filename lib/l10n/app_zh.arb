@@ -91,6 +91,7 @@
   "chatSuggest3": "随便聊点什么",
   "chatSend": "发送",
   "chatAttach": "添加图片",
+  "chatCopy": "复制",
   "chatOnlyChip": "仅对话",
   "chatOnlyNeedsMessage": "先发送一条消息创建会话后即可切换"
 }
