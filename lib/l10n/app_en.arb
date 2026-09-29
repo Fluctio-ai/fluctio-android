@@ -170,5 +170,9 @@
   "webReloginHint": "If the session expired, sign in again and retry",
   "mermaidHint": "Mermaid diagram — tap to view full screen",
   "noteWhiteboard": "Whiteboard",
-  "chatOfflineHint": "Offline cache — refreshes when back online"
+  "chatOfflineHint": "Offline cache — refreshes when back online",
+  "updateCheck": "Check for updates",
+  "updateNone": "You are up to date",
+  "updateAvailable": "Update available",
+  "updateDownload": "Download update"
 }

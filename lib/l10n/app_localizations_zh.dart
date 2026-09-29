@@ -521,4 +521,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatOfflineHint => '离线缓存内容，联网后自动刷新';
+
+  @override
+  String get updateCheck => '检查更新';
+
+  @override
+  String get updateNone => '已是最新版本';
+
+  @override
+  String get updateAvailable => '发现新版本';
+
+  @override
+  String get updateDownload => '下载更新';
 }

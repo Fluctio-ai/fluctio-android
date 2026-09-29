@@ -28,11 +28,21 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            // Release keystore lives in the repo (private project) so CI
+            // and local builds share one signature — updates install over
+            // each other.
+            storeFile = file("release.keystore")
+            storePassword = "***scrubbed***"
+            keyAlias = "fluctio"
+            keyPassword = "***scrubbed***"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

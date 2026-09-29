@@ -1123,6 +1123,30 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'离线缓存内容，联网后自动刷新'**
   String get chatOfflineHint;
+
+  /// No description provided for @updateCheck.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查更新'**
+  String get updateCheck;
+
+  /// No description provided for @updateNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已是最新版本'**
+  String get updateNone;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现新版本'**
+  String get updateAvailable;
+
+  /// No description provided for @updateDownload.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载更新'**
+  String get updateDownload;
 }
 
 class _AppLocalizationsDelegate

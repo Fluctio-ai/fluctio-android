@@ -1,0 +1,86 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../api/api_client.dart';
+import '../auth/auth_controller.dart';
+import '../core/config_store.dart';
+
+/// In-app update check (ticket 12): compares the running version against
+/// the latest GitHub Release (the same release the CI pipeline publishes
+/// to) and hands the APK download to the system browser, whose package
+/// installer completes the flow.
+class UpdateService {
+  UpdateService(this._dio, this._prefs);
+
+  final Dio _dio;
+  final ConfigStore _prefs;
+
+  static const _kUpdateUrl = 'update.checkUrl';
+
+  /// Default: GitHub latest release API of the fluctio-android repo.
+  static const defaultCheckUrl =
+      'https://api.github.com/repos/moon/fluctio-android/releases/latest';
+
+  Future<String> checkUrl() async => await _prefs.getString(_kUpdateUrl);
+
+  Future<void> setCheckUrl(String url) => _prefs.setString(_kUpdateUrl, url.trim());
+
+  Future<UpdateInfo?> check() async {
+    final url = (await checkUrl()).isEmpty ? defaultCheckUrl : await checkUrl();
+    final res = await _dio.get(url,
+        options: Options(headers: {'accept': 'application/vnd.github+json'}));
+    if (res.data is! Map) return null;
+    final data = res.data as Map;
+    final tag = '${data['tag_name'] ?? ''}';
+    if (!tag.startsWith('v')) return null;
+    final remote = tag.substring(1);
+    final info = await PackageInfo.fromPlatform();
+    if (_versionCompare(remote, info.version) <= 0) return null;
+    // First .apk asset is the CI artifact (fluctio.apk).
+    final assets = data['assets'];
+    String? apkUrl;
+    if (assets is List) {
+      for (final a in assets) {
+        if (a is Map && '${a['name']}'.endsWith('.apk')) {
+          apkUrl = '${a['browser_download_url']}';
+          break;
+        }
+      }
+    }
+    return UpdateInfo(tag: tag, current: info.version, apkUrl: apkUrl, notes: '${data['body'] ?? ''}');
+  }
+
+  /// Opens the browser download (system package installer takes over) —
+  /// avoids FileProvider/READ_EXTERNAL complexity for the v1 flow.
+  Future<void> openDownload(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  int _versionCompare(String a, String b) {
+    final pa = a.split('.').map(int.tryParse).toList();
+    final pb = b.split('.').map(int.tryParse).toList();
+    for (var i = 0; i < 3; i++) {
+      final da = i < pa.length ? (pa[i] ?? 0) : 0;
+      final db = i < pb.length ? (pb[i] ?? 0) : 0;
+      if (da != db) return da.compareTo(db);
+    }
+    return 0;
+  }
+}
+
+class UpdateInfo {
+  const UpdateInfo({required this.tag, required this.current, this.apkUrl, this.notes = ''});
+
+  final String tag;
+  final String current;
+  final String? apkUrl;
+  final String notes;
+}
+
+final updateServiceProvider = Provider<UpdateService>((ref) {
+  return UpdateService(ref.watch(apiClientProvider), ref.watch(configStoreProvider));
+});

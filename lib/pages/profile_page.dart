@@ -4,6 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import '../update/update_service.dart';
 import 'agents/agent_settings_page.dart';
 import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
@@ -11,11 +14,65 @@ import '../theme/tokens.dart';
 
 /// Me tab per the prototype: profile header + grouped settings. Absorbs
 /// the old settings page; agent management arrives with M3.
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  String _version = '';
+  bool _checkingUpdate = false;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
+
+  Future<void> _checkUpdate() async {
+    final l = AppLocalizations.of(context)!;
+    setState(() => _checkingUpdate = true);
+    try {
+      final update = await ref.read(updateServiceProvider).check();
+      if (!mounted) return;
+      if (update == null) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.updateNone)));
+        return;
+      }
+      final go = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('${l.updateAvailable} ${update.tag}'),
+          content: Text(update.notes.isEmpty
+              ? '${update.current} → ${update.tag.substring(1)}'
+              : update.notes, maxLines: 6, overflow: TextOverflow.ellipsis),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
+            if (update.apkUrl != null)
+              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.updateDownload)),
+          ],
+        ),
+      );
+      if (go == true && update.apkUrl != null) {
+        await ref.read(updateServiceProvider).openDownload(update.apkUrl!);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.errorNetwork)));
+      }
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final auth = ref.watch(authControllerProvider);
@@ -118,7 +175,19 @@ class ProfilePage extends ConsumerWidget {
                 context,
                 icon: LucideIcons.info,
                 label: l.meVersion,
-                value: 'v1.0.0',
+                value: _version,
+              ),
+              _item(
+                context,
+                icon: LucideIcons.download,
+                label: l.updateCheck,
+                onTap: _checkUpdate,
+                trailing: _checkingUpdate
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(LucideIcons.chevronRight, size: 18),
               ),
             ],
           ),

@@ -528,4 +528,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatOfflineHint => 'Offline cache — refreshes when back online';
+
+  @override
+  String get updateCheck => 'Check for updates';
+
+  @override
+  String get updateNone => 'You are up to date';
+
+  @override
+  String get updateAvailable => 'Update available';
+
+  @override
+  String get updateDownload => 'Download update';
 }
