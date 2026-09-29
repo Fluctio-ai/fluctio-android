@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
 
 import '../../chat/chat_controller.dart';
@@ -51,7 +52,7 @@ class SessionTile extends ConsumerWidget {
               padding: const EdgeInsets.only(right: 4),
               child: Tooltip(
                 message: l.chatOnlyMode,
-                child: Icon(Icons.forum_outlined,
+                child: Icon(LucideIcons.messageCircle,
                     size: 16, color: Theme.of(context).colorScheme.outline),
               ),
             ),
@@ -88,7 +89,7 @@ class _SessionMenu extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       onSelected: (action) => _run(context, ref, action),
-      icon: Icon(Icons.more_vert, size: 18, color: Theme.of(context).colorScheme.outline),
+      icon: Icon(LucideIcons.ellipsisVertical, size: 18, color: Theme.of(context).colorScheme.outline),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
@@ -232,10 +233,10 @@ class _TodoSheet extends ConsumerWidget {
                               dense: true,
                               leading: Icon(
                                 item.cancelled
-                                    ? Icons.indeterminate_check_box_outlined
+                                    ? LucideIcons.circleMinus
                                     : item.done
-                                        ? Icons.check_box
-                                        : Icons.check_box_outline_blank,
+                                        ? LucideIcons.squareCheckBig
+                                        : LucideIcons.square,
                                 size: 20,
                                 color: item.cancelled || item.done
                                     ? scheme.outline

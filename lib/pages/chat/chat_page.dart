@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../chat/chat_controller.dart';
@@ -196,7 +197,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(child: Text(selected.name, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis)),
-                    const Icon(Icons.arrow_drop_down),
+                    const Icon(LucideIcons.chevronDown),
                   ],
                 ),
                 Text(
@@ -213,7 +214,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
           IconButton(
             tooltip: l.chatTodo,
             onPressed: () => showTodoSheet(context),
-            icon: const Icon(Icons.checklist),
+            icon: const Icon(LucideIcons.listTodo),
           ),
         ],
       ),
@@ -326,7 +327,7 @@ class _ReconnectBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
         children: [
-          Icon(Icons.wifi_off_outlined, size: 14, color: theme.colorScheme.outline),
+          Icon(LucideIcons.wifiOff, size: 14, color: theme.colorScheme.outline),
           const SizedBox(width: 8),
           Text(
             hint.isEmpty ? l.chatReconnecting : '${l.chatReconnecting} · $hint',

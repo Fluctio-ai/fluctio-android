@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/chat_engine.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/tokens.dart';
 
-/// Composer per the prototype: paperclip button, capsule input, round
-/// action button — all 40/44px, bottom-aligned. Action semantics follow
-/// the web composer: idle → send; streaming with empty input → stop
-/// (filled square); streaming with text → steer (paper plane).
+/// Composer card per the web chat screen: multi-line field on top, tool
+/// row underneath — paperclip and the chat-only chip on the left, the
+/// round-cornered send/stop action on the right (lucide icons like the
+/// web). Action semantics follow the web composer: idle → send;
+/// streaming with empty input → stop (filled square); streaming with
+/// text → steer.
 class Composer extends StatelessWidget {
   const Composer({
     super.key,
@@ -48,121 +52,62 @@ class Composer extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+          borderRadius: AppRadius.cardBorder,
+          border: Border.all(color: theme.colorScheme.outlineVariant),
         ),
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (pendingImages.isNotEmpty)
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  itemCount: pendingImages.length,
-                  itemBuilder: (context, i) => _PendingThumb(
-                    url: pendingImages[i],
-                    onRemove: () => onRemoveImage(i),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SizedBox(
+                  height: 96,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: pendingImages.length,
+                    itemBuilder: (context, i) => _PendingThumb(
+                      url: pendingImages[i],
+                      onRemove: () => onRemoveImage(i),
+                    ),
                   ),
                 ),
               ),
+            TextField(
+              controller: controller,
+              onChanged: (_) => onChanged(),
+              minLines: 1,
+              maxLines: 6,
+              keyboardType: TextInputType.multiline,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: InputDecoration(
+                hintText: l.chatEmpty,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                SizedBox.square(
-                  dimension: 40,
-                  child: IconButton.filledTonal(
-                    tooltip: l.chatAttach,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: theme.colorScheme.outline,
-                      side: BorderSide(color: theme.colorScheme.outlineVariant),
-                      shape: const CircleBorder(),
-                    ),
-                    onPressed: turnActive ? null : onPickImages,
-                    icon: const Icon(Icons.attach_file, size: 20),
-                  ),
+                _ToolButton(
+                  icon: LucideIcons.paperclip,
+                  tooltip: l.chatAttach,
+                  onTap: turnActive ? null : onPickImages,
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: Container(
-                    // Capsule like the prototype's .input-wrapper (radius
-                    // = half the 44px min height). The field's own content
-                    // padding fills the capsule so the focus / cursor
-                    // region matches the visible height.
-                    constraints: const BoxConstraints(minHeight: 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
-                    ),
-                    child: Row(
-                      children: [
-                        // Chat-only toggle lives in the capsule like the
-                        // web composer's tool row (icon + label, primary
-                        // tint when active).
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(14),
-                            onTap: () => onToggleChatOnly(!chatOnly),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: chatOnly
-                                    ? theme.colorScheme.primaryContainer
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.forum_outlined,
-                                    size: 15,
-                                    color: chatOnly
-                                        ? theme.colorScheme.onPrimaryContainer
-                                        : theme.colorScheme.outline,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    l.chatOnlyChip,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: chatOnly
-                                          ? theme.colorScheme.onPrimaryContainer
-                                          : theme.colorScheme.outline,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: controller,
-                            onChanged: (_) => onChanged(),
-                            minLines: 1,
-                            maxLines: 6,
-                            keyboardType: TextInputType.multiline,
-                            textCapitalization: TextCapitalization.sentences,
-                            decoration: InputDecoration(
-                              hintText: l.chatEmpty,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                _ToolButton(
+                  icon: LucideIcons.messageCircle,
+                  label: l.chatOnlyChip,
+                  tooltip: l.chatOnlyMode,
+                  toggled: chatOnly,
+                  onTap: () => onToggleChatOnly(!chatOnly),
                 ),
-                const SizedBox(width: 8),
+                const Spacer(),
                 _ActionButton(
                   turnActive: turnActive,
                   stopping: state.phase == TurnPhase.stopping,
@@ -175,6 +120,58 @@ class Composer extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 36px rounded-square outline button / chip (web tool-row style).
+class _ToolButton extends StatelessWidget {
+  const _ToolButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.label,
+    this.toggled = false,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  final String? label;
+  final bool toggled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = toggled ? theme.colorScheme.primary : theme.colorScheme.outline;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.controlBorder,
+        child: Container(
+          height: 36,
+          padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 10),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.controlBorder,
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            color: toggled ? theme.colorScheme.primaryContainer : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: color),
+              if (label != null) ...[
+                const SizedBox(width: 6),
+                Text(
+                  label!,
+                  style: TextStyle(fontSize: 12, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -210,37 +207,42 @@ class _ActionButton extends StatelessWidget {
     if (turnActive) {
       if (stopping) {
         enabled = false;
-        icon = Icons.stop_rounded;
+        icon = LucideIcons.square;
         onPressed = null;
       } else if (hasInput) {
         enabled = true;
-        icon = Icons.send;
+        icon = LucideIcons.send;
         onPressed = onSteer;
       } else {
         enabled = true;
-        icon = Icons.stop_rounded;
+        icon = LucideIcons.square;
         onPressed = onStop;
       }
     } else {
-      icon = Icons.send;
+      icon = LucideIcons.send;
       enabled = hasInput;
       onPressed = hasInput ? onSend : null;
     }
 
-    return SizedBox.square(
-      dimension: 40,
-      child: IconButton.filled(
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          backgroundColor: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
-          foregroundColor:
-              enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
-          disabledBackgroundColor: theme.colorScheme.secondaryContainer,
-          disabledForegroundColor: theme.colorScheme.outline,
-          shape: const CircleBorder(),
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: AppRadius.controlBorder,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.controlBorder,
+            color: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            fill: icon == LucideIcons.square ? 1.0 : 0.0,
+            color: enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
+          ),
         ),
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
       ),
     );
   }
@@ -262,7 +264,7 @@ class _PendingThumb extends StatelessWidget {
       child: Stack(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: AppRadius.controlBorder,
             child: Image.network(
               url,
               width: 88,
@@ -273,7 +275,7 @@ class _PendingThumb extends StatelessWidget {
                 width: 88,
                 height: 88,
                 color: scheme.secondaryContainer,
-                child: Icon(Icons.broken_image_outlined, size: 20, color: scheme.outline),
+                child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
               ),
             ),
           ),
@@ -285,7 +287,7 @@ class _PendingThumb extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
                 padding: const EdgeInsets.all(3),
-                child: Icon(Icons.close, size: 14, color: scheme.onInverseSurface),
+                child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
               ),
             ),
           ),

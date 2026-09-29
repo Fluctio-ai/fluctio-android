@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
@@ -52,17 +53,17 @@ class ProfilePage extends ConsumerWidget {
             [
               _item(
                 context,
-                icon: Icons.account_tree_outlined,
+                icon: LucideIcons.workflow,
                 label: l.navWorkflow,
                 onTap: () => context.push('/workflow'),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
               _item(
                 context,
-                icon: Icons.smart_toy_outlined,
+                icon: LucideIcons.bot,
                 label: l.meAgentManage,
                 onTap: () => _soon(context, l),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
             ],
           ),
@@ -72,27 +73,27 @@ class ProfilePage extends ConsumerWidget {
             [
               _item(
                 context,
-                icon: Icons.dns_outlined,
+                icon: LucideIcons.server,
                 label: l.currentServer,
                 value: auth.baseUrl,
               ),
               if (auth.allowSelfSigned)
                 _item(
                   context,
-                  icon: Icons.verified_user_outlined,
+                  icon: LucideIcons.shieldCheck,
                   label: l.allowSelfSigned,
                   value: '✓',
                 ),
               _item(
                 context,
-                icon: Icons.swap_horiz,
+                icon: LucideIcons.arrowLeftRight,
                 label: l.switchServer,
                 onTap: () => ref.read(authControllerProvider.notifier).clearServer(),
-                trailing: const Icon(Icons.chevron_right, size: 18),
+                trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
               _item(
                 context,
-                icon: Icons.logout,
+                icon: LucideIcons.logOut,
                 label: l.signOut,
                 onTap: () => _confirmSignOut(context, ref, l),
               ),
@@ -104,7 +105,7 @@ class ProfilePage extends ConsumerWidget {
             [
               _item(
                 context,
-                icon: Icons.info_outline,
+                icon: LucideIcons.info,
                 label: l.meVersion,
                 value: 'v1.0.0',
               ),

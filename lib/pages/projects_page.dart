@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
@@ -24,7 +25,7 @@ class ProjectsPage extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: l.chatNew,
-            icon: const Icon(Icons.add),
+            icon: const Icon(LucideIcons.plus),
             onPressed: () => ScaffoldMessenger.of(context)
                 .showSnackBar(const SnackBar(content: Text('M2'))),
           ),
@@ -56,7 +57,7 @@ class ProjectsPage extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.folder_outlined, size: 44, color: theme.colorScheme.outline),
+                        Icon(LucideIcons.folder, size: 44, color: theme.colorScheme.outline),
                         const SizedBox(height: 12),
                         Text(l.projectsEmpty, style: theme.textTheme.bodyMedium),
                       ],
@@ -85,7 +86,7 @@ class ProjectsPage extends ConsumerWidget {
                               color: theme.colorScheme.primaryContainer,
                               borderRadius: AppRadius.cardBorder,
                             ),
-                            child: Icon(Icons.folder_outlined,
+                            child: Icon(LucideIcons.folder,
                                 size: 22, color: theme.colorScheme.onPrimaryContainer),
                           ),
                           const SizedBox(width: 12),

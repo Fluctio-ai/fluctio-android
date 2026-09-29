@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../l10n/app_localizations.dart';
@@ -27,14 +28,14 @@ class _KbPageState extends State<KbPage> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final entries = <_KbEntry>[
-      _KbEntry(l.kbArticles, Icons.article_outlined, () => _comingSoon(context, l)),
-      _KbEntry(l.kbNotes, Icons.edit_note_outlined, () => _comingSoon(context, l)),
-      _KbEntry(l.kbIdeas, Icons.lightbulb_outline, () => _comingSoon(context, l)),
-      _KbEntry(l.kbTodos, Icons.checklist, () => _comingSoon(context, l)),
-      _KbEntry(l.kbDiary, Icons.menu_book_outlined, () => _comingSoon(context, l)),
-      _KbEntry(l.kbBookmarks, Icons.bookmark_border_outlined, () => _comingSoon(context, l)),
-      _KbEntry(l.kbCards, Icons.style_outlined, () => _comingSoon(context, l)),
-      _KbEntry(l.kbWiki, Icons.travel_explore_outlined, () => context.push('/wiki')),
+      _KbEntry(l.kbArticles, LucideIcons.fileText, () => _comingSoon(context, l)),
+      _KbEntry(l.kbNotes, LucideIcons.stickyNote, () => _comingSoon(context, l)),
+      _KbEntry(l.kbIdeas, LucideIcons.lightbulb, () => _comingSoon(context, l)),
+      _KbEntry(l.kbTodos, LucideIcons.listChecks, () => _comingSoon(context, l)),
+      _KbEntry(l.kbDiary, LucideIcons.calendarDays, () => _comingSoon(context, l)),
+      _KbEntry(l.kbBookmarks, LucideIcons.bookmark, () => _comingSoon(context, l)),
+      _KbEntry(l.kbCards, LucideIcons.layers, () => _comingSoon(context, l)),
+      _KbEntry(l.kbWiki, LucideIcons.globe, () => context.push('/wiki')),
     ];
     final query = _search.text.trim().toLowerCase();
     final visible = query.isEmpty

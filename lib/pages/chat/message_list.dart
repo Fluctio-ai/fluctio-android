@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,15 +13,11 @@ import '../../theme/tokens.dart';
 import 'chat_image.dart';
 import 'image_viewer.dart';
 
-/// Marker inserted between entries when the calendar day changes.
-class _DayBreak {
-  const _DayBreak(this.ts);
-  final int ts;
-}
-
 /// Reverse transcript list: newest pinned at the bottom, the older page
 /// fetched on approach to the top (reverse list — maxScrollExtent is the
-/// oldest end). Entries animate in with the 160ms rise+fade entrance from
+/// oldest end). Rendering mirrors the web chat: assistant messages are
+/// bare markdown (no bubble), user messages are right-aligned tinted
+/// bubbles. Entries animate in with the 160ms rise+fade entrance from
 /// the design tokens (reduced-motion → pure fade).
 class MessageList extends ConsumerStatefulWidget {
   const MessageList({super.key, required this.state});
@@ -46,25 +42,6 @@ class _MessageListState extends ConsumerState<MessageList> {
     }
     final notifier = ref.read(chatStoreProvider.notifier);
 
-    // Interleave day dividers; chronological order, rendered reversed.
-    final rows = <Object>[];
-    int? currentDay;
-    for (final e in widget.state.entries) {
-      final ts = switch (e) {
-        UserEntry u => u.ts,
-        AssistantEntry a => a.ts,
-        _ => 0,
-      };
-      if (ts > 0) {
-        final day = _dayKey(ts);
-        if (day != currentDay) {
-          currentDay = day;
-          rows.add(_DayBreak(ts));
-        }
-      }
-      rows.add(e);
-    }
-
     return NotificationListener<ScrollNotification>(
       onNotification: (n) {
         if (n.depth == 0 && n.metrics.pixels > n.metrics.maxScrollExtent - 400) {
@@ -75,9 +52,9 @@ class _MessageListState extends ConsumerState<MessageList> {
       child: ListView.builder(
         reverse: true,
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        itemCount: rows.length + (widget.state.loadMoreRunning ? 1 : 0),
+        itemCount: widget.state.entries.length + (widget.state.loadMoreRunning ? 1 : 0),
         itemBuilder: (context, i) {
-          if (widget.state.loadMoreRunning && i == rows.length) {
+          if (widget.state.loadMoreRunning && i == widget.state.entries.length) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Center(
@@ -89,11 +66,7 @@ class _MessageListState extends ConsumerState<MessageList> {
               ),
             );
           }
-          final row = rows[rows.length - 1 - i];
-          if (row is _DayBreak) {
-            return _DayDivider(ts: row.ts);
-          }
-          final entry = row as UiEntry;
+          final entry = widget.state.entries[widget.state.entries.length - 1 - i];
           return _EntryIn(
             animate: _animated.add(entry.key),
             child: switch (entry) {
@@ -107,11 +80,6 @@ class _MessageListState extends ConsumerState<MessageList> {
         },
       ),
     );
-  }
-
-  int _dayKey(int ts) {
-    final d = DateTime.fromMillisecondsSinceEpoch(ts);
-    return d.year * 10000 + d.month * 100 + d.day;
   }
 }
 
@@ -127,7 +95,7 @@ class _EmptyTranscript extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.forum_outlined, size: 44, color: theme.colorScheme.outline),
+          Icon(LucideIcons.messageCircle, size: 44, color: theme.colorScheme.outline),
           const SizedBox(height: 12),
           Text(l.chatEmpty, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
         ],
@@ -172,44 +140,6 @@ class _EntryInState extends State<_EntryIn> {
   }
 }
 
-class _DayDivider extends StatelessWidget {
-  const _DayDivider({required this.ts});
-
-  final int ts;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
-    final date = DateTime.fromMillisecondsSinceEpoch(ts);
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final label = date.isAfter(today.subtract(const Duration(milliseconds: 1)))
-        ? l.chatToday
-        : date.isAfter(yesterday.subtract(const Duration(milliseconds: 1)))
-            ? l.chatYesterday
-            : DateFormat.MMMEd(Localizations.localeOf(context).toString()).format(date);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            borderRadius: AppRadius.controlBorder,
-          ),
-          child: Text(
-            label,
-            style: theme.textTheme.labelSmall
-                ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _UserBubble extends ConsumerWidget {
   const _UserBubble({required this.entry});
 
@@ -228,14 +158,14 @@ class _UserBubble extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
           decoration: BoxDecoration(
-            color: scheme.primary,
-            // Radius families (16 fullscreen + 4 nested); the flat corner
-            // anchors the bubble to the sender's side.
+            // Web: primary/10 tint with primary text (light theme = our
+            // primaryContainer accent + onPrimaryContainer).
+            color: scheme.primaryContainer,
             borderRadius: const BorderRadius.only(
-              topLeft: AppRadius.fullscreen,
-              bottomLeft: AppRadius.fullscreen,
-              bottomRight: AppRadius.fullscreen,
-              topRight: AppRadius.nested,
+              topLeft: AppRadius.nested,
+              topRight: AppRadius.card,
+              bottomLeft: AppRadius.card,
+              bottomRight: AppRadius.card,
             ),
             border: entry.failed ? Border.all(color: scheme.error) : null,
           ),
@@ -260,14 +190,15 @@ class _UserBubble extends ConsumerWidget {
                   ),
                 ),
               if (entry.text.isNotEmpty)
-                Text(entry.text, style: TextStyle(color: scheme.onPrimary, height: 1.5)),
+                Text(entry.text,
+                    style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5)),
               if (entry.pendingSteer)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
                     l.chatThinking,
-                    style:
-                        TextStyle(fontSize: 10, color: scheme.onPrimary.withValues(alpha: 0.7)),
+                    style: TextStyle(
+                        fontSize: 10, color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
                   ),
                 ),
               if (entry.failed)
@@ -276,21 +207,11 @@ class _UserBubble extends ConsumerWidget {
                   child: TextButton.icon(
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
-                      foregroundColor: scheme.onError,
+                      foregroundColor: scheme.error,
                     ),
                     onPressed: () => ref.read(chatStoreProvider.notifier).resendFailed(),
-                    icon: const Icon(Icons.refresh, size: 16),
+                    icon: const Icon(LucideIcons.refreshCw, size: 14),
                     label: Text(l.chatResend),
-                  ),
-                ),
-              if (entry.ts > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    DateFormat.Hm(Localizations.localeOf(context).toString())
-                        .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                    style: TextStyle(
-                        fontSize: 10, color: scheme.onPrimary.withValues(alpha: 0.7)),
                   ),
                 ),
             ],
@@ -301,12 +222,6 @@ class _UserBubble extends ConsumerWidget {
   }
 }
 
-TextStyle? _timeStyle(BuildContext context) =>
-    Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontSize: 10,
-          color: Theme.of(context).colorScheme.outline,
-        );
-
 class _AssistantBubble extends ConsumerWidget {
   const _AssistantBubble({required this.entry, required this.isLast});
 
@@ -315,7 +230,6 @@ class _AssistantBubble extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final canRegenerate = isLast &&
         !entry.streaming &&
         !ref.watch(chatStoreProvider.select((s) => s.active?.turnActive ?? false));
@@ -324,45 +238,22 @@ class _AssistantBubble extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.secondaryContainer,
-              borderRadius: const BorderRadius.only(
-                topLeft: AppRadius.nested,
-                topRight: AppRadius.fullscreen,
-                bottomLeft: AppRadius.fullscreen,
-                bottomRight: AppRadius.fullscreen,
-              ),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: MarkdownBody(
-              data: entry.text,
-              extensionSet: md.ExtensionSet.gitHubWeb,
-              styleSheet: _markdownStyle(context),
-              onTapLink: (_, href, _) => _openLink(context, href),
-              sizedImageBuilder: (config) => _MarkdownImage(
-                url: config.uri.toString(),
-                width: config.width,
-                height: config.height,
-              ),
+          MarkdownBody(
+            data: entry.text,
+            extensionSet: md.ExtensionSet.gitHubWeb,
+            styleSheet: _markdownStyle(context),
+            onTapLink: (_, href, _) => _openLink(context, href),
+            sizedImageBuilder: (config) => _MarkdownImage(
+              url: config.uri.toString(),
+              width: config.width,
+              height: config.height,
             ),
           ),
-          Row(
-            children: [
-              if (entry.ts > 0)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(4, 3, 0, 0),
-                  child: Text(
-                    DateFormat.Hm(Localizations.localeOf(context).toString())
-                        .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                    style: _timeStyle(context),
-                  ),
-                ),
-              const Spacer(),
-              if (canRegenerate) _RegenerateButton(),
-            ],
-          ),
+          if (canRegenerate)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: _RegenerateButton(),
+            ),
         ],
       ),
     );
@@ -380,7 +271,7 @@ class _RegenerateButton extends ConsumerWidget {
         foregroundColor: theme.colorScheme.outline,
       ),
       onPressed: () => ref.read(chatStoreProvider.notifier).regenerate(),
-      icon: const Icon(Icons.refresh, size: 14),
+      icon: const Icon(LucideIcons.rotateCcw, size: 14),
       label: Text(l.chatRegenerate, style: const TextStyle(fontSize: 12)),
     );
   }
@@ -437,7 +328,7 @@ class _MarkdownImage extends ConsumerWidget {
               height: 40,
               padding: const EdgeInsets.all(8),
               color: scheme.secondaryContainer,
-              child: Icon(Icons.broken_image_outlined, size: 18, color: scheme.outline),
+              child: Icon(LucideIcons.imageOff, size: 18, color: scheme.outline),
             ),
           ),
         ),
@@ -472,7 +363,7 @@ class _ToolCard extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
                 children: [
-                  Icon(Icons.terminal_outlined, size: 16, color: theme.colorScheme.outline),
+                  Icon(LucideIcons.terminal, size: 15, color: theme.colorScheme.outline),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -493,15 +384,15 @@ class _ToolCard extends ConsumerWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check, size: 14, color: theme.colorScheme.primary),
+                        Icon(LucideIcons.check, size: 14, color: theme.colorScheme.primary),
                         const SizedBox(width: 4),
                         Text(l.chatToolDone,
                             style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
                       ],
                     ),
                   const SizedBox(width: 6),
-                  Icon(entry.expanded ? Icons.expand_less : Icons.expand_more,
-                      size: 18, color: theme.colorScheme.outline),
+                  Icon(entry.expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
+                      size: 16, color: theme.colorScheme.outline),
                 ],
               ),
             ),
@@ -560,9 +451,9 @@ class _NoticeChip extends StatelessWidget {
       NoticeKind.historyError => l.chatHistoryError,
     };
     final (icon, color) = switch (entry.tone) {
-      NoticeTone.error => (Icons.error_outline, theme.colorScheme.error),
-      NoticeTone.warn => (Icons.warning_amber_outlined, theme.colorScheme.outline),
-      NoticeTone.info => (Icons.info_outline, theme.colorScheme.outline),
+      NoticeTone.error => (LucideIcons.circleAlert, theme.colorScheme.error),
+      NoticeTone.warn => (LucideIcons.triangleAlert, theme.colorScheme.outline),
+      NoticeTone.info => (LucideIcons.info, theme.colorScheme.outline),
     };
     return Center(
       child: Container(
@@ -615,7 +506,7 @@ class _AuthCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.gpp_maybe_outlined, size: 18, color: theme.colorScheme.primary),
+              Icon(LucideIcons.shieldCheck, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text(l.chatAuthTitle, style: theme.textTheme.titleSmall),
             ],

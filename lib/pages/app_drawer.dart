@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../chat/chat_controller.dart';
@@ -57,7 +58,7 @@ class AppDrawer extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: _ActionChip(
-                      icon: Icons.add_comment_outlined,
+                      icon: LucideIcons.messageSquarePlus,
                       label: l.chatNew,
                       onTap: () {
                         Navigator.of(context).pop();
@@ -68,7 +69,7 @@ class AppDrawer extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: _ActionChip(
-                      icon: Icons.account_tree_outlined,
+                      icon: LucideIcons.workflow,
                       label: l.navWorkflow,
                       onTap: () {
                         Navigator.of(context).pop();
@@ -86,17 +87,17 @@ class AppDrawer extends ConsumerWidget {
                   _SectionTitle(l.navKnowledge, onTap: () {
                     Navigator.of(context).pop();
                     context.go('/kb');
-                  }, actionIcon: Icons.chevron_right),
+                  }, actionIcon: LucideIcons.chevronRight),
                   _SectionTitle(l.navProjects, onTap: () {
                     Navigator.of(context).pop();
                     context.go('/projects');
-                  }, actionIcon: Icons.chevron_right),
+                  }, actionIcon: LucideIcons.chevronRight),
                   ...?projects?.when(
                     data: (list) => [
                       for (final p in list.take(4))
                         ListTile(
                           dense: true,
-                          leading: const Icon(Icons.folder_outlined, size: 18),
+                          leading: const Icon(LucideIcons.folder, size: 18),
                           title: Text(p.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                           onTap: () {
                             Navigator.of(context).pop();
@@ -152,7 +153,7 @@ class AppDrawer extends ConsumerWidget {
             Divider(height: 1, color: theme.colorScheme.outlineVariant),
             ListTile(
               dense: true,
-              leading: const Icon(Icons.settings_outlined, size: 20),
+              leading: const Icon(LucideIcons.settings, size: 20),
               title: Text(l.navSettings),
               onTap: () {
                 Navigator.of(context).pop();

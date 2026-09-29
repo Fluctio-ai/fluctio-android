@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
@@ -24,7 +25,7 @@ class AgentAvatar extends ConsumerWidget {
       return CircleAvatar(
         radius: size / 2,
         backgroundColor: scheme.secondaryContainer,
-        child: Icon(Icons.smart_toy_outlined, size: size * 0.55, color: scheme.outline),
+        child: Icon(LucideIcons.bot, size: size * 0.55, color: scheme.outline),
       );
     }
     return ClipOval(
@@ -36,7 +37,7 @@ class AgentAvatar extends ConsumerWidget {
         errorBuilder: (_, _, _) => CircleAvatar(
           radius: size / 2,
           backgroundColor: scheme.secondaryContainer,
-          child: Icon(Icons.smart_toy_outlined, size: size * 0.55, color: scheme.outline),
+          child: Icon(LucideIcons.bot, size: size * 0.55, color: scheme.outline),
         ),
       ),
     );
@@ -114,7 +115,7 @@ class ChatImageThumb extends StatelessWidget {
                   width: size,
                   height: size,
                   color: scheme.secondary,
-                  child: Icon(Icons.broken_image_outlined, size: 20, color: scheme.outline),
+                  child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
                 ),
               ),
             ),
@@ -128,7 +129,7 @@ class ChatImageThumb extends StatelessWidget {
                 child: Container(
                   decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
                   padding: const EdgeInsets.all(3),
-                  child: Icon(Icons.close, size: 14, color: scheme.onInverseSurface),
+                  child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
                 ),
               ),
             ),

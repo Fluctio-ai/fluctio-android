@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import 'auth/auth_controller.dart';
@@ -74,10 +75,10 @@ class RootShell extends StatelessWidget {
           initialLocation: index == shell.currentIndex,
         ),
         destinations: [
-          NavigationDestination(icon: const Icon(Icons.forum_outlined), selectedIcon: const Icon(Icons.forum), label: l.navChat),
-          NavigationDestination(icon: const Icon(Icons.menu_book_outlined), selectedIcon: const Icon(Icons.menu_book), label: l.navKnowledge),
-          NavigationDestination(icon: const Icon(Icons.folder_outlined), selectedIcon: const Icon(Icons.folder), label: l.navProjects),
-          NavigationDestination(icon: const Icon(Icons.person_outline), selectedIcon: const Icon(Icons.person), label: l.navMe),
+          NavigationDestination(icon: const Icon(LucideIcons.messageCircle), selectedIcon: const Icon(Icons.forum), label: l.navChat),
+          NavigationDestination(icon: const Icon(LucideIcons.bookOpen), selectedIcon: const Icon(Icons.menu_book), label: l.navKnowledge),
+          NavigationDestination(icon: const Icon(LucideIcons.folder), selectedIcon: const Icon(Icons.folder), label: l.navProjects),
+          NavigationDestination(icon: const Icon(LucideIcons.circleUser), selectedIcon: const Icon(Icons.person), label: l.navMe),
         ],
       ),
     );
