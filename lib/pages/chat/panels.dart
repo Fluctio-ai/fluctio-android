@@ -2,20 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
 import '../../l10n/app_localizations.dart';
-import 'chat_image.dart';
 
-/// Session list sheet: switch / new / rename / delete / chat-only toggle.
-Future<void> showSessionsSheet(BuildContext context) {
-  return showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    builder: (_) => const _SessionsSheet(),
-  );
+/// One session row (used in the navigation drawer): title/preview/time,
+/// per-item menu (rename / delete / chat-only toggle).
+class SessionTile extends ConsumerWidget {
+  const SessionTile({
+    super.key,
+    required this.session,
+    required this.selected,
+    this.leading,
+    this.trailing,
+    required this.onTap,
+  });
+
+  final ChatSessionInfo session;
+  final bool selected;
+  final Widget? leading;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final time = _formatSessionTime(context, session.updatedAt);
+    return ListTile(
+      dense: true,
+      selected: selected,
+      leading: leading,
+      title: Text(
+        session.title.isEmpty ? l.chatNew : session.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: switch ((session.preview, time)) {
+        ('', '') => null,
+        ('', _) => Text(time, maxLines: 1),
+        (_, '') => Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+        (_, _) => Text('$session.preview · $time', maxLines: 1, overflow: TextOverflow.ellipsis),
+      },
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (session.chatOnly)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Tooltip(
+                message: l.chatOnlyMode,
+                child: Icon(Icons.forum_outlined,
+                    size: 16, color: Theme.of(context).colorScheme.outline),
+              ),
+            ),
+          _SessionMenu(session: session),
+          ?trailing,
+        ],
+      ),
+      onTap: onTap,
+    );
+  }
 }
 
 /// Today → HH:mm; this year → M/d HH:mm; older → yyyy/M/d.
@@ -32,146 +78,22 @@ String _formatSessionTime(BuildContext context, int ts) {
   return DateFormat.yMd(locale).format(date);
 }
 
-class _SessionsSheet extends ConsumerWidget {
-  const _SessionsSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    final scheme = Theme.of(context).colorScheme;
-    final sessions = ref.watch(sessionsProvider);
-    final agents = ref.watch(agentsProvider);
-    final activeKey = ref.watch(chatStoreProvider.select((s) => s.activeKey));
-    final auth = ref.watch(authControllerProvider);
-
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 16, 8),
-              child: Row(
-                children: [
-                  Expanded(child: Text(l.chatSessions, style: Theme.of(context).textTheme.titleMedium)),
-                  FilledButton.tonalIcon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      ref.read(chatStoreProvider.notifier).newChat();
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(l.chatNew),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: sessions.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-                error: (e, _) => Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(l.chatHistoryError,
-                          style: TextStyle(color: scheme.error), textAlign: TextAlign.center),
-                      const SizedBox(height: 8),
-                      OutlinedButton(
-                        onPressed: () => ref.read(sessionsProvider.notifier).reload(),
-                        child: Text(l.chatLoadAgents),
-                      ),
-                    ],
-                  ),
-                ),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Text(l.chatNoSessions, style: TextStyle(color: scheme.outline)),
-                    );
-                  }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: list.length,
-                    itemBuilder: (context, i) {
-                      final s = list[i];
-                      final selected = activeKey == '${agents.selectedId}|${s.id}';
-                      return ListTile(
-                        selected: selected,
-                        leading: s.thumbnailUrl.isEmpty
-                            ? const Icon(Icons.chat_bubble_outline)
-                            : ChatImageThumb(
-                                url: s.thumbnailUrl,
-                                baseUrl: auth.baseUrl,
-                                cookie: auth.sid,
-                                size: 40,
-                              ),
-                        title: Text(
-                          s.title.isEmpty ? l.chatNew : s.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: s.preview.isEmpty
-                            ? (s.updatedAt > 0 ? Text(_formatSessionTime(context, s.updatedAt)) : null)
-                            : Text(
-                                '${s.preview} · ${_formatSessionTime(context, s.updatedAt)}',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (s.chatOnly)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Tooltip(
-                                  message: l.chatOnlyMode,
-                                  child: Icon(Icons.forum_outlined,
-                                      size: 16, color: Theme.of(context).colorScheme.outline),
-                                ),
-                              ),
-                            _SessionMenu(agentSession: s),
-                          ],
-                        ),
-                        onTap: () {
-                          final agentId = agents.selectedId;
-                          if (agentId != null) {
-                            Navigator.of(context).pop();
-                            ref.read(chatStoreProvider.notifier).openSession(agentId, s.id);
-                          }
-                        },
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _SessionMenu extends ConsumerWidget {
-  const _SessionMenu({required this.agentSession});
+  const _SessionMenu({required this.session});
 
-  final ChatSessionInfo agentSession;
+  final ChatSessionInfo session;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       onSelected: (action) => _run(context, ref, action),
+      icon: Icon(Icons.more_vert, size: 18, color: Theme.of(context).colorScheme.outline),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
         PopupMenuItem(
           value: 'chatOnly',
-          child: Text('${agentSession.chatOnly ? '✓ ' : ''}${l.chatOnlyMode}'),
+          child: Text('${session.chatOnly ? '✓ ' : ''}${l.chatOnlyMode}'),
         ),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
       ],
@@ -186,7 +108,7 @@ class _SessionMenu extends ConsumerWidget {
         await _promptRename(context, ref, l);
       case 'chatOnly':
         try {
-          await notifier.setChatOnly(agentSession.id, !agentSession.chatOnly);
+          await notifier.setChatOnly(session.id, !session.chatOnly);
         } catch (_) {
           // Toggle failures surface as the stale list state.
         }
@@ -204,8 +126,8 @@ class _SessionMenu extends ConsumerWidget {
         if (yes != true) return;
         try {
           final wasActive = ref.read(chatStoreProvider).activeKey ==
-              '${ref.read(agentsProvider).selectedId}|${agentSession.id}';
-          await notifier.delete(agentSession.id);
+              '${ref.read(agentsProvider).selectedId}|${session.id}';
+          await notifier.delete(session.id);
           if (wasActive) await ref.read(chatStoreProvider.notifier).newChat();
         } catch (e) {
           if (context.mounted) {
@@ -216,7 +138,7 @@ class _SessionMenu extends ConsumerWidget {
   }
 
   Future<void> _promptRename(BuildContext context, WidgetRef ref, AppLocalizations l) async {
-    final controller = TextEditingController(text: agentSession.title);
+    final controller = TextEditingController(text: session.title);
     final name = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -231,7 +153,7 @@ class _SessionMenu extends ConsumerWidget {
     );
     if (name != null && name.trim().isNotEmpty) {
       try {
-        await ref.read(sessionsProvider.notifier).rename(agentSession.id, name.trim());
+        await ref.read(sessionsProvider.notifier).rename(session.id, name.trim());
       } catch (_) {
         // Rename failures surface as the stale title.
       }

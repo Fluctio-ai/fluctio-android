@@ -1,8 +1,47 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../auth/auth_controller.dart';
+import '../../chat/chat_controller.dart';
 import '../../theme/tokens.dart';
+
+/// Circular agent avatar (GET /api/agents/*/files/avatar.png — cookie
+/// gated, so same-host loads carry the session cookie). Falls back to a
+/// smart-toy tile when the agent has no avatar file.
+class AgentAvatar extends ConsumerWidget {
+  const AgentAvatar({super.key, this.size = 32});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final auth = ref.watch(authControllerProvider);
+    final avatarUrl = ref.watch(agentsProvider.select((a) => a.selected?.avatarUrl ?? ''));
+    if (avatarUrl.isEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundColor: scheme.secondaryContainer,
+        child: Icon(Icons.smart_toy_outlined, size: size * 0.55, color: scheme.outline),
+      );
+    }
+    return ClipOval(
+      child: Image(
+        image: chatImageProvider(avatarUrl, baseUrl: auth.baseUrl, cookie: auth.sid),
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => CircleAvatar(
+          radius: size / 2,
+          backgroundColor: scheme.secondaryContainer,
+          child: Icon(Icons.smart_toy_outlined, size: size * 0.55, color: scheme.outline),
+        ),
+      ),
+    );
+  }
+}
 
 /// Resolves a chat image URL to an [ImageProvider]. Contract notes
 /// (docs/api/API.md §4): inline vision content is data: URLs or absolute

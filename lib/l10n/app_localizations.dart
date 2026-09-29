@@ -499,6 +499,138 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'图片读取失败'**
   String get chatPickImageError;
+
+  /// No description provided for @navProjects.
+  ///
+  /// In zh, this message translates to:
+  /// **'项目'**
+  String get navProjects;
+
+  /// No description provided for @navMe.
+  ///
+  /// In zh, this message translates to:
+  /// **'我的'**
+  String get navMe;
+
+  /// No description provided for @drawerRole.
+  ///
+  /// In zh, this message translates to:
+  /// **'你的智能助理'**
+  String get drawerRole;
+
+  /// No description provided for @drawerChatHistory.
+  ///
+  /// In zh, this message translates to:
+  /// **'对话历史'**
+  String get drawerChatHistory;
+
+  /// No description provided for @projectsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无项目'**
+  String get projectsEmpty;
+
+  /// No description provided for @kbSearchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索知识库内容…'**
+  String get kbSearchHint;
+
+  /// No description provided for @kbArticles.
+  ///
+  /// In zh, this message translates to:
+  /// **'文章'**
+  String get kbArticles;
+
+  /// No description provided for @kbNotes.
+  ///
+  /// In zh, this message translates to:
+  /// **'笔记'**
+  String get kbNotes;
+
+  /// No description provided for @kbIdeas.
+  ///
+  /// In zh, this message translates to:
+  /// **'灵感'**
+  String get kbIdeas;
+
+  /// No description provided for @kbTodos.
+  ///
+  /// In zh, this message translates to:
+  /// **'待办'**
+  String get kbTodos;
+
+  /// No description provided for @kbDiary.
+  ///
+  /// In zh, this message translates to:
+  /// **'日记'**
+  String get kbDiary;
+
+  /// No description provided for @kbBookmarks.
+  ///
+  /// In zh, this message translates to:
+  /// **'书签'**
+  String get kbBookmarks;
+
+  /// No description provided for @kbCards.
+  ///
+  /// In zh, this message translates to:
+  /// **'卡片'**
+  String get kbCards;
+
+  /// No description provided for @kbWiki.
+  ///
+  /// In zh, this message translates to:
+  /// **'维基'**
+  String get kbWiki;
+
+  /// No description provided for @meAgents.
+  ///
+  /// In zh, this message translates to:
+  /// **'智能体'**
+  String get meAgents;
+
+  /// No description provided for @meGeneral.
+  ///
+  /// In zh, this message translates to:
+  /// **'通用'**
+  String get meGeneral;
+
+  /// No description provided for @meAbout.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get meAbout;
+
+  /// No description provided for @meAgentManage.
+  ///
+  /// In zh, this message translates to:
+  /// **'Agent 管理'**
+  String get meAgentManage;
+
+  /// No description provided for @meVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'版本'**
+  String get meVersion;
+
+  /// No description provided for @chatSuggest1.
+  ///
+  /// In zh, this message translates to:
+  /// **'总结一下最近的对话'**
+  String get chatSuggest1;
+
+  /// No description provided for @chatSuggest2.
+  ///
+  /// In zh, this message translates to:
+  /// **'帮我列一个今日待办'**
+  String get chatSuggest2;
+
+  /// No description provided for @chatSuggest3.
+  ///
+  /// In zh, this message translates to:
+  /// **'随便聊点什么'**
+  String get chatSuggest3;
 }
 
 class _AppLocalizationsDelegate

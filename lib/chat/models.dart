@@ -61,6 +61,20 @@ class ChatSessionInfo {
       );
 }
 
+class ProjectInfo {
+  const ProjectInfo({required this.id, required this.name, this.description = ''});
+
+  final String id;
+  final String name;
+  final String description;
+
+  factory ProjectInfo.fromJson(Map<String, dynamic> json) => ProjectInfo(
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+      );
+}
+
 class TodoItem {
   const TodoItem({required this.text, this.done = false, this.cancelled = false});
 

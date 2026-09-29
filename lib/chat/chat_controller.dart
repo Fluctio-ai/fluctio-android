@@ -139,6 +139,14 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
 }
 
 // ---------------------------------------------------------------------------
+// Projects (per selected agent) — powers the drawer section + projects tab.
+// ---------------------------------------------------------------------------
+
+final projectsProvider = FutureProvider.family<List<ProjectInfo>, String>((ref, agentId) {
+  return ref.watch(chatRepoProvider).projects(agentId);
+});
+
+// ---------------------------------------------------------------------------
 // Todo panel (single data source: the server's todo.md, refetched at
 // turn end — contract §5, handlers.go:1701)
 // ---------------------------------------------------------------------------

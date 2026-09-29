@@ -213,4 +213,70 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatPickImageError => 'Could not read the image';
+
+  @override
+  String get navProjects => 'Projects';
+
+  @override
+  String get navMe => 'Me';
+
+  @override
+  String get drawerRole => 'Your AI assistant';
+
+  @override
+  String get drawerChatHistory => 'Chat history';
+
+  @override
+  String get projectsEmpty => 'No projects yet';
+
+  @override
+  String get kbSearchHint => 'Search knowledge…';
+
+  @override
+  String get kbArticles => 'Articles';
+
+  @override
+  String get kbNotes => 'Notes';
+
+  @override
+  String get kbIdeas => 'Ideas';
+
+  @override
+  String get kbTodos => 'Todos';
+
+  @override
+  String get kbDiary => 'Diary';
+
+  @override
+  String get kbBookmarks => 'Bookmarks';
+
+  @override
+  String get kbCards => 'Cards';
+
+  @override
+  String get kbWiki => 'Wiki';
+
+  @override
+  String get meAgents => 'Agents';
+
+  @override
+  String get meGeneral => 'General';
+
+  @override
+  String get meAbout => 'About';
+
+  @override
+  String get meAgentManage => 'Agent management';
+
+  @override
+  String get meVersion => 'Version';
+
+  @override
+  String get chatSuggest1 => 'Summarize the recent conversation';
+
+  @override
+  String get chatSuggest2 => 'Draft today\'s todo list';
+
+  @override
+  String get chatSuggest3 => 'Just chat';
 }

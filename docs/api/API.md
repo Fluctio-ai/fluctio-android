@@ -127,7 +127,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 | `GET /api/chat/history?agentId=&sessionId=&before=&limit=` | 历史消息（`handlers.go:1834`）。`before`=earliestSeq 上翻一页（缺省=最新页）；`limit` 默认 50 上限 200。响应 `{"history":[...],"earliestSeq":n,"hasMore":bool,"latestEventSeq":n?}`。条目（`agent/loop.go:1838`）：user=`{role,content,timestamp,seq,imageUrls?,senderName?...}`；assistant=`{role,content?,toolCalls?:[{id,name,arguments}],metadata?,timestamp,seq}`；tool=`{role,content,name,toolCallId,timestamp,seq,metadata?}`；notice 条目带 `kind`（`turn_aborted_notice`\|`compaction_notice`）无 seq；fork 继承前缀 seq<0 |
 | `GET /api/chat/todo?agentId=&sessionId=` | 读会话 todo.md → `{"items":[{"text","done","cancelled"?}],"raw"}`；文件缺失=空 items 非错误（`handlers.go:1701`） |
 | `GET /api/chats` | chat 列表（旧，分页 page/pageSize，含跨 agent 视图） |
-| `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；POST sessions 属于「项目内新聊天」路径 |
+| `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；GET → `{"projects":[{id,name,description,createdAt,updatedAt}]}`（`handlers_projects.go:80`）；POST body `{"name","description"}`；POST sessions 属于「项目内新聊天」路径 |
 
 新会话 key 约定：web 端生成 `s-<unix_ms>-<rand6>`（`chat/page.tsx:24`）；`web-ui` 是历史默认会话。`sessionId` 空串=沿用当前。
 

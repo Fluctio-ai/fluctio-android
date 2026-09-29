@@ -28,8 +28,7 @@ void main() {
     // "Chat" appears twice (tab label + ChatPage AppBar title), the rest once.
     expect(find.text('Chat'), findsNWidgets(2));
     expect(find.text('Knowledge'), findsOneWidget);
-    expect(find.text('Wiki'), findsOneWidget);
-    expect(find.text('Workflows'), findsOneWidget);
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Projects'), findsOneWidget);
+    expect(find.text('Me'), findsOneWidget);
   });
 }

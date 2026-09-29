@@ -220,91 +220,144 @@ class _UserBubble extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final auth = ref.watch(authControllerProvider);
     final l = AppLocalizations.of(context)!;
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-        decoration: BoxDecoration(
-          color: scheme.primaryContainer,
-          // Asymmetric corners from the radius families (12 card + 4
-          // nested): flat corner anchors the bubble to the sender's side.
-          borderRadius: const BorderRadius.only(
-            topLeft: AppRadius.card,
-            topRight: AppRadius.card,
-            bottomLeft: AppRadius.card,
-            bottomRight: AppRadius.nested,
-          ),
-          border: entry.failed ? Border.all(color: scheme.error) : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (entry.imageUrls.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Wrap(
-                  children: [
-                    for (final url in entry.imageUrls)
-                      ChatImageThumb(
-                        url: url,
-                        baseUrl: auth.baseUrl,
-                        cookie: auth.sid,
-                        size: 84,
-                        onTap: () => _openImage(context, url, auth.baseUrl, auth.sid),
-                      ),
-                  ],
-                ),
-              ),
-            if (entry.text.isNotEmpty)
-              Text(
-                entry.text,
-                style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5),
-              ),
-            const SizedBox(height: 2),
-            Row(
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (entry.pendingSteer)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Text(
-                      l.chatThinking,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  constraints:
+                      BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    // Radius families (16 fullscreen + 4 nested); the flat
+                    // corner anchors the bubble to the sender's side.
+                    borderRadius: const BorderRadius.only(
+                      topLeft: AppRadius.fullscreen,
+                      bottomLeft: AppRadius.fullscreen,
+                      bottomRight: AppRadius.fullscreen,
+                      topRight: AppRadius.nested,
                     ),
+                    border: entry.failed ? Border.all(color: scheme.error) : null,
                   ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (entry.imageUrls.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Wrap(
+                            children: [
+                              for (final url in entry.imageUrls)
+                                ChatImageThumb(
+                                  url: url,
+                                  baseUrl: auth.baseUrl,
+                                  cookie: auth.sid,
+                                  size: 84,
+                                  onTap: () =>
+                                      _openImage(context, url, auth.baseUrl, auth.sid),
+                                ),
+                            ],
+                          ),
+                        ),
+                      if (entry.text.isNotEmpty)
+                        Text(
+                          entry.text,
+                          style: TextStyle(color: scheme.onPrimary, height: 1.5),
+                        ),
+                      if (entry.pendingSteer)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            l.chatThinking,
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: scheme.onPrimary.withValues(alpha: 0.7)),
+                          ),
+                        ),
+                      if (entry.failed)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: TextButton.icon(
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: scheme.onError,
+                            ),
+                            onPressed: () =>
+                                ref.read(chatStoreProvider.notifier).resendFailed(),
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: Text(l.chatResend),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
                 if (entry.ts > 0)
-                  Text(
-                    DateFormat.Hm(Localizations.localeOf(context).toString())
-                        .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                    style: TextStyle(
-                        fontSize: 10, color: scheme.onPrimaryContainer.withValues(alpha: 0.55)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 3, 2, 0),
+                    child: Text(
+                      DateFormat.Hm(Localizations.localeOf(context).toString())
+                          .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
+                      style: _timeStyle(context),
+                    ),
                   ),
               ],
             ),
-            if (entry.failed)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: scheme.error,
-                  ),
-                  onPressed: () => ref.read(chatStoreProvider.notifier).resendFailed(),
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: Text(l.chatResend),
-                ),
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          const _UserAvatar(),
+        ],
       ),
     );
   }
 }
+
+class _UserAvatar extends ConsumerWidget {
+  const _UserAvatar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final auth = ref.watch(authControllerProvider);
+    final url = auth.user?['avatarURL'] as String?;
+    final label = auth.userLabel;
+    if (url != null && url.isNotEmpty) {
+      return ClipOval(
+        child: Image(
+          image: chatImageProvider(url, baseUrl: auth.baseUrl, cookie: auth.sid),
+          width: 32,
+          height: 32,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallback(scheme, label),
+        ),
+      );
+    }
+    return _fallback(scheme, label);
+  }
+
+  Widget _fallback(ColorScheme scheme, String? label) {
+    final initial = (label == null || label.isEmpty) ? '?' : label.characters.first.toUpperCase();
+    return CircleAvatar(
+      radius: 16,
+      backgroundColor: scheme.secondaryContainer,
+      child: Text(initial, style: TextStyle(fontSize: 14, color: scheme.onSecondaryContainer)),
+    );
+  }
+}
+
+TextStyle? _timeStyle(BuildContext context) =>
+    Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontSize: 10,
+          color: Theme.of(context).colorScheme.outline,
+        );
 
 class _AssistantBubble extends ConsumerWidget {
   const _AssistantBubble({required this.entry, required this.isLast});
@@ -323,31 +376,46 @@ class _AssistantBubble extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _AgentAvatar(),
+          const AgentAvatar(size: 32),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                MarkdownBody(
-                  data: entry.text,
-                  extensionSet: md.ExtensionSet.gitHubWeb,
-                  styleSheet: _markdownStyle(context),
-                  onTapLink: (_, href, _) => _openLink(context, href),
-                  sizedImageBuilder: (config) => _MarkdownImage(
-                    url: config.uri.toString(),
-                    width: config.width,
-                    height: config.height,
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: AppRadius.nested,
+                      topRight: AppRadius.fullscreen,
+                      bottomLeft: AppRadius.fullscreen,
+                      bottomRight: AppRadius.fullscreen,
+                    ),
+                    border: Border.all(color: theme.colorScheme.outlineVariant),
+                  ),
+                  child: MarkdownBody(
+                    data: entry.text,
+                    extensionSet: md.ExtensionSet.gitHubWeb,
+                    styleSheet: _markdownStyle(context),
+                    onTapLink: (_, href, _) => _openLink(context, href),
+                    sizedImageBuilder: (config) => _MarkdownImage(
+                      url: config.uri.toString(),
+                      width: config.width,
+                      height: config.height,
+                    ),
                   ),
                 ),
                 Row(
                   children: [
                     if (entry.ts > 0)
-                      Text(
-                        DateFormat.Hm(Localizations.localeOf(context).toString())
-                            .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: theme.colorScheme.outline),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(2, 3, 0, 0),
+                        child: Text(
+                          DateFormat.Hm(Localizations.localeOf(context).toString())
+                              .format(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
+                          style: _timeStyle(context),
+                        ),
                       ),
                     const Spacer(),
                     if (canRegenerate) _RegenerateButton(),
@@ -375,43 +443,6 @@ class _RegenerateButton extends ConsumerWidget {
       onPressed: () => ref.read(chatStoreProvider.notifier).regenerate(),
       icon: const Icon(Icons.refresh, size: 14),
       label: Text(l.chatRegenerate, style: const TextStyle(fontSize: 12)),
-    );
-  }
-}
-
-/// Selected agent's avatar (GET /api/agents/*/files/avatar.png — cookie
-/// gated, so same-host loads carry the session cookie).
-class _AgentAvatar extends ConsumerWidget {
-  const _AgentAvatar();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final scheme = Theme.of(context).colorScheme;
-    final auth = ref.watch(authControllerProvider);
-    final avatarUrl = ref.watch(agentsProvider.select((a) => a.selected?.avatarUrl ?? ''));
-    if (avatarUrl.isEmpty) {
-      return Container(
-        width: 28,
-        height: 28,
-        decoration:
-            BoxDecoration(color: scheme.secondaryContainer, borderRadius: AppRadius.controlBorder),
-        child: Icon(Icons.smart_toy_outlined, size: 16, color: scheme.outline),
-      );
-    }
-    return ClipRRect(
-      borderRadius: AppRadius.controlBorder,
-      child: Image(
-        image: chatImageProvider(avatarUrl, baseUrl: auth.baseUrl, cookie: auth.sid),
-        width: 28,
-        height: 28,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => Container(
-          width: 28,
-          height: 28,
-          color: scheme.secondaryContainer,
-          child: Icon(Icons.smart_toy_outlined, size: 16, color: scheme.outline),
-        ),
-      ),
     );
   }
 }

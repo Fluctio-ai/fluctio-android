@@ -209,4 +209,70 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatPickImageError => '图片读取失败';
+
+  @override
+  String get navProjects => '项目';
+
+  @override
+  String get navMe => '我的';
+
+  @override
+  String get drawerRole => '你的智能助理';
+
+  @override
+  String get drawerChatHistory => '对话历史';
+
+  @override
+  String get projectsEmpty => '暂无项目';
+
+  @override
+  String get kbSearchHint => '搜索知识库内容…';
+
+  @override
+  String get kbArticles => '文章';
+
+  @override
+  String get kbNotes => '笔记';
+
+  @override
+  String get kbIdeas => '灵感';
+
+  @override
+  String get kbTodos => '待办';
+
+  @override
+  String get kbDiary => '日记';
+
+  @override
+  String get kbBookmarks => '书签';
+
+  @override
+  String get kbCards => '卡片';
+
+  @override
+  String get kbWiki => '维基';
+
+  @override
+  String get meAgents => '智能体';
+
+  @override
+  String get meGeneral => '通用';
+
+  @override
+  String get meAbout => '关于';
+
+  @override
+  String get meAgentManage => 'Agent 管理';
+
+  @override
+  String get meVersion => '版本';
+
+  @override
+  String get chatSuggest1 => '总结一下最近的对话';
+
+  @override
+  String get chatSuggest2 => '帮我列一个今日待办';
+
+  @override
+  String get chatSuggest3 => '随便聊点什么';
 }

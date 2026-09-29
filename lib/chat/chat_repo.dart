@@ -22,6 +22,9 @@ class ChatRepo {
       _rows(await _dio.get('/api/chat/sessions', queryParameters: {'agentId': agentId}),
           'sessions', ChatSessionInfo.fromJson);
 
+  Future<List<ProjectInfo>> projects(String agentId) async =>
+      _rows(await _dio.get('/api/agents/$agentId/projects'), 'projects', ProjectInfo.fromJson);
+
   Future<HistoryPage> history(String agentId, String sessionId, {int before = 0, int limit = 50}) async {
     final res = await _dio.get('/api/chat/history', queryParameters: {
       'agentId': agentId,

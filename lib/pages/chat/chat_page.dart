@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../l10n/app_localizations.dart';
+import '../app_drawer.dart';
 import 'composer.dart';
 import 'message_list.dart';
 import 'panels.dart';
@@ -118,6 +119,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
 
     final selected = agents.selected!;
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: PopupMenuButton<String>(
           initialValue: selected.id,
@@ -170,11 +172,6 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
             onPressed: () => showTodoSheet(context),
             icon: const Icon(Icons.checklist),
           ),
-          IconButton(
-            tooltip: l.chatSessions,
-            onPressed: () => showSessionsSheet(context),
-            icon: const Icon(Icons.forum_outlined),
-          ),
         ],
       ),
       body: active == null
@@ -203,6 +200,10 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   // in MessageList's state and must reset on switch.
                   child: MessageList(key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
                 ),
+                if (!active.turnActive && active.entries.isEmpty)
+                  _QuickSuggestions(onSend: (text) {
+                    ref.read(chatStoreProvider.notifier).send(text);
+                  }),
                 if (active.turnActive && active.awaitingFirstDelta)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -233,6 +234,34 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                 ),
               ],
             ),
+    );
+  }
+}
+
+class _QuickSuggestions extends StatelessWidget {
+  const _QuickSuggestions({required this.onSend});
+
+  final ValueChanged<String> onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final chips = [l.chatSuggest1, l.chatSuggest2, l.chatSuggest3];
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: chips.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, i) => ActionChip(
+          label: Text(chips[i], style: TextStyle(fontSize: 13, color: theme.colorScheme.onSecondaryContainer)),
+          backgroundColor: theme.colorScheme.secondaryContainer,
+          side: BorderSide(color: theme.colorScheme.outlineVariant),
+          onPressed: () => onSend(chips[i]),
+        ),
+      ),
     );
   }
 }
