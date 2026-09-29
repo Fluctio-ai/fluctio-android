@@ -8,7 +8,7 @@ enum TurnPhase { idle, sending, streaming, reconnecting, stopping }
 
 /// Structured notice kinds — the UI owns the localized copy; `text` carries
 /// the server-provided body when there is one.
-enum NoticeKind { serverError, stopped, compaction, turnAborted, historyError }
+enum NoticeKind { serverError, stopped, compaction, turnAborted, historyError, offlineCache }
 
 enum NoticeTone { info, warn, error }
 
@@ -365,6 +365,38 @@ class ChatEngine {
     }
     final latest = page.latestSeq;
     if (latest != null && latest > _lastSeq) _lastSeq = latest;
+  }
+
+  /// Offline cache replay (ticket 11): cached recent messages become
+  /// entries directly, headed by an offline banner; the seq cursor stays
+  /// at -1 so a later online history load re-syncs cleanly.
+  void loadCachedMessages(List<dynamic> messages) {
+    _entries.clear();
+    _entries.add(const NoticeEntry(
+        key: 'cache-banner', kind: NoticeKind.offlineCache, text: '', tone: NoticeTone.info));
+    for (final m in messages) {
+      if (m.kind.isNotEmpty) {
+        _entries.add(NoticeEntry(
+          key: _key('n'),
+          kind: switch (m.kind) {
+            'serverError' => NoticeKind.serverError,
+            'stopped' => NoticeKind.stopped,
+            'compaction' => NoticeKind.compaction,
+            'turnAborted' => NoticeKind.turnAborted,
+            _ => NoticeKind.historyError,
+          },
+          text: m.content,
+          tone: NoticeTone.warn,
+        ));
+      } else if (m.role == 'user') {
+        _entries.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls, ts: m.ts));
+      } else if (m.role == 'assistant') {
+        _entries.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.ts));
+      }
+    }
+    _historyLoading = false;
+    _hasMore = false;
+    _phase = TurnPhase.idle;
   }
 
   void _mapHistoryMessage(HistoryMessage m, List<UiEntry> batch) {

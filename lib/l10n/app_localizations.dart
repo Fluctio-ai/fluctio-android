@@ -1087,6 +1087,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'诊断报告'**
   String get settingsDiag;
+
+  /// No description provided for @webLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载中…'**
+  String get webLoading;
+
+  /// No description provided for @webLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'页面加载失败'**
+  String get webLoadFailed;
+
+  /// No description provided for @webReloginHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'若会话已过期，请重新登录后再试'**
+  String get webReloginHint;
+
+  /// No description provided for @mermaidHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'Mermaid 图表，点击全屏查看'**
+  String get mermaidHint;
+
+  /// No description provided for @noteWhiteboard.
+  ///
+  /// In zh, this message translates to:
+  /// **'白板'**
+  String get noteWhiteboard;
+
+  /// No description provided for @chatOfflineHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'离线缓存内容，联网后自动刷新'**
+  String get chatOfflineHint;
 }
 
 class _AppLocalizationsDelegate

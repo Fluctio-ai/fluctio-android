@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../settings/agents_admin_repo.dart';
 import '../../settings/json_form.dart';
 import '../../theme/tokens.dart';
+import '../../webview/web_container.dart';
 
 /// System settings center (ticket 09): the web's 21 pages collapsed into
 /// grouped screens — 通用 (user config blob), 模型服务 (providers),
@@ -70,7 +71,15 @@ class SystemSettingsPage extends ConsumerWidget {
           _advancedRow(context, l.settingsBackup, '/api/backup/list', LucideIcons.hardDrive),
           _advancedRow(context, l.settingsCron, '/api/cron', LucideIcons.clock),
           _advancedRow(context, l.settingsApiKeys, '/api/apikeys', LucideIcons.keyRound),
-          _advancedRow(context, l.settingsDiag, '/api/diag/reports', LucideIcons.bug),
+          // Diagnostics is a full web report page — open in the container.
+          ListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(LucideIcons.bug, size: 18, color: theme.colorScheme.outline),
+            title: Text(l.settingsDiag, style: theme.textTheme.bodyMedium),
+            trailing: const Icon(LucideIcons.chevronRight, size: 16),
+            onTap: () => openWebContainer(context, l.settingsDiag, '/settings/diag'),
+          ),
         ],
       ),
     );

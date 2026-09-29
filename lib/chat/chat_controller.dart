@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' show PlatformDispatcher;
 
+import '../cache/chat_cache.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -122,9 +124,41 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
     }
     state = const AsyncValue.loading();
     try {
-      state = AsyncValue.data(await ref.read(chatRepoProvider).sessions(agentId));
+      final sessions = await ref.read(chatRepoProvider).sessions(agentId);
+      state = AsyncValue.data(sessions);
+      // Light cache (ticket 11): keep the list readable offline. Best
+      // effort — cache failures (no sqlite platform in tests, disk full)
+      // must never break the live path.
+      unawaited(ChatCache.instance().then((cache) => cache.replaceSessions(
+            agentId,
+            [
+              for (final s in sessions)
+                CachedSession(
+                  sessionId: s.id,
+                  title: s.title,
+                  preview: s.preview,
+                  updatedAt: s.updatedAt,
+                  chatOnly: s.chatOnly,
+                ),
+            ],
+          )).catchError((_) {}));
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      // Offline: fall back to the cached list instead of an error wall.
+      try {
+        final cached = await ChatCache.instance().then((c) => c.loadSessions(agentId));
+        state = AsyncValue.data([
+          for (final c in cached)
+            ChatSessionInfo(
+              id: c.sessionId,
+              title: c.title,
+              preview: c.preview,
+              updatedAt: c.updatedAt,
+              chatOnly: c.chatOnly,
+            ),
+        ]);
+      } catch (_) {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 
@@ -263,9 +297,14 @@ class ChatStoreController extends Notifier<ChatStore> {
         final page = await ref.read(chatRepoProvider).history(agentId, sessionId);
         engine.loadHistory(page, older: false);
       } catch (_) {
-        engine.loadHistory(const HistoryPage(messages: [], earliestSeq: 0, hasMore: false),
-            older: false);
-        engine.addLocalNotice(NoticeKind.historyError, '', NoticeTone.error);
+        // Offline (ticket 11): render the cached recent messages instead
+        // of an error wall; the cache note explains it's not live data.
+        try {
+          final cached = await ChatCache.instance().then((c) => c.loadMessages(agentId, sessionId));
+          engine.loadCachedMessages(cached);
+        } catch (_) {
+          engine.addLocalNotice(NoticeKind.historyError, '', NoticeTone.error);
+        }
       }
       _publish();
     }
@@ -609,5 +648,39 @@ class ChatStoreController extends Notifier<ChatStore> {
       chats[e.key] = e.value.snapshot();
     }
     state = ChatStore(activeKey: state.activeKey, chats: chats);
+    _scheduleCacheWrite();
+  }
+
+  Timer? _cacheWrite;
+
+  /// Recent messages land in the light cache on a 2s debounce (token
+  /// streams fire constantly; SQLite only needs settled states).
+  void _scheduleCacheWrite() {
+    _cacheWrite?.cancel();
+    _cacheWrite = Timer(const Duration(seconds: 2), () {
+      final key = state.activeKey;
+      if (key == null) return;
+      final engine = _engines[key];
+      if (engine == null) return;
+      final i = key.indexOf('|');
+      final agentId = key.substring(0, i);
+      final sessionId = key.substring(i + 1);
+      final messages = <CachedMessage>[];
+      for (final e in engine.snapshot().entries) {
+        if (e is UserEntry) {
+          messages.add(CachedMessage(role: 'user', kind: '', content: e.text, imageUrls: e.imageUrls, ts: e.ts));
+        } else if (e is AssistantEntry) {
+          messages.add(CachedMessage(role: 'assistant', kind: '', content: e.text, imageUrls: const [], ts: e.ts));
+        } else if (e is NoticeEntry) {
+          messages.add(CachedMessage(
+              role: 'notice', kind: e.kind.name, content: e.text, imageUrls: const [], ts: 0));
+        }
+      }
+      if (messages.isNotEmpty) {
+        ChatCache.instance()
+            .then((c) => c.replaceMessages(agentId, sessionId, messages))
+            .catchError((_) {});
+      }
+    });
   }
 }

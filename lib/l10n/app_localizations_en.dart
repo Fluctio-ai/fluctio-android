@@ -509,4 +509,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDiag => 'Diagnostic reports';
+
+  @override
+  String get webLoading => 'Loading…';
+
+  @override
+  String get webLoadFailed => 'Page failed to load';
+
+  @override
+  String get webReloginHint =>
+      'If the session expired, sign in again and retry';
+
+  @override
+  String get mermaidHint => 'Mermaid diagram — tap to view full screen';
+
+  @override
+  String get noteWhiteboard => 'Whiteboard';
+
+  @override
+  String get chatOfflineHint => 'Offline cache — refreshes when back online';
 }

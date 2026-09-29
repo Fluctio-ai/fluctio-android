@@ -164,5 +164,11 @@
   "settingsBackup": "备份",
   "settingsCron": "定时任务",
   "settingsApiKeys": "API 密钥",
-  "settingsDiag": "诊断报告"
+  "settingsDiag": "诊断报告",
+  "webLoading": "加载中…",
+  "webLoadFailed": "页面加载失败",
+  "webReloginHint": "若会话已过期，请重新登录后再试",
+  "mermaidHint": "Mermaid 图表，点击全屏查看",
+  "noteWhiteboard": "白板",
+  "chatOfflineHint": "离线缓存内容，联网后自动刷新"
 }

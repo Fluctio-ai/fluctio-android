@@ -164,5 +164,11 @@
   "settingsBackup": "Backups",
   "settingsCron": "Scheduled jobs",
   "settingsApiKeys": "API keys",
-  "settingsDiag": "Diagnostic reports"
+  "settingsDiag": "Diagnostic reports",
+  "webLoading": "Loading…",
+  "webLoadFailed": "Page failed to load",
+  "webReloginHint": "If the session expired, sign in again and retry",
+  "mermaidHint": "Mermaid diagram — tap to view full screen",
+  "noteWhiteboard": "Whiteboard",
+  "chatOfflineHint": "Offline cache — refreshes when back online"
 }

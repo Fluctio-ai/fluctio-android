@@ -7,6 +7,7 @@ import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
+import '../../webview/web_container.dart';
 
 /// Notes: markdown list + plain-text editor (upsert on save), read-only
 /// attachment listing.
@@ -50,10 +51,23 @@ class KbNotesPage extends ConsumerWidget {
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
-                        trailing: IconButton(
-                          icon: Icon(LucideIcons.trash2,
-                              size: 18, color: theme.colorScheme.outline),
-                          onPressed: () => _delete(context, ref, agentId!, n),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: l.noteWhiteboard,
+                              icon: Icon(LucideIcons.penTool,
+                                  size: 18, color: theme.colorScheme.primary),
+                              onPressed: () => openWebContainer(
+                                  context, l.noteWhiteboard,
+                                  '/agents/$agentId/knowledge/notes'),
+                            ),
+                            IconButton(
+                              icon: Icon(LucideIcons.trash2,
+                                  size: 18, color: theme.colorScheme.outline),
+                              onPressed: () => _delete(context, ref, agentId!, n),
+                            ),
+                          ],
                         ),
                         onTap: () => _edit(context, ref, agentId!, n),
                       );

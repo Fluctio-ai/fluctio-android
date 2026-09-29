@@ -10,6 +10,7 @@ import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../chat/math_render.dart';
+import '../../webview/web_container.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import 'chat_image.dart';
@@ -295,7 +296,7 @@ class _AssistantBubble extends ConsumerWidget {
             extensionSet: md.ExtensionSet.gitHubWeb,
             inlineSyntaxes: mathInlineSyntaxes,
             blockSyntaxes: mathBlockSyntaxes,
-            builders: mathBuilders,
+            builders: {...mathBuilders, 'code': _MermaidCodeBuilder()},
             styleSheet: _markdownStyle(context),
             onTapLink: (_, href, _) => _openLink(context, href),
             sizedImageBuilder: (config) => _MarkdownImage(
@@ -504,6 +505,7 @@ class _NoticeChip extends StatelessWidget {
       NoticeKind.compaction => entry.text.isEmpty ? l.chatCompacted : entry.text,
       NoticeKind.turnAborted => entry.text,
       NoticeKind.historyError => l.chatHistoryError,
+      NoticeKind.offlineCache => l.chatOfflineHint,
     };
     final (icon, color) = switch (entry.tone) {
       NoticeTone.error => (LucideIcons.circleAlert, theme.colorScheme.error),
@@ -588,6 +590,48 @@ class _AuthCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Mermaid fenced blocks become a tappable card that opens the
+/// full-screen WebView renderer (ticket 10); other code falls through
+/// to the default block style.
+class _MermaidCodeBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    final cls = element.attributes['class'] ?? '';
+    if (!cls.contains('language-mermaid')) return null;
+    final source = element.textContent;
+    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        onTap: () => openMermaidViewer(context, source),
+        borderRadius: AppRadius.cardBorder,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.secondaryContainer,
+            borderRadius: AppRadius.cardBorder,
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(LucideIcons.workflow, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(child: Text(l.mermaidHint, style: theme.textTheme.bodySmall)),
+              const Icon(LucideIcons.maximize2, size: 14),
+            ],
+          ),
+        ),
       ),
     );
   }

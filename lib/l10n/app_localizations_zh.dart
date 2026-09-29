@@ -503,4 +503,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDiag => '诊断报告';
+
+  @override
+  String get webLoading => '加载中…';
+
+  @override
+  String get webLoadFailed => '页面加载失败';
+
+  @override
+  String get webReloginHint => '若会话已过期，请重新登录后再试';
+
+  @override
+  String get mermaidHint => 'Mermaid 图表，点击全屏查看';
+
+  @override
+  String get noteWhiteboard => '白板';
+
+  @override
+  String get chatOfflineHint => '离线缓存内容，联网后自动刷新';
 }
