@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'auth/auth_controller.dart';
 import 'auth/auth_state.dart';
 import 'l10n/app_localizations.dart';
-import 'pages/chat_page.dart';
+import 'pages/chat/chat_page.dart';
 import 'pages/kb_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/setup_page.dart';

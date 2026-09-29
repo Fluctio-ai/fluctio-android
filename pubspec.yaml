@@ -41,6 +41,12 @@ dependencies:
   # Networking — cookie-session auth against the gateway
   dio: ^5.4.0
   cookie_jar: ^4.0.8
+  # Chat surface (ticket 04): markdown transcript, image send/zoom, links
+  flutter_markdown: ^0.7.7
+  markdown: ^7.0.0
+  image_picker: ^1.1.2
+  photo_view: ^0.15.0
+  url_launcher: ^6.3.0
   # Storage
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.2.0

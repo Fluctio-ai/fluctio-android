@@ -125,4 +125,82 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cancel => '取消';
+
+  @override
+  String get chatNew => '新对话';
+
+  @override
+  String get chatSessions => '会话';
+
+  @override
+  String get chatTodo => '会话待办';
+
+  @override
+  String get chatTodoEmpty => '本会话暂无待办';
+
+  @override
+  String get chatStop => '停止';
+
+  @override
+  String get chatStopped => '已停止';
+
+  @override
+  String get chatResend => '重发';
+
+  @override
+  String get chatRegenerate => '重新生成';
+
+  @override
+  String get chatReconnecting => '重连中';
+
+  @override
+  String get chatCompacted => '上下文已压缩';
+
+  @override
+  String get chatHistoryError => '历史消息加载失败';
+
+  @override
+  String get chatEmpty => '输入消息开始对话';
+
+  @override
+  String get chatAuthTitle => '需要授权';
+
+  @override
+  String get chatToolCalling => '工具调用';
+
+  @override
+  String get chatToolRunning => '进行中';
+
+  @override
+  String get chatToolDone => '完成';
+
+  @override
+  String get chatNoAgent => '没有可用的 Agent';
+
+  @override
+  String get chatLoadAgents => '重新加载';
+
+  @override
+  String get chatNoSessions => '暂无会话';
+
+  @override
+  String get chatRename => '重命名';
+
+  @override
+  String get chatDelete => '删除';
+
+  @override
+  String get chatDeleteConfirm => '删除该会话？删除后不可恢复';
+
+  @override
+  String get chatOnlyMode => '仅聊天模式';
+
+  @override
+  String get chatThinking => '思考中…';
+
+  @override
+  String get chatSteer => '插话到当前回合';
+
+  @override
+  String get chatPickImageError => '图片读取失败';
 }

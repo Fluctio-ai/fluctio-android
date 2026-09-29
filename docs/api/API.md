@@ -83,55 +83,59 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 - 只有 `id:` 行 + `data:` 行（**无 `event:` 行**），载荷是 JSON。
 - `seq` 同时在 `id:` 行与 JSON 内（fetch 解析器与并行 subscribe 去重用）。
 
-**事件类型表**：
+**事件类型表**（data 形状反推自 `agent/loop.go` 各 `emitEvent` 调用点）：
 
 | type | data 形状 | 客户端处理 |
 |---|---|---|
-| `content_delta` | `{"delta":"..."}` | 追加到进行中气泡 |
-| `content` | `{"content":"全文","metadata":{...}}` | 整段替换/新气泡；metadata.planMode 等可带标记 |
-| `tool_call` | 待补（工具名/参数） | 工具卡片区 |
-| `tool_result` | 待补 | 同上 |
-| `function` | 待补（authgate 相关） | 次要 |
-| `auth_prompt` | 待补（exec 授权提示） | 需要用户点授权时处理 |
-| `steer` | 待补 | 渲染为插话 user 气泡 |
-| `session_title` | 待补 | 更新会话标题 |
-| `compaction_notice` | 待补 | 提示上下文压缩 |
-| `reconnecting` | 待补 | LLM 层重连提示 |
+| `content_delta` | `{"delta":"..."}` | 追加到进行中气泡。**seq=-1 且不持久化**（`loop.go:1206`）；subscribe 端点**不转发** delta（`handlers.go:1642`）——重连者收不到增量，靠最终 `content` 全文兜底 |
+| `content` | `{"content":"全文"}` | 提交/替换当前流式气泡；**每轮 ReAct 迭代发一次**，多迭代 = 多个 content 段（`loop.go:3645`）。metadata 仅部分路径携带 |
+| `tool_call` | `{"id","name","arguments"}` | 工具卡片区（`loop.go:3651`） |
+| `tool_result` | `{"id","name","result","metadata"?}` | 按 id 配对工具卡（`loop.go:3891`） |
+| `function` | — | 未观测到 wire 下发，忽略 |
+| `auth_prompt` | `{"description","options":[{"cmd","label_zh","label_en"}]}`（`loop_auth.go:96`） | **持久化可回放**；应答 = 向在飞 turn steer 一条 `/yes` `/no` `/auto` `/yolo`（web 同款，`chat-screen.tsx:2553`） |
+| `steer` | `{"content":"..."}`（`loop.go:2704`） | 插话回显；与本地乐观 steer 气泡按文本去重 |
+| `session_title` | `{"sessionKey","title"}`（`memory.go:662`） | 更新会话列表标题 |
+| `compaction_notice` | `{"content","before","after","retained_turns"}`（`loop.go:3316`） | 提示上下文压缩 |
+| `reconnecting` | `{"attempt","backoffMs"}`（`loop.go:2938`） | LLM 层重连提示（从第 2 次重试起） |
 | `turn_pending` | （内部信号） | **不下发到 wire**（handler 吞掉），无需处理 |
 | `error` | `{"message":"..."}` | 错误提示 |
 | `done` | 无 data | 结束本轮；agent 零输出时 handler 合成 `error: "agent finished without emitting a response"` + 结束 |
+
+另：subscribe 长连上还有 **legacy cron bus 帧**（`handlers.go:1666`）——`id:` 行缺失、载荷为 `{"text","parseMode","mediaItems"?}`（无 `seq`/`type` 字段），客户端解析时须容忍无 type 帧（按 content 对待）。
 
 ### 其他发送/控制端点
 
 | 端点 | 说明 |
 |---|---|
 | `POST /api/chat` | 同步版本，等回复完返回 `{"reply":"..."}`（调试/降级用） |
-| `POST /api/chat/stop` | **显式停止**在飞 turn（body 待补：agentId+sessionId） |
-| `POST /api/chat/steer` | 向在飞 turn 插话；无在飞 turn 返回 `409`（客户端回退为普通发送） |
+| `POST /api/chat/stop` | **显式停止**在飞 turn。body = chatRequest（只认 `agentId`+`sessionId`）。`200 {"stopped":true}` / `409 {"stopped":false}`（无在飞 turn）（`handlers.go:1261`） |
+| `POST /api/chat/steer` | 向在飞 turn 插话。body = chatRequest（`agentId`+`sessionId`+`message`）。`200 {"buffered":true}` / `409 {"buffered":false}`——客户端收 409 回退为普通发送（`handlers.go:1181`） |
 | `POST /api/chat/team/stream` | 多 agent team 流（P2+） |
-| `GET /api/chat/subscribe?agentId=&sessionId=&since=` | 长连 SSE：重放 `seq>since` + 实时事件 + cron 异步回复。首帧 `: ok`；支持 `Last-Event-ID` 头 |
+| `GET /api/chat/subscribe?agentId=&sessionId=&since=` | 长连 SSE：重放 `seq>since` + 实时事件 + cron 异步回复（`handlers.go:1538`）。首帧 `: ok`；`since` 缺省或 `-1` = 只实时不回放；query 优先于 `Last-Event-ID` 头；回放后实时段按 `seq<=已发最大seq` 去重；`content_delta` 不转发；30s ping |
 | `POST /api/chat/recall-feedback` | 召回质量反馈（待补） |
 
 ## 5. 会话管理
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 |
-| `PUT /api/chat/sessions/{key}` | 重命名 `{"title":...}` |
-| `DELETE /api/chat/sessions/{key}` | 删除 |
+| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 → `{"sessions":[WebSession]}`。WebSession 字段（`session/manager.go:1057`）：`id`/`title`/`preview`/`createdAt`/`updatedAt`（unix ms）+ omitempty 的 `chatOnly`/`projectId`/`channel`/`accountId`/`chatId`/`thumbnailUrl`。agent 不存在 → `{"sessions":[]}` |
+| `PUT /api/chat/sessions/{key}` | 重命名，body `{"agentId","title"}`（agentId 也可走 query）→ `{"ok":true}` |
+| `DELETE /api/chat/sessions/{key}?agentId=` | 删除。有 fork 子会话 → `409 {"error":...,"code":"has_fork_children"}` |
 | `PATCH /api/chat/sessions/{key}/project` | 移动到项目 `{"projectId":...}`（空=脱离） |
-| `PATCH /api/chat/sessions/{key}/chat-only` | 仅聊天模式开关 `{"on":bool}`（形状待核） |
-| `POST /api/chat/sessions/fork` | 分叉（body 待补：sourceSessionKey+forkSeq） |
-| `GET /api/chat/history?agentId=&sessionId=` | 历史消息（`beforeSeq/limit` 分页待核） |
-| `GET /api/chat/todo?agentId=&sessionId=` | 读会话 todo.md |
-| `GET /api/chats` | chat 列表（旧） |
+| `PATCH /api/chat/sessions/{key}/chat-only` | 仅聊天模式开关，body `{"agentId","chatOnly":bool}`（agentId 也可走 query）→ `{"ok":true}`（`handlers.go:2039`，owner-only） |
+| `POST /api/chat/sessions/fork` | 分叉，body `{"agentId","sourceSessionKey","forkSeq"}` → `{"sessionKey":...}` |
+| `GET /api/chat/history?agentId=&sessionId=&before=&limit=` | 历史消息（`handlers.go:1834`）。`before`=earliestSeq 上翻一页（缺省=最新页）；`limit` 默认 50 上限 200。响应 `{"history":[...],"earliestSeq":n,"hasMore":bool,"latestEventSeq":n?}`。条目（`agent/loop.go:1838`）：user=`{role,content,timestamp,seq,imageUrls?,senderName?...}`；assistant=`{role,content?,toolCalls?:[{id,name,arguments}],metadata?,timestamp,seq}`；tool=`{role,content,name,toolCallId,timestamp,seq,metadata?}`；notice 条目带 `kind`（`turn_aborted_notice`\|`compaction_notice`）无 seq；fork 继承前缀 seq<0 |
+| `GET /api/chat/todo?agentId=&sessionId=` | 读会话 todo.md → `{"items":[{"text","done","cancelled"?}],"raw"}`；文件缺失=空 items 非错误（`handlers.go:1701`） |
+| `GET /api/chats` | chat 列表（旧，分页 page/pageSize，含跨 agent 视图） |
 | `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；POST sessions 属于「项目内新聊天」路径 |
+
+新会话 key 约定：web 端生成 `s-<unix_ms>-<rand6>`（`chat/page.tsx:24`）；`web-ui` 是历史默认会话。`sessionId` 空串=沿用当前。
 
 ## 6. Agents
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/agents` / `POST /api/agents` | 列表（`?all=true` 仅管理员）/ 创建 |
+| `GET /api/agents` / `POST /api/agents` | 列表（`?all=true` 仅管理员）/ 创建。列表响应 `{"agents":[{id,name,description,model,avatarUrl,createdAt,userId,role}]}`（`handlers_agents.go:256`） |
 | `GET/PUT/DELETE /api/agents/{id}` | 配置读/写/删（model/provider/promptMode/thinking 等） |
 | `GET /api/agents/{id}/config` | 配置视图 |
 | `GET /api/agents/{id}/tools/registered` | 活跃工具注册表（Tools 页勾选） |
@@ -187,4 +191,4 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 ## 附：版本
 
-- 契约 v0.1（2026-09-29）：路由全景 + 认证 + 登录 + chat SSE 线协议 + 事件类型表。KB/Wiki/Workflow body 细节按票补。
+- 契约 v0.2（2026-09-29）：补全票 04 所需字段——事件 data 形状全表、stop/steer body 与响应、subscribe 回放/去重规则、history 分页与条目形状、WebSession/todo/chat-only/agents 列表响应（出处见各条）。KB/Wiki/Workflow body 细节按票补。

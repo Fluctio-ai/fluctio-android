@@ -10,6 +10,7 @@ class ConfigStore {
 
   static const _kBaseUrl = 'server.baseUrl';
   static const _kAllowSelfSigned = 'server.allowSelfSigned';
+  static const _kChatAgentId = 'chat.agentId';
 
   Future<String> baseUrl() => _prefs.getString(_kBaseUrl).then((v) => v ?? '');
 
@@ -21,4 +22,16 @@ class ConfigStore {
   }
 
   Future<void> clearServer() => _prefs.remove(_kBaseUrl);
+
+  // Chat surface remembrance (ticket 04): last agent + last session per
+  // agent, so reopening the app lands where the user left off.
+  Future<String?> chatAgentId() => _prefs.getString(_kChatAgentId);
+
+  Future<void> setChatAgentId(String id) => _prefs.setString(_kChatAgentId, id);
+
+  Future<String> chatSession(String agentId) =>
+      _prefs.getString('chat.session.$agentId').then((v) => v ?? '');
+
+  Future<void> setChatSession(String agentId, String sessionId) =>
+      _prefs.setString('chat.session.$agentId', sessionId);
 }

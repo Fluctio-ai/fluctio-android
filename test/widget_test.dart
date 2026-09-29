@@ -2,11 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fluctio_android/chat/chat_controller.dart';
 import 'package:fluctio_android/main.dart';
+
+/// Agents pre-resolved (empty) so the Chat tab renders its static
+/// "no agents" view instead of a spinner that never lets pumpAndSettle
+/// settle.
+class _LoadedAgents extends AgentsController {
+  @override
+  AgentsState build() => const AgentsState(loaded: true);
+}
 
 void main() {
   testWidgets('renders the 5-tab shell', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: FluctioApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [agentsProvider.overrideWith(_LoadedAgents.new)],
+        child: const FluctioApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(NavigationBar), findsOneWidget);

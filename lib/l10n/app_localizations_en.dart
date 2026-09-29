@@ -129,4 +129,82 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cancel => 'Cancel';
+
+  @override
+  String get chatNew => 'New chat';
+
+  @override
+  String get chatSessions => 'Chats';
+
+  @override
+  String get chatTodo => 'Session todo';
+
+  @override
+  String get chatTodoEmpty => 'No todo items for this session';
+
+  @override
+  String get chatStop => 'Stop';
+
+  @override
+  String get chatStopped => 'Stopped';
+
+  @override
+  String get chatResend => 'Resend';
+
+  @override
+  String get chatRegenerate => 'Regenerate';
+
+  @override
+  String get chatReconnecting => 'Reconnecting';
+
+  @override
+  String get chatCompacted => 'Context compacted';
+
+  @override
+  String get chatHistoryError => 'Failed to load history';
+
+  @override
+  String get chatEmpty => 'Type a message to start';
+
+  @override
+  String get chatAuthTitle => 'Approval needed';
+
+  @override
+  String get chatToolCalling => 'Tool call';
+
+  @override
+  String get chatToolRunning => 'running';
+
+  @override
+  String get chatToolDone => 'done';
+
+  @override
+  String get chatNoAgent => 'No agents available';
+
+  @override
+  String get chatLoadAgents => 'Retry';
+
+  @override
+  String get chatNoSessions => 'No chats yet';
+
+  @override
+  String get chatRename => 'Rename';
+
+  @override
+  String get chatDelete => 'Delete';
+
+  @override
+  String get chatDeleteConfirm => 'Delete this chat? This cannot be undone';
+
+  @override
+  String get chatOnlyMode => 'Chat-only mode';
+
+  @override
+  String get chatThinking => 'Thinking…';
+
+  @override
+  String get chatSteer => 'Steer the running turn';
+
+  @override
+  String get chatPickImageError => 'Could not read the image';
 }

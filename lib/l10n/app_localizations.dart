@@ -331,6 +331,162 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'取消'**
   String get cancel;
+
+  /// No description provided for @chatNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'新对话'**
+  String get chatNew;
+
+  /// No description provided for @chatSessions.
+  ///
+  /// In zh, this message translates to:
+  /// **'会话'**
+  String get chatSessions;
+
+  /// No description provided for @chatTodo.
+  ///
+  /// In zh, this message translates to:
+  /// **'会话待办'**
+  String get chatTodo;
+
+  /// No description provided for @chatTodoEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'本会话暂无待办'**
+  String get chatTodoEmpty;
+
+  /// No description provided for @chatStop.
+  ///
+  /// In zh, this message translates to:
+  /// **'停止'**
+  String get chatStop;
+
+  /// No description provided for @chatStopped.
+  ///
+  /// In zh, this message translates to:
+  /// **'已停止'**
+  String get chatStopped;
+
+  /// No description provided for @chatResend.
+  ///
+  /// In zh, this message translates to:
+  /// **'重发'**
+  String get chatResend;
+
+  /// No description provided for @chatRegenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新生成'**
+  String get chatRegenerate;
+
+  /// No description provided for @chatReconnecting.
+  ///
+  /// In zh, this message translates to:
+  /// **'重连中'**
+  String get chatReconnecting;
+
+  /// No description provided for @chatCompacted.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文已压缩'**
+  String get chatCompacted;
+
+  /// No description provided for @chatHistoryError.
+  ///
+  /// In zh, this message translates to:
+  /// **'历史消息加载失败'**
+  String get chatHistoryError;
+
+  /// No description provided for @chatEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入消息开始对话'**
+  String get chatEmpty;
+
+  /// No description provided for @chatAuthTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'需要授权'**
+  String get chatAuthTitle;
+
+  /// No description provided for @chatToolCalling.
+  ///
+  /// In zh, this message translates to:
+  /// **'工具调用'**
+  String get chatToolCalling;
+
+  /// No description provided for @chatToolRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'进行中'**
+  String get chatToolRunning;
+
+  /// No description provided for @chatToolDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成'**
+  String get chatToolDone;
+
+  /// No description provided for @chatNoAgent.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可用的 Agent'**
+  String get chatNoAgent;
+
+  /// No description provided for @chatLoadAgents.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新加载'**
+  String get chatLoadAgents;
+
+  /// No description provided for @chatNoSessions.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无会话'**
+  String get chatNoSessions;
+
+  /// No description provided for @chatRename.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名'**
+  String get chatRename;
+
+  /// No description provided for @chatDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除'**
+  String get chatDelete;
+
+  /// No description provided for @chatDeleteConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除该会话？删除后不可恢复'**
+  String get chatDeleteConfirm;
+
+  /// No description provided for @chatOnlyMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅聊天模式'**
+  String get chatOnlyMode;
+
+  /// No description provided for @chatThinking.
+  ///
+  /// In zh, this message translates to:
+  /// **'思考中…'**
+  String get chatThinking;
+
+  /// No description provided for @chatSteer.
+  ///
+  /// In zh, this message translates to:
+  /// **'插话到当前回合'**
+  String get chatSteer;
+
+  /// No description provided for @chatPickImageError.
+  ///
+  /// In zh, this message translates to:
+  /// **'图片读取失败'**
+  String get chatPickImageError;
 }
 
 class _AppLocalizationsDelegate
