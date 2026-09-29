@@ -631,6 +631,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'随便聊点什么'**
   String get chatSuggest3;
+
+  /// No description provided for @chatSend.
+  ///
+  /// In zh, this message translates to:
+  /// **'发送'**
+  String get chatSend;
+
+  /// No description provided for @chatAttach.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加图片'**
+  String get chatAttach;
 }
 
 class _AppLocalizationsDelegate

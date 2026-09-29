@@ -279,4 +279,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatSuggest3 => 'Just chat';
+
+  @override
+  String get chatSend => 'Send';
+
+  @override
+  String get chatAttach => 'Attach image';
 }

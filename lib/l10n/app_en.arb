@@ -88,5 +88,7 @@
   "meVersion": "Version",
   "chatSuggest1": "Summarize the recent conversation",
   "chatSuggest2": "Draft today's todo list",
-  "chatSuggest3": "Just chat"
+  "chatSuggest3": "Just chat",
+  "chatSend": "Send",
+  "chatAttach": "Attach image"
 }

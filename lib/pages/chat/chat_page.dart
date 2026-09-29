@@ -200,7 +200,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   // in MessageList's state and must reset on switch.
                   child: MessageList(key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
                 ),
-                if (!active.turnActive && active.entries.isEmpty)
+                if (!active.turnActive && !active.historyLoading && active.entries.isEmpty)
                   _QuickSuggestions(onSend: (text) {
                     ref.read(chatStoreProvider.notifier).send(text);
                   }),

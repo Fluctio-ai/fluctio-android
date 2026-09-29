@@ -275,4 +275,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatSuggest3 => '随便聊点什么';
+
+  @override
+  String get chatSend => '发送';
+
+  @override
+  String get chatAttach => '添加图片';
 }

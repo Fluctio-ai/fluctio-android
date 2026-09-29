@@ -88,5 +88,7 @@
   "meVersion": "版本",
   "chatSuggest1": "总结一下最近的对话",
   "chatSuggest2": "帮我列一个今日待办",
-  "chatSuggest3": "随便聊点什么"
+  "chatSuggest3": "随便聊点什么",
+  "chatSend": "发送",
+  "chatAttach": "添加图片"
 }

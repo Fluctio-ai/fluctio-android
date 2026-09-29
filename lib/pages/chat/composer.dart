@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../chat/chat_engine.dart';
 import '../../l10n/app_localizations.dart';
-import '../../theme/tokens.dart';
 
-/// Composer card + pending-image strip. The input, attach and send
-/// controls sit inside one bordered rounded container (card radius from
-/// the token families). While a turn runs, the primary button becomes
-/// Stop; a small send arrow stays available to steer the in-flight turn
-/// (steer falls back to a normal send on 409).
+/// Composer per the prototype: paperclip button, capsule input, round
+/// action button — all 40/44px, bottom-aligned. Action semantics follow
+/// the web composer: idle → send; streaming with empty input → stop
+/// (filled square); streaming with text → steer (paper plane).
 class Composer extends StatelessWidget {
   const Composer({
     super.key,
@@ -42,79 +40,152 @@ class Composer extends StatelessWidget {
 
     return SafeArea(
       top: false,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (pendingImages.isNotEmpty)
-            SizedBox(
-              height: 100,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: pendingImages.length,
-                itemBuilder: (context, i) => _PendingThumb(
-                  url: pendingImages[i],
-                  onRemove: () => onRemoveImage(i),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
+        ),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (pendingImages.isNotEmpty)
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemCount: pendingImages.length,
+                  itemBuilder: (context, i) => _PendingThumb(
+                    url: pendingImages[i],
+                    onRemove: () => onRemoveImage(i),
+                  ),
                 ),
               ),
-            ),
-          Container(
-            margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: AppRadius.cardBorder,
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-            ),
-            child: Row(
+            Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  onPressed: turnActive ? null : onPickImages,
-                  icon: const Icon(Icons.image_outlined),
+                SizedBox.square(
+                  dimension: 40,
+                  child: IconButton.filledTonal(
+                    tooltip: l.chatAttach,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: theme.colorScheme.outline,
+                      side: BorderSide(color: theme.colorScheme.outlineVariant),
+                      shape: const CircleBorder(),
+                    ),
+                    onPressed: turnActive ? null : onPickImages,
+                    icon: const Icon(Icons.attach_file, size: 20),
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
-                    controller: controller,
-                    onChanged: (_) => onChanged(),
-                    minLines: 1,
-                    maxLines: 6,
-                    keyboardType: TextInputType.multiline,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      hintText: l.chatEmpty,
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Container(
+                    // Capsule like the prototype's .input-wrapper (radius
+                    // = half the 44px min height).
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: theme.colorScheme.outlineVariant),
+                    ),
+                    child: TextField(
+                      controller: controller,
+                      onChanged: (_) => onChanged(),
+                      minLines: 1,
+                      maxLines: 6,
+                      keyboardType: TextInputType.multiline,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: InputDecoration(
+                        hintText: l.chatEmpty,
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 4),
-                if (turnActive && controller.text.trim().isNotEmpty)
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: l.chatSteer,
-                    onPressed: onSteer,
-                    icon: const Icon(Icons.send_outlined),
-                  ),
-                turnActive
-                    ? IconButton.filledTonal(
-                        visualDensity: VisualDensity.compact,
-                        tooltip: l.chatStop,
-                        onPressed: state.phase == TurnPhase.stopping ? null : onStop,
-                        icon: const Icon(Icons.stop_circle_outlined),
-                      )
-                    : IconButton.filled(
-                        visualDensity: VisualDensity.compact,
-                        onPressed: hasInput ? onSend : null,
-                        icon: const Icon(Icons.arrow_upward),
-                      ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  turnActive: turnActive,
+                  stopping: state.phase == TurnPhase.stopping,
+                  hasInput: hasInput,
+                  tooltip: turnActive ? (hasInput ? l.chatSteer : l.chatStop) : l.chatSend,
+                  onSend: onSend,
+                  onSteer: onSteer,
+                  onStop: onStop,
+                ),
               ],
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.turnActive,
+    required this.stopping,
+    required this.hasInput,
+    required this.tooltip,
+    required this.onSend,
+    required this.onSteer,
+    required this.onStop,
+  });
+
+  final bool turnActive;
+  final bool stopping;
+  final bool hasInput;
+  final String tooltip;
+  final VoidCallback onSend;
+  final VoidCallback onSteer;
+  final VoidCallback onStop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool enabled;
+    final IconData icon;
+    final VoidCallback? onPressed;
+
+    if (turnActive) {
+      if (stopping) {
+        enabled = false;
+        icon = Icons.stop_rounded;
+        onPressed = null;
+      } else if (hasInput) {
+        enabled = true;
+        icon = Icons.send;
+        onPressed = onSteer;
+      } else {
+        enabled = true;
+        icon = Icons.stop_rounded;
+        onPressed = onStop;
+      }
+    } else {
+      icon = Icons.send;
+      enabled = hasInput;
+      onPressed = hasInput ? onSend : null;
+    }
+
+    return SizedBox.square(
+      dimension: 40,
+      child: IconButton.filled(
+        tooltip: tooltip,
+        style: IconButton.styleFrom(
+          backgroundColor: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
+          foregroundColor:
+              enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
+          disabledBackgroundColor: theme.colorScheme.secondaryContainer,
+          disabledForegroundColor: theme.colorScheme.outline,
+          shape: const CircleBorder(),
+        ),
+        onPressed: onPressed,
+        icon: Icon(icon, size: 20),
       ),
     );
   }
