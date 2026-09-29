@@ -1,10 +1,13 @@
+import 'dart:io' show HttpClient;
+
+import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../api/api_client.dart';
+import '../core/config_store.dart';
 import 'auth_state.dart';
 import 'credentials_store.dart';
-import '../core/config_store.dart';
 
 final configStoreProvider = Provider<ConfigStore>((ref) => ConfigStore(SharedPreferencesAsync()));
 
@@ -15,9 +18,55 @@ final credentialsStoreProvider = Provider<CredentialsStore>((ref) => Credentials
 /// 401 anywhere means the session was revoked — back to the login screen.
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(AuthController.new);
 
+/// The server answered login 200-OK but didn't set the session cookie —
+/// a protocol-level surprise, surfaced as its own message.
+class AuthProtocolException implements Exception {
+  final String message;
+  const AuthProtocolException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 class AuthController extends Notifier<AuthState> {
   @override
   AuthState build() => const AuthState.initial();
+
+  /// Auth calls use their own Dio instance instead of apiClientProvider.
+  /// The shared client watches this controller (for cookie stamping), so
+  /// reading it from inside a controller method is a dependency cycle —
+  /// Riverpod 3 raises CircularDependencyError on exactly that shape.
+  /// Auth is also special: it *establishes* the session, so it can't
+  /// depend on the session-scoped client. No interceptors beyond a
+  /// plain cookie stamp when a sid is already held.
+  Dio _authClient() {
+    final s = state;
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: s.baseUrl.isEmpty ? '/' : s.baseUrl,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {'accept': 'application/json'},
+      ),
+    );
+    if (s.allowSelfSigned) {
+      dio.httpClientAdapter = IOHttpClientAdapter(
+        createHttpClient: () => HttpClient()..badCertificateCallback = (_, _, _) => true,
+      );
+    }
+    final sid = s.sid;
+    if (sid != null && sid.isNotEmpty) {
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            options.headers['cookie'] = 'fluctio_session=$sid';
+            handler.next(options);
+          },
+        ),
+      );
+    }
+    return dio;
+  }
 
   /// Cold-start restore: address from prefs, session id from the Keystore,
   /// then a live `/api/me` probe to tell "still valid" from "revoked".
@@ -38,7 +87,7 @@ class AuthController extends Notifier<AuthState> {
     }
     state = AuthState.loading(baseUrl: baseUrl, allowSelfSigned: allowSelfSigned, sid: sid);
     try {
-      final res = await ref.read(apiClientProvider).get('/api/me');
+      final res = await _authClient().get('/api/me');
       state = AuthState.loggedIn(
         baseUrl: baseUrl,
         allowSelfSigned: allowSelfSigned,
@@ -46,7 +95,8 @@ class AuthController extends Notifier<AuthState> {
         user: res.data is Map ? Map<String, dynamic>.from(res.data as Map) : null,
       );
     } catch (e) {
-      if (isUnauthorized(e)) {
+      final revoked = e is DioException && e.response?.statusCode == 401;
+      if (revoked) {
         await ref.read(credentialsStoreProvider).clear();
         state = AuthState.loggedOut(baseUrl: baseUrl, allowSelfSigned: allowSelfSigned);
       } else {
@@ -72,10 +122,10 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> login(String login, String password) async {
     final s = state;
-    final res = await ref.read(apiClientProvider).post('/api/login', data: {'login': login, 'password': password});
+    final res = await _authClient().post('/api/login', data: {'login': login, 'password': password});
     final sid = _extractSessionCookie(res.headers.map['set-cookie'] ?? const []);
     if (sid == null) {
-      throw const ApiException('login succeeded but no session cookie was set');
+      throw const AuthProtocolException('login succeeded but no session cookie was set');
     }
     await ref.read(credentialsStoreProvider).saveSessionId(sid);
     final user = res.data is Map<String, dynamic> ? (res.data as Map<String, dynamic>)['user'] : null;
@@ -90,7 +140,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> logout() async {
     final s = state;
     try {
-      await ref.read(apiClientProvider).post('/api/logout');
+      await _authClient().post('/api/logout');
     } catch (_) {
       // Best-effort server-side revoke; local state clears regardless.
     }

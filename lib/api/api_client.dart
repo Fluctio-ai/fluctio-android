@@ -2,6 +2,7 @@ import 'dart:io' show HttpClient;
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
@@ -55,6 +56,10 @@ final apiClientProvider = Provider<Dio>((ref) {
         handler.next(options);
       },
       onError: (error, handler) {
+        if (kDebugMode) {
+          debugPrint('API ${error.requestOptions.method} ${error.requestOptions.uri} '
+              '-> ${error.response?.statusCode ?? error.type} ${error.message}');
+        }
         if (error.response?.statusCode == 401) {
           ref.read(authControllerProvider.notifier).onUnauthorized();
         }
@@ -70,5 +75,10 @@ String apiErrorMessage(Object error, AppLocalizations l) {
   if (isUnauthorized(error)) return l.errorInvalidCredentials;
   if (isRateLimited(error)) return l.errorRateLimited;
   if (error is ApiException) return error.message;
+  if (error is AuthProtocolException) return error.message;
+  if (error is DioException) {
+    final code = error.response?.statusCode;
+    if (code != null && code >= 500) return l.errorServerUnavailable;
+  }
   return l.errorNetwork;
 }

@@ -27,6 +27,7 @@
   "errorInvalidCredentials": "Wrong account or password",
   "errorRateLimited": "Too many attempts; retry in a few minutes",
   "errorNetwork": "Network error — check the address and your connection",
+  "errorServerUnavailable": "Server unavailable (gateway error) — retry later or check the server",
   "errorInvalidFormat": "Invalid address — must start with https:// (or LAN http://)",
   "errorHttpsRequired": "Public addresses must use https",
   "errorLanNeedsTrust": "LAN http addresses need \"trust self-signed\" enabled",

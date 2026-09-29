@@ -91,6 +91,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get errorNetwork => '网络错误，请检查地址与连接';
 
   @override
+  String get errorServerUnavailable => '服务器不可用（网关错误），请稍后再试或检查服务端';
+
+  @override
   String get errorInvalidFormat => '地址无效，需以 https://（或局域网 http://）开头';
 
   @override

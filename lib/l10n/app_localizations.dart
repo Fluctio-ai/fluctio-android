@@ -260,6 +260,12 @@ abstract class AppLocalizations {
   /// **'网络错误，请检查地址与连接'**
   String get errorNetwork;
 
+  /// No description provided for @errorServerUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务器不可用（网关错误），请稍后再试或检查服务端'**
+  String get errorServerUnavailable;
+
   /// No description provided for @errorInvalidFormat.
   ///
   /// In zh, this message translates to:

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -76,7 +77,12 @@ class _SetupPageState extends ConsumerState<SetupPage> {
       await ref.read(authControllerProvider.notifier).login(_loginCtrl.text, _passwordCtrl.text);
       // Router redirect takes over on success; no local navigation.
     } catch (e) {
-      if (mounted) setState(() => _formError = apiErrorMessage(e, AppLocalizations.of(context)!));
+      if (mounted) {
+        // Debug builds append the raw error so field diagnoses don't
+        // depend on logcat (some OEM ROMs throttle it).
+        final raw = kDebugMode ? '\n$e' : '';
+        setState(() => _formError = '${apiErrorMessage(e, AppLocalizations.of(context)!)}$raw');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

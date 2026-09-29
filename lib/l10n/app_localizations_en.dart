@@ -92,6 +92,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Network error — check the address and your connection';
 
   @override
+  String get errorServerUnavailable =>
+      'Server unavailable (gateway error) — retry later or check the server';
+
+  @override
   String get errorInvalidFormat =>
       'Invalid address — must start with https:// (or LAN http://)';
 
