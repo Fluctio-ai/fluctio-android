@@ -103,6 +103,12 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
     ref.listen(authControllerProvider.select((s) => s.status), (prev, next) {
       if (next == AuthStatus.loggedIn && prev != AuthStatus.loggedIn) reload();
     });
+    // This notifier builds lazily (first watch happens when the drawer
+    // opens, long after agents loaded) — the listeners above already
+    // missed the selectedId transition. Catch up from current state.
+    if (ref.read(agentsProvider).selectedId != null) {
+      reload();
+    }
     return const AsyncValue.loading();
   }
 
