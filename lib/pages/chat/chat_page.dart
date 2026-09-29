@@ -8,7 +8,9 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
+import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/tokens.dart';
 import '../app_drawer.dart';
 import 'composer.dart';
 import 'message_list.dart';
@@ -248,6 +250,15 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   _QuickSuggestions(onSend: (text) {
                     ref.read(chatStoreProvider.notifier).send(text);
                   }),
+                _SlashPalette(
+                  matches: matchSlashCommands(_input.text),
+                  enabled: !active.turnActive || _input.text.trim().isNotEmpty,
+                  onPick: (cmd) {
+                    _input.clear();
+                    setState(() {});
+                    ref.read(chatStoreProvider.notifier).send(cmd.invoke);
+                  },
+                ),
                 if (active.turnActive && active.awaitingFirstDelta)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -280,6 +291,65 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// `/` command palette above the composer — the mobile equivalent of the
+/// web composer's slash menu; picking an entry sends it directly.
+class _SlashPalette extends StatelessWidget {
+  const _SlashPalette({required this.matches, required this.enabled, required this.onPick});
+
+  final List<SlashCommand> matches;
+  final bool enabled;
+  final ValueChanged<SlashCommand> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    if (matches.isEmpty || !enabled) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      child: Material(
+        color: theme.colorScheme.surface,
+        elevation: 4,
+        borderRadius: AppRadius.cardBorder,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 264),
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: matches.length,
+            itemBuilder: (context, i) {
+              final cmd = matches[i];
+              return InkWell(
+                onTap: () => onPick(cmd),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Text(
+                        cmd.invoke,
+                        style: theme.textTheme.labelLarge
+                            ?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.primary),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          cmd.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

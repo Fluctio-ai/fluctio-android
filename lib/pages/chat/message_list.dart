@@ -51,7 +51,8 @@ class _MessageListState extends ConsumerState<MessageList> {
       },
       child: ListView.builder(
         reverse: true,
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        // Web transcript rhythm: space-y-3 (12px) between turns.
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         itemCount: widget.state.entries.length + (widget.state.loadMoreRunning ? 1 : 0),
         itemBuilder: (context, i) {
           if (widget.state.loadMoreRunning && i == widget.state.entries.length) {
@@ -234,7 +235,8 @@ class _AssistantBubble extends ConsumerWidget {
         !entry.streaming &&
         !ref.watch(chatStoreProvider.select((s) => s.active?.turnActive ?? false));
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      // Web transcript rhythm: space-y-3 (12px) between turns.
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
