@@ -169,8 +169,7 @@ void main() {
 
       final fx = e.applyFrame(2,
           {'seq': 2, 'type': 'session_title', 'data': {'sessionKey': 's-1', 'title': 'New title'}});
-      expect(fx.title, 'New title');
-      expect(fx.titleKey, 's-1');
+      expect(fx.titleChanged, isTrue);
     });
 
     test('legacy bus frames (no type) are ignored, not rendered', () {

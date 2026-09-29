@@ -2,35 +2,28 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
-import '../chat/chat_controller.dart';
 import 'kb_models.dart';
 
-/// Selected agent convenience — KB data is per-agent, so every provider
-/// keys off this.
-String kbAgentId(Ref ref) => ref.watch(agentsProvider.select((a) => a.selectedId ?? ''));
+final kbRepoProvider = Provider<KbRepo>((ref) => KbRepo(ref.watch(apiClientProvider)));
 
-final kbSourcesProvider = FutureProvider.autoDispose
-    .family<List<KbSource>, String>((ref, agentId) async {
-  final repo = KbRepo(ref.watch(apiClientProvider));
-  return repo.sources(agentId);
+final kbSourcesProvider =
+    FutureProvider.autoDispose.family<List<KbSource>, String>((ref, agentId) async {
+  return ref.watch(kbRepoProvider).sources(agentId);
 });
 
 final kbTodosProvider =
     FutureProvider.autoDispose.family<List<KbSource>, String>((ref, agentId) async {
-  final repo = KbRepo(ref.watch(apiClientProvider));
-  return repo.todos(agentId);
+  return ref.watch(kbRepoProvider).todos(agentId);
 });
 
 final kbBookmarksProvider =
     FutureProvider.autoDispose.family<List<KbBookmark>, String>((ref, agentId) async {
-  final repo = KbRepo(ref.watch(apiClientProvider));
-  return repo.bookmarks(agentId);
+  return ref.watch(kbRepoProvider).bookmarks(agentId);
 });
 
 final kbNotesProvider =
     FutureProvider.autoDispose.family<List<KbNote>, String>((ref, agentId) async {
-  final repo = KbRepo(ref.watch(apiClientProvider));
-  return repo.notes(agentId);
+  return ref.watch(kbRepoProvider).notes(agentId);
 });
 
 /// Typed wrappers over the KB surface (docs/api/API.md §7). Save paths
@@ -39,23 +32,26 @@ class KbRepo {
   KbRepo(this._dio);
   final Dio _dio;
 
-  Future<List<KbSource>> sources(String agentId) async =>
-      _rows(await _dio.get('/api/agents/$agentId/kb/sources'), KbSource.fromJson);
+  Future<List<KbSource>> sources(String agentId) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/sources')).data,
+      fromJson: KbSource.fromJson);
 
-  Future<List<KbSource>> todos(String agentId, {String status = ''}) async => _rows(
-      await _dio.get('/api/agents/$agentId/kb/todos',
-          queryParameters: {if (status.isNotEmpty) 'status': status}),
-      KbSource.fromJson);
+  Future<List<KbSource>> todos(String agentId, {String status = ''}) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/todos',
+              queryParameters: {if (status.isNotEmpty) 'status': status}))
+          .data,
+      fromJson: KbSource.fromJson);
 
-  Future<List<KbEntry>> entries(String agentId, String sourceId) async => _rows(
-      await _dio.get('/api/agents/$agentId/kb/sources/$sourceId/entries'),
-      KbEntry.fromJson);
+  Future<List<KbEntry>> entries(String agentId, String sourceId) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/sources/$sourceId/entries')).data,
+      fromJson: KbEntry.fromJson);
 
-  Future<List<KbSearchResult>> search(String agentId, String query, {int limit = 12}) async {
-    final res = await _dio.post('/api/agents/$agentId/kb/search',
-        data: {'query': query, 'limit': limit});
-    return _rows(res, KbSearchResult.fromJson);
-  }
+  Future<List<KbSearchResult>> search(String agentId, String query, {int limit = 12}) async =>
+      parseRows(
+          (await _dio.post('/api/agents/$agentId/kb/search',
+              data: {'query': query, 'limit': limit}))
+              .data,
+          fromJson: KbSearchResult.fromJson);
 
   Future<void> deleteSource(String agentId, String sourceId) =>
       _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
@@ -97,22 +93,23 @@ class KbRepo {
     String? status,
     DateTime? startAt,
     DateTime? endAt,
-    bool clearDates = false,
   }) =>
+      // The backend PATCH drops every empty/non-present field
+      // (handlers_kb.go: only non-empty fields land) — clearing a date or
+      // a bookmark summary is a server-side capability the client cannot
+      // synthesize, so the repo simply omits fields it doesn't set.
       _dio.patch('/api/agents/$agentId/kb/todos/$sourceId', data: {
         if (content != null && content.isNotEmpty) 'content': content,
         if (status != null && status.isNotEmpty) 'status': status,
-        // clearDates sends empty strings so the server drops the dates
-        // (only non-empty fields land otherwise — empty string is
-        // explicitly set vs omitted).
-        if (startAt != null || clearDates) 'start_at': startAt?.toIso8601String() ?? '',
-        if (endAt != null || clearDates) 'end_at': endAt?.toIso8601String() ?? '',
+        if (startAt != null) 'start_at': startAt.toIso8601String(),
+        if (endAt != null) 'end_at': endAt.toIso8601String(),
       });
 
   // ---- bookmarks ----
 
-  Future<List<KbBookmark>> bookmarks(String agentId) async =>
-      _rows(await _dio.get('/api/agents/$agentId/kb/bookmarks'), KbBookmark.fromJson);
+  Future<List<KbBookmark>> bookmarks(String agentId) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/bookmarks')).data,
+      fromJson: KbBookmark.fromJson);
 
   Future<void> saveBookmark(String agentId, String url, {String title = '', String summary = ''}) =>
       _dio.post('/api/agents/$agentId/kb/bookmarks', data: {
@@ -135,37 +132,35 @@ class KbRepo {
 
   // ---- article insights ----
 
-  Future<KbInsights?> insights(String agentId, String sourceId) async {
-    final res = await _dio.get('/api/agents/$agentId/kb/sources/$sourceId/insights');
-    return res.data is Map ? KbInsights.fromJson(Map<String, dynamic>.from(res.data as Map)) : null;
-  }
+  Future<KbInsights?> insights(String agentId, String sourceId) async =>
+      parseObject(
+          (await _dio.get('/api/agents/$agentId/kb/sources/$sourceId/insights')).data,
+          KbInsights.fromJson);
 
-  Future<KbInsights?> generateInsights(String agentId, String sourceId) async {
-    final res =
-        await _dio.post('/api/agents/$agentId/kb/sources/$sourceId/insights/generate');
-    return res.data is Map ? KbInsights.fromJson(Map<String, dynamic>.from(res.data as Map)) : null;
-  }
+  Future<KbInsights?> generateInsights(String agentId, String sourceId) async => parseObject(
+      (await _dio.post('/api/agents/$agentId/kb/sources/$sourceId/insights/generate')).data,
+      KbInsights.fromJson);
 
   // ---- cards (ticket 06) ----
 
   /// Review queue: most-overdue first.
-  Future<List<KbCard>> cardQueue(String agentId, {int limit = 50}) async => _rows(
-      await _dio.get('/api/agents/$agentId/kb/cards',
-          queryParameters: {'queue': '1', 'limit': limit}),
-      KbCard.fromJson);
+  Future<List<KbCard>> cardQueue(String agentId, {int limit = 50}) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/cards',
+              queryParameters: {'queue': '1', 'limit': limit}))
+          .data,
+      fromJson: KbCard.fromJson);
 
-  Future<KbCardStats> cardStats(String agentId) async {
-    final res = await _dio.get('/api/agents/$agentId/kb/cards/stats');
-    return res.data is Map
-        ? KbCardStats.fromJson(Map<String, dynamic>.from(res.data as Map))
-        : const KbCardStats();
-  }
+  Future<KbCardStats> cardStats(String agentId) async =>
+      parseObject((await _dio.get('/api/agents/$agentId/kb/cards/stats')).data,
+              KbCardStats.fromJson) ??
+          const KbCardStats();
 
-  Future<KbCard> reviewCard(String agentId, String cardId, String grade) async {
-    final res = await _dio.post('/api/agents/$agentId/kb/cards/$cardId/review',
-        data: {'grade': grade});
-    return KbCard.fromJson(Map<String, dynamic>.from(res.data as Map));
-  }
+  Future<KbCard> reviewCard(String agentId, String cardId, String grade) async =>
+      parseObject(
+          (await _dio.post('/api/agents/$agentId/kb/cards/$cardId/review',
+              data: {'grade': grade}))
+              .data,
+          KbCard.fromJson)!;
 
   Future<void> saveCard(String agentId, String question, String answer) =>
       _dio.post('/api/agents/$agentId/kb/cards',
@@ -177,12 +172,10 @@ class KbRepo {
 
   // ---- notes (ticket 06) ----
 
-  Future<List<KbNote>> notes(String agentId) async {
-    final res = await _dio.get('/api/agents/$agentId/kb/notes');
-    final data = res.data is Map ? (res.data as Map)['notes'] : null;
-    if (data is! List) return [];
-    return [for (final n in data) if (n is Map) KbNote.fromJson(Map<String, dynamic>.from(n))];
-  }
+  Future<List<KbNote>> notes(String agentId) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/kb/notes')).data,
+      key: 'notes',
+      fromJson: KbNote.fromJson);
 
   /// Upsert: empty id creates, non-empty updates. Returns the note id.
   Future<String> saveNote(String agentId,
@@ -195,13 +188,8 @@ class KbRepo {
   Future<void> deleteNote(String agentId, String noteId) =>
       _dio.delete('/api/agents/$agentId/kb/notes/$noteId');
 
-  Future<List<KbNoteAttachment>> noteAttachments(String agentId, String noteId) async => _rows(
-      await _dio.get('/api/agents/$agentId/kb/notes/$noteId/attachments'),
-      KbNoteAttachment.fromJson);
-}
-
-List<T> _rows<T>(Response res, T Function(Map<String, dynamic>) fromJson) {
-  final data = res.data;
-  if (data is! List) return [];
-  return [for (final r in data) if (r is Map) fromJson(Map<String, dynamic>.from(r))];
+  Future<List<KbNoteAttachment>> noteAttachments(String agentId, String noteId) async =>
+      parseRows(
+          (await _dio.get('/api/agents/$agentId/kb/notes/$noteId/attachments')).data,
+          fromJson: KbNoteAttachment.fromJson);
 }

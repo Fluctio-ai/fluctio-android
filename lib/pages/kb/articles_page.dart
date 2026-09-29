@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
+import '../../util/dates.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -47,8 +47,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
       final agentId = ref.read(agentsProvider).selectedId;
       if (agentId == null) return;
       try {
-        final results = await KbRepo(ref.read(apiClientProvider))
-            .search(agentId, query.trim());
+        final results = await ref.read(kbRepoProvider).search(agentId, query.trim());
         if (mounted) setState(() => _results = results);
       } catch (_) {
         if (mounted) setState(() => _results = const []);
@@ -110,7 +109,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
-                                    '${s.totalChars} · ${_fmtDate(s.updatedAt)}',
+                                    '${s.totalChars} · ${DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))}',
                                     maxLines: 1,
                                   ),
                                   onTap: () => context.push(
@@ -150,11 +149,5 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
     );
   }
 
-  String _fmtDate(String iso) {
-    final d = DateTime.tryParse(iso);
-    if (d == null) return '';
-    final local = d.toLocal();
-    final now = DateTime.now();
-    return '${local.year == now.year ? '' : '${local.year}/'}${local.month}/${local.day}';
-  }
 }
+

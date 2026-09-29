@@ -1,46 +1,45 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../api/api_client.dart';
-import '../auth/auth_controller.dart';
-import '../core/config_store.dart';
+import '../util/open_url.dart';
+
+final updateServiceProvider = Provider<UpdateService>((ref) => UpdateService());
 
 /// In-app update check (ticket 12): compares the running version against
 /// the latest GitHub Release (the same release the CI pipeline publishes
 /// to) and hands the APK download to the system browser, whose package
 /// installer completes the flow.
+///
+/// Uses its own bare Dio — the update host is a different trust domain
+/// from the gateway: no session cookie should leak there, and its 401s
+/// must not trigger the global re-login side effect.
 class UpdateService {
-  UpdateService(this._dio, this._prefs);
+  UpdateService();
 
-  final Dio _dio;
-  final ConfigStore _prefs;
+  final Dio _dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 15),
+    headers: {'accept': 'application/vnd.github+json'},
+  ));
 
-  static const _kUpdateUrl = 'update.checkUrl';
-
-  /// Default: GitHub latest release API of the fluctio-android repo.
-  static const defaultCheckUrl =
+  /// Default: GitHub latest release API. Kept in one place alongside the
+  /// CI workflow's publish target; change here when the repo moves.
+  static const checkUrl =
       'https://api.github.com/repos/moon/fluctio-android/releases/latest';
 
-  Future<String> checkUrl() async => await _prefs.getString(_kUpdateUrl);
-
-  Future<void> setCheckUrl(String url) => _prefs.setString(_kUpdateUrl, url.trim());
-
   Future<UpdateInfo?> check() async {
-    final url = (await checkUrl()).isEmpty ? defaultCheckUrl : await checkUrl();
-    final res = await _dio.get(url,
-        options: Options(headers: {'accept': 'application/vnd.github+json'}));
-    if (res.data is! Map) return null;
-    final data = res.data as Map;
+    final res = await _dio.get(checkUrl);
+    final data = res.data;
+    if (data is! Map) return null;
     final tag = '${data['tag_name'] ?? ''}';
     if (!tag.startsWith('v')) return null;
     final remote = tag.substring(1);
     final info = await PackageInfo.fromPlatform();
     if (_versionCompare(remote, info.version) <= 0) return null;
     // First .apk asset is the CI artifact (fluctio.apk).
-    final assets = data['assets'];
     String? apkUrl;
+    final assets = data['assets'];
     if (assets is List) {
       for (final a in assets) {
         if (a is Map && '${a['name']}'.endsWith('.apk')) {
@@ -54,11 +53,7 @@ class UpdateService {
 
   /// Opens the browser download (system package installer takes over) —
   /// avoids FileProvider/READ_EXTERNAL complexity for the v1 flow.
-  Future<void> openDownload(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  Future<void> openDownload(String url) => openExternalUrl(url);
 
   int _versionCompare(String a, String b) {
     final pa = a.split('.').map(int.tryParse).toList();
@@ -80,7 +75,3 @@ class UpdateInfo {
   final String? apkUrl;
   final String notes;
 }
-
-final updateServiceProvider = Provider<UpdateService>((ref) {
-  return UpdateService(ref.watch(apiClientProvider), ref.watch(configStoreProvider));
-});

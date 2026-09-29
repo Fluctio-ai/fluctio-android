@@ -207,14 +207,26 @@ class ChatStore {
   final Map<String, ChatUiState> chats;
 
   ChatUiState? get active => activeKey == null ? null : chats[activeKey];
+
+  String? get activeAgentId => splitSessionKey(activeKey)?.agentId;
+
+  String? get activeSessionId => splitSessionKey(activeKey)?.sessionId;
 }
+
+/// Splits `'<agentId>|<sessionId>'`; null when [key] is null or malformed.
+/// The single owner of the composite-key parsing (every consumer goes
+/// through here or [sessionKeyOf]).
+({String agentId, String sessionId})? splitSessionKey(String? key) {
+  if (key == null) return null;
+  final i = key.indexOf('|');
+  if (i <= 0 || i == key.length - 1) return null;
+  return (agentId: key.substring(0, i), sessionId: key.substring(i + 1));
+}
+
+/// Joins the composite key. Both ids must be free of `|`.
+String sessionKeyOf(String agentId, String sessionId) => '$agentId|$sessionId';
 
 final chatStoreProvider = NotifierProvider<ChatStoreController, ChatStore>(ChatStoreController.new);
-
-class _LiveStream {
-  _LiveStream(this.cancelToken);
-  final CancelToken cancelToken;
-}
 
 /// Owns one [ChatEngine] per session and wires both SSE paths onto it:
 /// - POST /api/chat/stream — the send connection; one-shot per turn.
@@ -226,14 +238,19 @@ class _LiveStream {
 /// explicit stop does (断连≠Stop).
 class ChatStoreController extends Notifier<ChatStore> {
   final Map<String, ChatEngine> _engines = {};
-  final Map<String, _LiveStream> _sends = {};
+  final Map<String, CancelToken> _sends = {};
   final Set<String> _opened = {};
-  _LiveStream? _subscribe;
+  CancelToken? _subscribe;
   StreamSubscription<SseFrame>? _subscribeSub;
   Timer? _subscribeRetry;
   int _retryDelaySeconds = 1;
   Timer? _flush;
   bool _disposed = false;
+  /// Engines whose snapshot changed since the last publish — only these
+  /// get re-snapshotted (each snapshot copies the transcript), so an
+  /// 80ms tick during streaming costs one transcript copy, not one per
+  /// open session.
+  final Set<String> _dirty = {};
   final _random = Random();
 
   @override
@@ -263,12 +280,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   // ---- session lifecycle ----
 
   ChatEngine _engineFor(String agentId, String sessionId) =>
-      _engines['$agentId|$sessionId'] ??= ChatEngine();
-
-  (String, String) _split(String key) {
-    final i = key.indexOf('|');
-    return (key.substring(0, i), key.substring(i + 1));
-  }
+      _engines[sessionKeyOf(agentId, sessionId)] ??= ChatEngine();
 
   Future<void> _openRemembered(String agentId) async {
     final remembered = await ref.read(configStoreProvider).chatSession(agentId);
@@ -284,7 +296,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   }
 
   Future<void> openSession(String agentId, String sessionId) async {
-    final key = '$agentId|$sessionId';
+    final key = sessionKeyOf(agentId, sessionId);
     if (state.activeKey == key) return;
     _stopSubscribe();
     state = ChatStore(activeKey: key, chats: state.chats);
@@ -292,6 +304,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engineFor(agentId, sessionId);
     if (_opened.add(key)) {
       engine.beginHistoryLoad();
+      _markDirty(key);
       _publish();
       try {
         final page = await ref.read(chatRepoProvider).history(agentId, sessionId);
@@ -306,6 +319,7 @@ class ChatStoreController extends Notifier<ChatStore> {
           engine.addLocalNotice(NoticeKind.historyError, '', NoticeTone.error);
         }
       }
+      _markDirty(key);
       _publish();
     }
     _startSubscribe(agentId, sessionId);
@@ -319,14 +333,18 @@ class ChatStoreController extends Notifier<ChatStore> {
     return key;
   }
 
-  Future<void> loadMore() async {    final key = state.activeKey;
+  Future<void> loadMore() async {
+    final key = state.activeKey;
     if (key == null) return;
     final engine = _engines[key];
     final earliest = engine?.earliestSeq;
     if (engine == null || !engine.historyHasMore || earliest == null) return;
-    if (engine.snapshot().loadMoreRunning) return;
-    final (agentId, sessionId) = _split(key);
+    if (engine.loadMoreRunning) return;
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     engine.setLoadMoreRunning(true);
+    _markDirty(key);
     _publish();
     try {
       final page = await ref.read(chatRepoProvider).history(agentId, sessionId, before: earliest);
@@ -335,6 +353,7 @@ class ChatStoreController extends Notifier<ChatStore> {
       // Older pages are best-effort; scrolling up again retries.
     }
     engine.setLoadMoreRunning(false);
+    _markDirty(key);
     _publish();
   }
 
@@ -342,6 +361,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     final activeKey = state.activeKey;
     if (activeKey == null) return;
     _engines[activeKey]?.toggleTool(key);
+    _markDirty(activeKey);
     _publish();
   }
 
@@ -352,7 +372,9 @@ class ChatStoreController extends Notifier<ChatStore> {
   void onAppResumed() {
     final key = state.activeKey;
     if (key == null || _disposed) return;
-    final (agentId, sessionId) = _split(key);
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     _ensureSubscribe(agentId, sessionId);
   }
 
@@ -364,8 +386,11 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engines[key];
     if (engine == null || engine.phase != TurnPhase.idle) return;
     engine.beginSend(text, images);
+    _markDirty(key);
     _publish();
-    final (agentId, sessionId) = _split(key);
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     unawaited(_runSend(agentId, sessionId, text, images, rollback: false));
   }
 
@@ -379,8 +404,11 @@ class ChatStoreController extends Notifier<ChatStore> {
     final failed = engine.takeFailedUser();
     if (failed == null) return;
     engine.beginSend(failed.text, failed.imageUrls);
+    _markDirty(key);
     _publish();
-    final (agentId, sessionId) = _split(key);
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     unawaited(_runSend(agentId, sessionId, failed.text, failed.imageUrls, rollback: true));
   }
 
@@ -394,8 +422,11 @@ class ChatStoreController extends Notifier<ChatStore> {
     final last = engine.takeLastUserForRegenerate();
     if (last == null || last.text.trim().isEmpty) return;
     engine.beginSend(last.text, last.images);
+    _markDirty(key);
     _publish();
-    final (agentId, sessionId) = _split(key);
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     unawaited(_runSend(agentId, sessionId, last.text, last.images, rollback: true));
   }
 
@@ -406,10 +437,10 @@ class ChatStoreController extends Notifier<ChatStore> {
     List<String> images, {
     required bool rollback,
   }) async {
-    final key = '$agentId|$sessionId';
+    final key = sessionKeyOf(agentId, sessionId);
     final engine = _engineFor(agentId, sessionId);
-    final live = _LiveStream(CancelToken());
-    _sends[key] = live;
+    final cancel = CancelToken();
+    _sends[key] = cancel;
     var gotFrame = false;
     try {
       final frames = ref.read(chatRepoProvider).sse.post(
@@ -422,7 +453,7 @@ class ChatStoreController extends Notifier<ChatStore> {
               'rollbackPendingUser': rollback,
               'params': {'lang': PlatformDispatcher.instance.locale.languageCode},
             },
-            cancelToken: live.cancelToken,
+            cancelToken: cancel,
           );
       await for (final frame in frames) {
         gotFrame = true;
@@ -431,27 +462,30 @@ class ChatStoreController extends Notifier<ChatStore> {
       // Server closed the stream. A healthy turn ends with a `done` frame
       // (engine already idle); anything else means the connection was cut
       // mid-turn — reconnect via subscribe, never render "stopped".
-      if (!live.cancelToken.isCancelled && engine.phase != TurnPhase.idle) {
+      if (!cancel.isCancelled && engine.phase != TurnPhase.idle) {
         engine.markReconnecting();
+        _markDirty(key);
         _publish();
         _ensureSubscribe(agentId, sessionId);
       }
     } catch (e) {
-      if (live.cancelToken.isCancelled) return; // explicit stop / teardown
+      if (cancel.isCancelled) return; // explicit stop / teardown
       if (!gotFrame) {
         final message = await sseErrorText(e);
         engine.failLastSend();
         if (message != null && message.isNotEmpty) {
           engine.addLocalNotice(NoticeKind.serverError, message, NoticeTone.error);
         }
+        _markDirty(key);
         _publish();
       } else {
         engine.markReconnecting();
+        _markDirty(key);
         _publish();
         _ensureSubscribe(agentId, sessionId);
       }
     } finally {
-      if (identical(_sends[key], live)) _sends.remove(key);
+      if (identical(_sends[key], cancel)) _sends.remove(key);
     }
   }
 
@@ -463,17 +497,22 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engines[key];
     if (engine == null) return;
     engine.beginSteer(text);
+    _markDirty(key);
     _publish();
-    final (agentId, sessionId) = _split(key);
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     try {
       final buffered = await ref.read(chatRepoProvider).steer(agentId, sessionId, text);
       if (!buffered) {
         engine.dropSteer(text);
+        _markDirty(key);
         _publish();
         await send(text);
       }
     } catch (_) {
       engine.dropSteer(text);
+      _markDirty(key);
       _publish();
       await send(text);
     }
@@ -498,16 +537,20 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engines[key];
     if (engine == null || engine.phase == TurnPhase.idle) return;
     engine.markStopping();
+    _markDirty(key);
     _publish();
     // Drop the POST connection first; its cancel is deliberate, not a
     // disconnect-to-stop.
-    _sends[key]?.cancelToken.cancel('stop');
-    final (agentId, sessionId) = _split(key);
+    _sends[key]?.cancel('stop');
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     try {
       final stopped = await ref.read(chatRepoProvider).stop(agentId, sessionId);
       if (stopped) {
         engine.addLocalNotice(NoticeKind.stopped, '', NoticeTone.warn);
         engine.settleStopped();
+        _markDirty(key);
         _publish();
         _onTurnDone(agentId, sessionId);
       }
@@ -517,6 +560,7 @@ class ChatStoreController extends Notifier<ChatStore> {
       // The stop call itself failed (offline?) — the turn keeps running
       // server-side; subscribe carries its finish. Never claim stopped.
       engine.markReconnecting();
+      _markDirty(key);
       _publish();
     }
   }
@@ -534,8 +578,9 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engineFor(agentId, sessionId);
     engine.markStreaming();
     final effects = engine.applyFrame(frame.id, payload, tag: tag);
+    _markDirty(sessionKeyOf(agentId, sessionId));
     if (effects.turnDone) _onTurnDone(agentId, sessionId);
-    if (effects.title != null) ref.read(sessionsProvider.notifier).reload();
+    if (effects.titleChanged) ref.read(sessionsProvider.notifier).reload();
     _schedulePublish();
   }
 
@@ -550,10 +595,10 @@ class ChatStoreController extends Notifier<ChatStore> {
   }
 
   void _ensureSubscribe(String agentId, String sessionId) {
-    if (_disposed || state.activeKey != '$agentId|$sessionId') return; // stale retry
+    if (_disposed || state.activeKey != sessionKeyOf(agentId, sessionId)) return; // stale retry
     _stopSubscribe();
-    final live = _LiveStream(CancelToken());
-    _subscribe = live;
+    final cancel = CancelToken();
+    _subscribe = cancel;
     _subscribeSub = ref
         .read(chatRepoProvider)
         .sse
@@ -565,7 +610,7 @@ class ChatStoreController extends Notifier<ChatStore> {
             // Resume cursor; -1 would replay the whole persistent log.
             'since': _engineFor(agentId, sessionId).lastSeq,
           },
-          cancelToken: live.cancelToken,
+          cancelToken: cancel,
         )
         .listen(
           (frame) {
@@ -573,11 +618,11 @@ class ChatStoreController extends Notifier<ChatStore> {
             _apply(agentId, sessionId, frame, tag: '·S');
           },
           onError: (Object _) {
-            if (live.cancelToken.isCancelled || _disposed) return;
+            if (cancel.isCancelled || _disposed) return;
             _scheduleReconnect(agentId, sessionId);
           },
           onDone: () {
-            if (live.cancelToken.isCancelled || _disposed) return;
+            if (cancel.isCancelled || _disposed) return;
             _scheduleReconnect(agentId, sessionId);
           },
           cancelOnError: true,
@@ -592,7 +637,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     _subscribeRetry?.cancel();
     _subscribeRetry = Timer(Duration(seconds: delay), () {
       if (_disposed) return;
-      if (state.activeKey == '$agentId|$sessionId') {
+      if (state.activeKey == sessionKeyOf(agentId, sessionId)) {
         _ensureSubscribe(agentId, sessionId);
       }
     });
@@ -606,7 +651,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     // subscription, which escaped as an unhandled exception at teardown.
     _subscribeSub?.cancel();
     _subscribeSub = null;
-    _subscribe?.cancelToken.cancel('switch');
+    _subscribe?.cancel('switch');
     _subscribe = null;
   }
 
@@ -615,8 +660,8 @@ class ChatStoreController extends Notifier<ChatStore> {
   void _disposeStreams() {
     _disposed = true;
     _stopSubscribe();
-    for (final live in _sends.values) {
-      live.cancelToken.cancel('teardown');
+    for (final cancel in _sends.values) {
+      cancel.cancel('teardown');
     }
     _sends.clear();
     _flush?.cancel();
@@ -642,11 +687,22 @@ class ChatStoreController extends Notifier<ChatStore> {
     });
   }
 
+  void _markDirty(String key) => _dirty.add(key);
+
+  /// Snapshots only engines marked dirty since the last publish (each
+  /// snapshot copies that session's transcript); everything else rides
+  /// along in the previous chats map.
   void _publish() {
-    final chats = Map.of(state.chats);
-    for (final e in _engines.entries) {
-      chats[e.key] = e.value.snapshot();
+    if (_dirty.isEmpty) {
+      state = ChatStore(activeKey: state.activeKey, chats: state.chats);
+      return;
     }
+    final chats = Map.of(state.chats);
+    for (final key in _dirty) {
+      final engine = _engines[key];
+      if (engine != null) chats[key] = engine.snapshot();
+    }
+    _dirty.clear();
     state = ChatStore(activeKey: state.activeKey, chats: chats);
     _scheduleCacheWrite();
   }
@@ -659,14 +715,13 @@ class ChatStoreController extends Notifier<ChatStore> {
     _cacheWrite?.cancel();
     _cacheWrite = Timer(const Duration(seconds: 2), () {
       final key = state.activeKey;
-      if (key == null) return;
+      final parts = splitSessionKey(key);
+      if (parts == null) return;
       final engine = _engines[key];
       if (engine == null) return;
-      final i = key.indexOf('|');
-      final agentId = key.substring(0, i);
-      final sessionId = key.substring(i + 1);
+      final (agentId, sessionId) = (parts.agentId, parts.sessionId);
       final messages = <CachedMessage>[];
-      for (final e in engine.snapshot().entries) {
+      for (final e in engine.entries) {
         if (e is UserEntry) {
           messages.add(CachedMessage(role: 'user', kind: '', content: e.text, imageUrls: e.imageUrls, ts: e.ts));
         } else if (e is AssistantEntry) {

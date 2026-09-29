@@ -83,11 +83,7 @@ class _KbCard extends StatelessWidget {
       onTap: entry.onTap,
       borderRadius: AppRadius.cardBorder,
       child: Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-          borderRadius: AppRadius.cardBorder,
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
+        decoration: surfaceCardDecoration(theme.colorScheme),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

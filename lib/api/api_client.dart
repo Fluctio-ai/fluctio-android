@@ -3,9 +3,11 @@ import 'dart:io' show HttpClient;
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_controller.dart';
+import '../auth/session_cookie.dart';
 import '../l10n/app_localizations.dart';
 
 /// Generic API failure carrying the gateway's error text.
@@ -51,7 +53,7 @@ final apiClientProvider = Provider<Dio>((ref) {
     InterceptorsWrapper(
       onRequest: (options, handler) {
         if (sid != null && sid.isNotEmpty) {
-          options.headers['cookie'] = 'fluctio_session=$sid';
+          options.headers['cookie'] = sessionCookieHeader(sid);
         }
         handler.next(options);
       },
@@ -69,6 +71,47 @@ final apiClientProvider = Provider<Dio>((ref) {
   );
   return dio;
 });
+
+/// Parses a gateway list payload: a bare JSON array, or an object
+/// wrapping the array under [key] (falling back to the first list-valued
+/// field for envelopes whose wrapper name isn't pinned down). Non-map
+/// rows are skipped defensively.
+List<T> parseRows<T>(
+  dynamic data, {
+  String? key,
+  required T Function(Map<String, dynamic>) fromJson,
+}) {
+  List? rows;
+  if (data is List) {
+    rows = data;
+  } else if (data is Map) {
+    if (key != null && data[key] is List) {
+      rows = data[key] as List;
+    } else {
+      for (final v in data.values) {
+        if (v is List) {
+          rows = v;
+          break;
+        }
+      }
+    }
+  }
+  if (rows == null) return [];
+  return [for (final r in rows) if (r is Map) fromJson(Map<String, dynamic>.from(r))];
+}
+
+/// Parses a single-object gateway payload; null when the shape isn't a map.
+T? parseObject<T>(dynamic data, T Function(Map<String, dynamic>) fromJson) =>
+    data is Map ? fromJson(Map<String, dynamic>.from(data)) : null;
+
+/// Localized error snackbar for API failures — the one failure surface
+/// for non-chat screens (chat transcript failures render as NoticeEntry
+/// chips instead).
+void showApiError(BuildContext context, Object error) {
+  final l = AppLocalizations.of(context)!;
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(apiErrorMessage(error, l))));
+}
 
 /// Maps any API failure to localized user-facing copy.
 String apiErrorMessage(Object error, AppLocalizations l) {

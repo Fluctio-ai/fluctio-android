@@ -5,8 +5,58 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../auth/auth_controller.dart';
+import '../../auth/session_cookie.dart';
 import '../../chat/chat_controller.dart';
 import '../../theme/tokens.dart';
+
+/// Memoized providers per (cookie, url): data: URLs would otherwise
+/// re-run base64Decode — plus a full byte-list hash for the image cache
+/// lookup — on every rebuild of every visible bubble.
+final _providerCache = <String, ImageProvider>{};
+
+/// Resolves a chat image URL to an [ImageProvider]. Contract notes
+/// (docs/api/API.md §4): inline vision content is data: URLs or absolute
+/// HTTPS URLs; workspace deliverables surface as paths under the gateway,
+/// whose GETs are cookie-gated — same-host loads carry the session cookie
+/// in its named form (`fluctio_session=<sid>`), relative paths resolve
+/// against baseUrl.
+ImageProvider chatImageProvider(String url, {required String baseUrl, String? cookie}) {
+  final cacheKey = '${cookie ?? ''}::$url';
+  final cached = _providerCache[cacheKey];
+  if (cached != null) return cached;
+  final provider = _resolve(url, baseUrl: baseUrl, cookie: cookie);
+  if (_providerCache.length > 128) _providerCache.clear();
+  _providerCache[cacheKey] = provider;
+  return provider;
+}
+
+ImageProvider _resolve(String url, {required String baseUrl, String? cookie}) {
+  if (url.startsWith('data:')) {
+    final comma = url.indexOf(',');
+    if (comma > 0 && url.substring(0, comma).endsWith(';base64')) {
+      try {
+        return MemoryImage(base64Decode(url.substring(comma + 1)));
+      } catch (_) {
+        // fall through to the network path and its error builder
+      }
+    }
+  }
+  var target = url;
+  final parsed = Uri.tryParse(url);
+  if (parsed != null && !parsed.hasScheme && !parsed.hasAuthority) {
+    target = '$baseUrl${url.startsWith('/') ? url : '/$url'}';
+  }
+  final base = Uri.tryParse(baseUrl);
+  final targetUri = Uri.tryParse(target);
+  final sameHost =
+      targetUri != null && base != null && isGatewayHost(targetUri, base);
+  return NetworkImage(
+    target,
+    headers: sameHost && cookie != null && cookie.isNotEmpty
+        ? {'cookie': sessionCookieHeader(cookie)}
+        : null,
+  );
+}
 
 /// Circular agent avatar (GET /api/agents/*/files/avatar.png — cookie
 /// gated, so same-host loads carry the session cookie). Falls back to a
@@ -42,37 +92,6 @@ class AgentAvatar extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Resolves a chat image URL to an [ImageProvider]. Contract notes
-/// (docs/api/API.md §4): inline vision content is data: URLs or absolute
-/// HTTPS URLs; workspace deliverables surface as paths under the gateway,
-/// whose GETs are cookie-gated — same-host loads carry the session cookie,
-/// relative paths resolve against baseUrl.
-ImageProvider chatImageProvider(String url, {required String baseUrl, String? cookie}) {
-  if (url.startsWith('data:')) {
-    final comma = url.indexOf(',');
-    if (comma > 0 && url.substring(0, comma).endsWith(';base64')) {
-      try {
-        return MemoryImage(base64Decode(url.substring(comma + 1)));
-      } catch (_) {
-        // fall through to the network path and its error builder
-      }
-    }
-  }
-  var target = url;
-  final parsed = Uri.tryParse(url);
-  if (parsed != null && !parsed.hasScheme && !parsed.hasAuthority) {
-    target = '$baseUrl${url.startsWith('/') ? url : '/$url'}';
-  }
-  final base = Uri.tryParse(baseUrl);
-  final targetUri = Uri.tryParse(target);
-  final sameHost = targetUri != null &&
-      base != null &&
-      targetUri.host == base.host &&
-      targetUri.port == base.port;
-  return NetworkImage(target,
-      headers: sameHost && cookie != null && cookie.isNotEmpty ? {'cookie': cookie} : null);
 }
 
 /// Square thumbnail used in user bubbles and the composer's pending strip.
@@ -114,7 +133,7 @@ class ChatImageThumb extends StatelessWidget {
                 errorBuilder: (_, _, _) => Container(
                   width: size,
                   height: size,
-                  color: scheme.secondary,
+                  color: scheme.secondaryContainer,
                   child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
                 ),
               ),

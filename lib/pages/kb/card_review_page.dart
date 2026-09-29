@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
@@ -38,7 +37,7 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return;
     try {
-      final queue = await KbRepo(ref.read(apiClientProvider)).cardQueue(agentId);
+      final queue = await ref.read(kbRepoProvider).cardQueue(agentId);
       if (!mounted) return;
       setState(() {
         _queue.addAll(queue);
@@ -54,7 +53,7 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
     final card = _queue[_index];
     if (agentId != null) {
       try {
-        await KbRepo(ref.read(apiClientProvider)).reviewCard(agentId, card.id, grade);
+        await ref.read(kbRepoProvider).reviewCard(agentId, card.id, grade);
       } catch (_) {
         // The grade is recorded server-side on success; a network blip
         // still advances the local session.
@@ -114,11 +113,7 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                  borderRadius: AppRadius.cardBorder,
-                  border: Border.all(color: theme.colorScheme.outlineVariant),
-                ),
+                decoration: surfaceCardDecoration(theme.colorScheme),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [

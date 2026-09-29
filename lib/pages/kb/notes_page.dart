@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/dialogs.dart';
 import '../../webview/web_container.dart';
 
 /// Notes: markdown list + plain-text editor (upsert on save), read-only
@@ -58,9 +59,8 @@ class KbNotesPage extends ConsumerWidget {
                               tooltip: l.noteWhiteboard,
                               icon: Icon(LucideIcons.penTool,
                                   size: 18, color: theme.colorScheme.primary),
-                              onPressed: () => openWebContainer(
-                                  context, l.noteWhiteboard,
-                                  '/agents/$agentId/knowledge/notes'),
+                              onPressed: () => openWebContainer(context, l.noteWhiteboard,
+                                  WebRoutes.noteEditor(agentId!)),
                             ),
                             IconButton(
                               icon: Icon(LucideIcons.trash2,
@@ -90,8 +90,7 @@ class KbNotesPage extends ConsumerWidget {
 
     if (existing != null) {
       try {
-        attachments =
-            await KbRepo(ref.read(apiClientProvider)).noteAttachments(agentId, existing.id);
+        attachments = await ref.read(kbRepoProvider).noteAttachments(agentId, existing.id);
       } catch (_) {}
     }
 
@@ -180,7 +179,7 @@ class KbNotesPage extends ConsumerWidget {
     );
     if (saved != true) return;
     try {
-      noteId = await KbRepo(ref.read(apiClientProvider)).saveNote(
+      noteId = await ref.read(kbRepoProvider).saveNote(
             agentId,
             id: noteId,
             title: title.text.trim(),
@@ -188,33 +187,18 @@ class KbNotesPage extends ConsumerWidget {
           );
       ref.invalidate(kbNotesProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 
   Future<void> _delete(
       BuildContext context, WidgetRef ref, String agentId, KbNote n) async {
-    final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(l.chatDeleteConfirm),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-        ],
-      ),
-    );
-    if (yes != true) return;
+    if (!await confirmDelete(context)) return;
     try {
-      await KbRepo(ref.read(apiClientProvider)).deleteNote(agentId, n.id);
+      await ref.read(kbRepoProvider).deleteNote(agentId, n.id);
       ref.invalidate(kbNotesProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 }

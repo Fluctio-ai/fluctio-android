@@ -16,7 +16,7 @@ class WorkflowPage extends ConsumerWidget {
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId ?? ''));
     return Scaffold(
       appBar: AppBar(title: Text(l.navWorkflow)),
-      body: WebContainerPage(title: l.navWorkflow, path: '/agents/$agentId/workflows'),
+      body: WebContainerPage(title: l.navWorkflow, path: WebRoutes.workflows(agentId)),
     );
   }
 }

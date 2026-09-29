@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 
@@ -24,7 +24,6 @@ class KbArticleDetailPage extends ConsumerStatefulWidget {
 class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
   List<KbEntry>? _entries;
   KbInsights? _insights;
-  bool _insightsExists = false;
   bool _generating = false;
   String? _error;
 
@@ -37,24 +36,17 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
   Future<void> _load() async {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return;
-    final repo = KbRepo(ref.read(apiClientProvider));
-    try {
-      final entries = await repo.entries(agentId, widget.sourceId);
-      if (!mounted) return;
-      setState(() => _entries = entries);
-    } catch (e) {
-      if (mounted) setState(() => _error = '$e');
-    }
-    try {
-      final insights = await repo.insights(agentId, widget.sourceId);
-      if (!mounted) return;
-      setState(() {
-        _insights = insights;
-        _insightsExists = insights != null;
-      });
-    } catch (_) {
-      // No insights yet — the generate button offers it.
-    }
+    // Entries and insights are independent — run them concurrently
+    // (insights failure just means the generate button offers itself).
+    final (entries, insights) = await (
+      ref.read(kbRepoProvider).entries(agentId, widget.sourceId),
+      ref.read(kbRepoProvider).insights(agentId, widget.sourceId).catchError((_) => null),
+    ).wait;
+    if (!mounted) return;
+    setState(() {
+      _entries = entries;
+      _insights = insights;
+    });
   }
 
   Future<void> _generate() async {
@@ -63,18 +55,12 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
     setState(() => _generating = true);
     try {
       final insights =
-          await KbRepo(ref.read(apiClientProvider)).generateInsights(agentId, widget.sourceId);
+          await ref.read(kbRepoProvider).generateInsights(agentId, widget.sourceId);
       if (mounted) {
-        setState(() {
-          _insights = insights;
-          _insightsExists = true;
-        });
+        setState(() => _insights = insights);
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _insightsExists = _insightsExists);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (mounted) showApiError(context, e);
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -121,7 +107,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
         ],
       );
     }
-    if (!_insightsExists) {
+    if (_insights == null) {
       return OutlinedButton.icon(
         style: OutlinedButton.styleFrom(
           shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),

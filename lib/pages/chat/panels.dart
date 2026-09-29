@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:intl/intl.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../util/dates.dart';
 
 /// One session row (used in the navigation drawer): title/preview/time,
 /// per-item menu (rename / delete / chat-only toggle).
@@ -28,7 +29,8 @@ class SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final time = _formatSessionTime(context, session.updatedAt);
+    final time = formatSessionTime(session.updatedAt,
+        locale: Localizations.localeOf(context).toString());
     return ListTile(
       dense: true,
       selected: selected,
@@ -65,19 +67,7 @@ class SessionTile extends ConsumerWidget {
   }
 }
 
-/// Today → HH:mm; this year → M/d HH:mm; older → yyyy/M/d.
-String _formatSessionTime(BuildContext context, int ts) {
-  if (ts <= 0) return '';
-  final locale = Localizations.localeOf(context).toString();
-  final date = DateTime.fromMillisecondsSinceEpoch(ts);
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  if (!date.isBefore(today)) return DateFormat.Hm(locale).format(date);
-  if (date.year == now.year) {
-    return '${DateFormat.Md(locale).format(date)} ${DateFormat.Hm(locale).format(date)}';
-  }
-  return DateFormat.yMd(locale).format(date);
-}
+
 
 class _SessionMenu extends ConsumerWidget {
   const _SessionMenu({required this.session});
@@ -121,9 +111,7 @@ class _SessionMenu extends ConsumerWidget {
           await notifier.delete(session.id);
           if (wasActive) await ref.read(chatStoreProvider.notifier).newChat();
         } catch (e) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-          }
+          if (context.mounted) showApiError(context, e);
         }
     }
   }
@@ -171,8 +159,8 @@ class _TodoSheet extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final activeKey = ref.watch(chatStoreProvider.select((s) => s.activeKey));
-    final agentId = activeKey?.substring(0, activeKey.indexOf('|'));
-    final sessionId = activeKey?.substring(activeKey.indexOf('|') + 1);
+    final agentId = splitSessionKey(activeKey)?.agentId;
+    final sessionId = splitSessionKey(activeKey)?.sessionId;
     final todo = agentId == null || sessionId == null
         ? null
         : ref.watch(todoProvider((agentId, sessionId)));

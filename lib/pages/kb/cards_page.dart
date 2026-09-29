@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 
@@ -33,10 +33,11 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
   Future<void> _load() async {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return;
-    final repo = KbRepo(ref.read(apiClientProvider));
     try {
-      final stats = await repo.cardStats(agentId);
-      final queue = await repo.cardQueue(agentId);
+      final (stats, queue) = await (
+        ref.read(kbRepoProvider).cardStats(agentId),
+        ref.read(kbRepoProvider).cardQueue(agentId),
+      ).wait;
       if (!mounted) return;
       setState(() {
         _stats = stats;
@@ -71,13 +72,12 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     );
     if (saved != true || q.text.trim().isEmpty) return;
     try {
-      await KbRepo(ref.read(apiClientProvider))
+      await ref
+          .read(kbRepoProvider)
           .saveCard(ref.read(agentsProvider).selectedId!, q.text.trim(), a.text.trim());
       _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (mounted) showApiError(context, e);
     }
   }
 
@@ -102,11 +102,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                     // Stats header.
                     Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                        borderRadius: AppRadius.cardBorder,
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
-                      ),
+                      decoration: surfaceCardDecoration(theme.colorScheme),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import 'models.dart';
 
 /// Phase of the in-flight (or just-finished) turn. A network drop never
@@ -175,12 +177,12 @@ class ChatUiState {
 }
 
 /// Side effects a frame asks the controller to perform — repo calls the
-/// pure engine can't make (refresh session metadata / todo after a turn).
+/// pure engine can't make (refresh session metadata after a title change
+/// / reload lists after a turn).
 class FrameEffects {
-  const FrameEffects({this.turnDone = false, this.titleKey, this.title});
+  const FrameEffects({this.turnDone = false, this.titleChanged = false});
   final bool turnDone;
-  final String? titleKey;
-  final String? title;
+  final bool titleChanged;
 }
 
 /// Pure transcript + turn reducer for one (agent, session). Frames from
@@ -197,6 +199,12 @@ class ChatEngine {
   bool _historyLoading = false;
   bool _loadMoreRunning = false;
   int _counter = 0;
+
+  /// Streaming-bubble accumulator: deltas append into [_streamBuf]
+  /// (O(delta)); the materialized string is cached in [_streamText] until
+  /// the next append invalidates it.
+  StringBuffer? _streamBuf;
+  String? _streamText;
   int _debugFrames = 0;
   String _debugLastEvent = '';
   String _debugLastBus = '';
@@ -204,7 +212,9 @@ class ChatEngine {
 
   String _key(String prefix) => '$prefix-${_counter++}';
 
-  ChatUiState snapshot() => ChatUiState(
+  ChatUiState snapshot() {
+    _flushStreamText();
+    return ChatUiState(
         entries: List.unmodifiable(_entries),
         phase: _phase,
         statusHint: _statusHint,
@@ -216,8 +226,9 @@ class ChatEngine {
         debugFrames: _debugFrames,
         debugLastEvent: _debugLastEvent,
         debugLastBus: _debugLastBus,
-        debugTypeCounts: Map.unmodifiable(_debugTypeCounts),
+        debugTypeCounts: kDebugMode ? Map.unmodifiable(_debugTypeCounts) : const {},
       );
+  }
 
   TurnPhase get phase => _phase;
 
@@ -226,6 +237,15 @@ class ChatEngine {
   int? get earliestSeq => _earliestSeq;
 
   bool get historyHasMore => _hasMore;
+
+  bool get loadMoreRunning => _loadMoreRunning;
+
+  /// Read-only view of the transcript (no copy); materializes any pending
+  /// streaming text first.
+  List<UiEntry> get entries {
+    _flushStreamText();
+    return _entries;
+  }
 
   // ---- send / steer / stop transitions (controller-driven) ----
 
@@ -353,6 +373,7 @@ class ChatEngine {
       _entries
         ..clear()
         ..addAll(batch);
+      _clearStreamState();
       _phase = TurnPhase.idle;
       _statusHint = '';
     }
@@ -372,6 +393,7 @@ class ChatEngine {
   /// at -1 so a later online history load re-syncs cleanly.
   void loadCachedMessages(List<dynamic> messages) {
     _entries.clear();
+    _clearStreamState();
     _entries.add(const NoticeEntry(
         key: 'cache-banner', kind: NoticeKind.offlineCache, text: '', tone: NoticeTone.info));
     for (final m in messages) {
@@ -442,16 +464,20 @@ class ChatEngine {
   // ---- SSE frames ----
 
   FrameEffects applyFrame(int? frameId, Map<String, dynamic> payload, {String tag = ''}) {
-    _debugFrames++;
-    final dbgType = payload['type'] as String? ?? 'bus';
-    _debugTypeCounts['$dbgType$tag'] = (_debugTypeCounts['$dbgType$tag'] ?? 0) + 1;
-    if (dbgType == 'bus') {
-      final t = payload['text'];
-      if (t is String && t.isNotEmpty) {
-        _debugLastBus = t.length > 48 ? t.substring(0, 48) : t;
+    if (kDebugMode) {
+      // On-screen diagnostics only; release builds skip the per-frame
+      // string interpolation and map write entirely.
+      _debugFrames++;
+      final dbgType = payload['type'] as String? ?? 'bus';
+      _debugTypeCounts['$dbgType$tag'] = (_debugTypeCounts['$dbgType$tag'] ?? 0) + 1;
+      if (dbgType == 'bus') {
+        final t = payload['text'];
+        if (t is String && t.isNotEmpty) {
+          _debugLastBus = t.length > 48 ? t.substring(0, 48) : t;
+        }
       }
+      _debugLastEvent = '$dbgType$tag@${payload['seq'] ?? frameId ?? '-'}';
     }
-    _debugLastEvent = '$dbgType$tag@${payload['seq'] ?? frameId ?? '-'}';
     final rawSeq = payload['seq'];
     final seq = rawSeq is int ? rawSeq : rawSeq is num ? rawSeq.toInt() : null;
     if (seq != null && seq >= 0) {
@@ -491,7 +517,7 @@ class ChatEngine {
       case 'steer':
         _echoSteer(map['content'] as String? ?? '');
       case 'session_title':
-        return FrameEffects(titleKey: map['sessionKey'] as String?, title: map['title'] as String?);
+        return const FrameEffects(titleChanged: true);
       case 'compaction_notice':
         _entries.add(NoticeEntry(
           key: _key('n'),
@@ -526,7 +552,11 @@ class ChatEngine {
   void _appendDelta(String delta) {
     final last = _entries.isNotEmpty ? _entries.last : null;
     if (last is AssistantEntry && last.streaming) {
-      _entries[_entries.length - 1] = last.copyWith(text: last.text + delta);
+      // Accumulate in a buffer: `text + delta` per token would copy the
+      // whole reply once per delta — O(L²) over a long answer.
+      _streamBuf ??= StringBuffer(last.text);
+      _streamBuf!.write(delta);
+      _streamText = null;
     } else {
       _entries.add(AssistantEntry(
         key: _key('a'),
@@ -534,8 +564,29 @@ class ChatEngine {
         streaming: true,
         ts: DateTime.now().millisecondsSinceEpoch,
       ));
+      _streamBuf = StringBuffer(delta);
+      _streamText = delta;
       markStreaming();
     }
+  }
+
+  /// Materializes the streaming bubble's buffered text into its entry so
+  /// readers of [entries]/[snapshot] see the full accumulated answer.
+  void _flushStreamText() {
+    final buf = _streamBuf;
+    if (buf == null || _streamText != null) return;
+    final last = _entries.isNotEmpty ? _entries.last : null;
+    if (last is AssistantEntry && last.streaming) {
+      _streamText = buf.toString();
+      _entries[_entries.length - 1] = last.copyWith(text: _streamText);
+    } else {
+      _streamText = buf.toString();
+    }
+  }
+
+  void _clearStreamState() {
+    _streamBuf = null;
+    _streamText = null;
   }
 
   void _commitContent(String content) {
@@ -547,6 +598,7 @@ class ChatEngine {
       if (e is! AssistantEntry) continue;
       if (e.streaming) {
         _entries[i] = e.copyWith(text: content, streaming: false);
+        _clearStreamState();
         return;
       }
       break; // newest assistant entry is committed → this is a new segment
@@ -595,11 +647,13 @@ class ChatEngine {
     for (var i = _entries.length - 1; i >= 0; i--) {
       final e = _entries[i];
       if (e is AssistantEntry && e.streaming) {
+        _flushStreamText();
         _entries[i] = e.copyWith(streaming: false);
         break;
       }
       if (e is AssistantEntry) break;
     }
+    _clearStreamState();
     _phase = TurnPhase.idle;
     _statusHint = '';
   }

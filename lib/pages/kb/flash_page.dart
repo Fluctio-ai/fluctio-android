@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/dialogs.dart';
+import '../../util/dates.dart';
 
 /// Flash notes (灵感闪记): newest-first list, "记一笔" quick capture,
 /// tap to edit, menu to delete.
@@ -48,7 +50,7 @@ class KbFlashPage extends ConsumerWidget {
                       final s = flashes[i];
                       return ListTile(
                         title: Text(s.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(_date(s.updatedAt), maxLines: 1),
+                        subtitle: Text(DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))),
                         trailing: IconButton(
                           icon: Icon(LucideIcons.trash2,
                               size: 18, color: theme.colorScheme.outline),
@@ -87,7 +89,7 @@ class KbFlashPage extends ConsumerWidget {
       ),
     );
     if (content == null || content.trim().isEmpty) return;
-    final repo = KbRepo(ref.read(apiClientProvider));
+    final repo = ref.read(kbRepoProvider);
     try {
       if (existing == null) {
         final deduped = await repo.saveFlash(agentId, content.trim());
@@ -100,41 +102,19 @@ class KbFlashPage extends ConsumerWidget {
       }
       ref.invalidate(kbSourcesProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 
   Future<void> _delete(
       BuildContext context, WidgetRef ref, String agentId, KbSource s) async {
-    final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(l.chatDeleteConfirm),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-        ],
-      ),
-    );
-    if (yes != true) return;
+    if (!await confirmDelete(context)) return;
     try {
-      await KbRepo(ref.read(apiClientProvider)).deleteSource(agentId, s.id);
+      await ref.read(kbRepoProvider).deleteSource(agentId, s.id);
       ref.invalidate(kbSourcesProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 
-  String _date(String iso) {
-    final d = DateTime.tryParse(iso);
-    if (d == null) return '';
-    d.toLocal();
-    final now = DateTime.now();
-    return d.year == now.year ? '${d.month}/${d.day}' : '${d.year}/${d.month}/${d.day}';
-  }
 }

@@ -34,9 +34,4 @@ class ConfigStore {
 
   Future<void> setChatSession(String agentId, String sessionId) =>
       _prefs.setString('chat.session.$agentId', sessionId);
-
-  /// Generic string slot (e.g. the update-check URL).
-  Future<String> getString(String key) => _prefs.getString(key).then((v) => v ?? '');
-
-  Future<void> setString(String key, String value) => _prefs.setString(key, value);
 }

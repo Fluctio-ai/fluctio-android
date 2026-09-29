@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/config_store.dart';
 import 'auth_state.dart';
 import 'credentials_store.dart';
+import 'session_cookie.dart';
 
 final configStoreProvider = Provider<ConfigStore>((ref) => ConfigStore(SharedPreferencesAsync()));
 
@@ -59,7 +60,7 @@ class AuthController extends Notifier<AuthState> {
       dio.interceptors.add(
         InterceptorsWrapper(
           onRequest: (options, handler) {
-            options.headers['cookie'] = 'fluctio_session=$sid';
+            options.headers['cookie'] = sessionCookieHeader(sid);
             handler.next(options);
           },
         ),

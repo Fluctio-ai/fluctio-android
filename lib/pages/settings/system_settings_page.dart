@@ -4,8 +4,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
-import '../../settings/agents_admin_repo.dart';
 import '../../settings/json_form.dart';
+import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
 import '../../webview/web_container.dart';
 
@@ -26,12 +26,24 @@ class SystemSettingsPage extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _group(context, l.settingsGeneral, LucideIcons.settings2,
-              SystemBlobScreen(title: l.settingsGeneral, path: '/api/config', method: 'POST', redactKeys: const {'providers', 'channels', 'toolProviders', 'hooks', 'mcpServers'})),
-          _group(context, l.settingsModels, LucideIcons.cpu, const ProvidersScreen()),
+              (_) => SystemBlobScreen(
+                  title: l.settingsGeneral,
+                  path: '/api/config',
+                  method: 'POST',
+                  hiddenKeys: const {
+                    'providers',
+                    'channels',
+                    'toolProviders',
+                    'hooks',
+                    'mcpServers'
+                  })),
+          _group(context, l.settingsModels, LucideIcons.cpu,
+              (_) => const ProvidersScreen()),
           _group(context, l.tabVectorization, LucideIcons.database,
-              SystemBlobScreen(title: l.tabVectorization, path: '/api/vectorization', method: 'PUT')),
+              (_) => SystemBlobScreen(
+                  title: l.tabVectorization, path: '/api/vectorization', method: 'PUT')),
           _group(context, l.tabPrivacy, LucideIcons.shield,
-              SystemBlobScreen(title: l.tabPrivacy, path: '/api/privacy', method: 'PUT')),
+              (_) => SystemBlobScreen(title: l.tabPrivacy, path: '/api/privacy', method: 'PUT')),
           // Folded advanced lists (read-only) — sandbox/deploy class.
           _advanced(context, l),
         ],
@@ -39,21 +51,16 @@ class SystemSettingsPage extends ConsumerWidget {
     );
   }
 
-  Widget _group(BuildContext context, String title, IconData icon, Widget screen) {
+  Widget _group(BuildContext context, String title, IconData icon, WidgetBuilder screen) {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-        borderRadius: AppRadius.cardBorder,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+      decoration: surfaceCardDecoration(theme.colorScheme),
       child: ListTile(
         leading: Icon(icon, size: 20, color: theme.colorScheme.primary),
         title: Text(title),
         trailing: const Icon(LucideIcons.chevronRight, size: 18),
-        onTap: () => Navigator.of(context)
-            .push(MaterialPageRoute<void>(builder: (_) => screen)),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: screen)),
       ),
     );
   }
@@ -78,15 +85,15 @@ class SystemSettingsPage extends ConsumerWidget {
             leading: Icon(LucideIcons.bug, size: 18, color: theme.colorScheme.outline),
             title: Text(l.settingsDiag, style: theme.textTheme.bodyMedium),
             trailing: const Icon(LucideIcons.chevronRight, size: 16),
-            onTap: () => openWebContainer(context, l.settingsDiag, '/settings/diag'),
+            onTap: () =>
+                openWebContainer(context, l.settingsDiag, WebRoutes.diagnostics()),
           ),
         ],
       ),
     );
   }
 
-  Widget _advancedRow(
-      BuildContext context, String title, String path, IconData icon) {
+  Widget _advancedRow(BuildContext context, String title, String path, IconData icon) {
     final theme = Theme.of(context);
     return ListTile(
       dense: true,
@@ -94,100 +101,42 @@ class SystemSettingsPage extends ConsumerWidget {
       leading: Icon(icon, size: 18, color: theme.colorScheme.outline),
       title: Text(title, style: theme.textTheme.bodyMedium),
       trailing: const Icon(LucideIcons.chevronRight, size: 16),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => GenericListScreen(title: title, path: path))),
+      onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => GenericListScreen(title: title, path: path))),
     );
   }
 }
 
-/// One GET→JsonForm→(POST|PUT) blob screen for a system settings group.
-class SystemBlobScreen extends ConsumerStatefulWidget {
+/// One GET→JsonForm→(POST|PUT) blob screen for a system settings group,
+/// built on the shared [BlobEditor].
+class SystemBlobScreen extends ConsumerWidget {
   const SystemBlobScreen({
     super.key,
     required this.title,
     required this.path,
     required this.method,
-    this.redactKeys = const {},
+    this.hiddenKeys = const {},
   });
 
   final String title;
   final String path;
   final String method;
-  final Set<String> redactKeys;
+  final Set<String> hiddenKeys;
 
   @override
-  ConsumerState<SystemBlobScreen> createState() => _SystemBlobScreenState();
-}
-
-class _SystemBlobScreenState extends ConsumerState<SystemBlobScreen> {
-  Map<String, dynamic>? _blob;
-  bool _dirty = false;
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final blob = await ref.read(agentsAdminRepoProvider).scopedGet(widget.path);
-      if (!mounted) return;
-      setState(() => _blob = blob);
-    } catch (e) {
-      if (mounted) setState(() => _error = '$e');
-    }
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      final repo = ref.read(agentsAdminRepoProvider);
-      if (widget.method == 'POST') {
-        // /api/config is user-level: POST per the contract.
-        await repo.postBlob(widget.path, _blob!);
-      } else {
-        await repo.scopedPut(widget.path, _blob!);
-      }
-      if (mounted) setState(() => _dirty = false);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repo = ref.watch(settingsRepoProvider);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
-          : _blob == null
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      JsonForm(
-                        value: _blob!,
-                        hiddenKeys: widget.redactKeys,
-                        onChanged: (next) => setState(() {
-                          _blob = next;
-                          _dirty = true;
-                        }),
-                      ),
-                      const SizedBox(height: 8),
-                      BlobSaveBar(dirty: _dirty, saving: _saving, onSave: _save),
-                    ],
-                  ),
-                ),
+      appBar: AppBar(title: Text(title)),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: BlobEditor(
+          load: () => repo.scopedGet(path),
+          save: (blob) =>
+              method == 'POST' ? repo.postBlob(path, blob) : repo.scopedPut(path, blob),
+          hiddenKeys: hiddenKeys,
+        ),
+      ),
     );
   }
 }
@@ -202,7 +151,7 @@ class ProvidersScreen extends ConsumerStatefulWidget {
 
 class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
   List<Map<String, dynamic>>? _providers;
-  String? _error;
+  bool _failed = false;
   String? _testing;
 
   @override
@@ -213,18 +162,14 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
 
   Future<void> _load() async {
     try {
-      final res = await ref.read(apiClientProvider).get('/api/providers');
-      final rows = res.data is List
-          ? res.data as List
-          : res.data is Map && (res.data as Map)['providers'] is List
-              ? (res.data as Map)['providers'] as List
-              : const [];
+      final rows = await ref.read(settingsRepoProvider).providers();
       if (!mounted) return;
-      setState(() {
-        _providers = [for (final r in rows) if (r is Map) Map<String, dynamic>.from(r)];
-      });
+      setState(() => _providers = rows);
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) {
+        setState(() => _failed = true);
+        showApiError(context, e);
+      }
     }
   }
 
@@ -237,9 +182,7 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('OK')));
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (mounted) showApiError(context, e);
     } finally {
       if (mounted) setState(() => _testing = null);
     }
@@ -274,24 +217,19 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
       ),
     );
     if (saved != true || name.text.trim().isEmpty) return;
-    final dio = ref.read(apiClientProvider);
-    final body = {
-      'name': name.text.trim(),
-      if (apiBase.text.trim().isNotEmpty) 'apiBase': apiBase.text.trim(),
-      if (apiKey.text.trim().isNotEmpty) 'apiKey': apiKey.text.trim(),
-      if (model.text.trim().isNotEmpty) 'model': model.text.trim(),
-    };
     try {
-      if (existing == null) {
-        await dio.post('/api/providers', data: {'scope': '', 'scopeId': '', ...body});
-      } else {
-        await dio.put('/api/providers/${existing['id']}', data: body);
-      }
+      await ref.read(settingsRepoProvider).saveProvider(
+            id: existing == null ? null : '${existing['id']}',
+            body: {
+              'name': name.text.trim(),
+              if (apiBase.text.trim().isNotEmpty) 'apiBase': apiBase.text.trim(),
+              if (apiKey.text.trim().isNotEmpty) 'apiKey': apiKey.text.trim(),
+              if (model.text.trim().isNotEmpty) 'model': model.text.trim(),
+            },
+          );
       _load();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (mounted) showApiError(context, e);
     }
   }
 
@@ -305,8 +243,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
         onPressed: () => _edit(null),
         child: const Icon(LucideIcons.plus),
       ),
-      body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+      body: _failed
+          ? Center(child: Text(l.chatHistoryError, style: TextStyle(color: theme.colorScheme.error)))
           : _providers == null
               ? const Center(child: CircularProgressIndicator())
               : RefreshIndicator(
@@ -315,7 +253,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                       ? ListView(children: [
                           Padding(
                             padding: const EdgeInsets.all(32),
-                            child: Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodyMedium)),
+                            child: Center(
+                                child: Text(l.settingsEmpty, style: theme.textTheme.bodyMedium)),
                           ),
                         ])
                       : ListView.builder(
@@ -329,8 +268,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                               trailing: _testing == '${p['id']}'
                                   ? const SizedBox(
                                       width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2))
                                   : Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
@@ -339,7 +278,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                                           onPressed: () => _test(p),
                                         ),
                                         IconButton(
-                                          icon: Icon(LucideIcons.pencil, size: 18, color: theme.colorScheme.outline),
+                                          icon: Icon(LucideIcons.pencil,
+                                              size: 18, color: theme.colorScheme.outline),
                                           onPressed: () => _edit(p),
                                         ),
                                       ],
@@ -352,8 +292,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
   }
 }
 
-/// Read-only generic list for the folded advanced groups (backup / cron /
-/// apikeys / diag reports): renders each row's name-ish fields.
+/// Read-only generic blob for the folded advanced groups (backup / cron /
+/// api keys) — rendered as key/value rows.
 class GenericListScreen extends ConsumerStatefulWidget {
   const GenericListScreen({super.key, required this.title, required this.path});
 
@@ -365,16 +305,14 @@ class GenericListScreen extends ConsumerStatefulWidget {
 }
 
 class _GenericListScreenState extends ConsumerState<GenericListScreen> {
-  List<Map<String, dynamic>>? _rows;
+  Map<String, dynamic>? _blob;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    ref.read(agentsAdminRepoProvider).scopedGet(widget.path).then((blob) {
-      // Response may be a list-shaped map or a flat blob; render what we get.
-      if (!mounted) return;
-      setState(() => _rows = [blob]);
+    ref.read(settingsRepoProvider).scopedGet(widget.path).then((blob) {
+      if (mounted) setState(() => _blob = blob);
     }).catchError((e) {
       if (mounted) setState(() => _error = '$e');
     });
@@ -387,18 +325,14 @@ class _GenericListScreenState extends ConsumerState<GenericListScreen> {
       appBar: AppBar(title: Text(widget.title)),
       body: _error != null
           ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
-          : _rows == null
+          : _blob == null
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Container(
                     padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                      borderRadius: AppRadius.cardBorder,
-                      border: Border.all(color: theme.colorScheme.outlineVariant),
-                    ),
-                    child: JsonView(value: _rows!.first),
+                    decoration: surfaceCardDecoration(theme.colorScheme),
+                    child: JsonView(value: _blob!),
                   ),
                 ),
     );

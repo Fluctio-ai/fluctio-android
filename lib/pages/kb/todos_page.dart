@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../util/dates.dart';
 
 /// KB todos grouped by due date (今天 / 明天 / 日期 / 无日期), checkbox to
 /// complete, tap to reschedule/edit.
@@ -89,7 +90,7 @@ class KbTodosPage extends ConsumerWidget {
           ? l.chatToday
           : day == tomorrow
               ? l.kbTomorrow
-              : '${d.year == today.year ? '' : '${d.year}/'}${d.month}/${d.day}';
+              : formatShortDate(d);
       groups.putIfAbsent(label, () => []).add(t);
     }
     if (noDate.isNotEmpty) groups[l.kbNoDate] = noDate;
@@ -127,7 +128,7 @@ class KbTodosPage extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      date == null ? l.kbNoDate : _fmt(date!),
+                      date == null ? l.kbNoDate : formatShortDate(date!),
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -154,7 +155,7 @@ class KbTodosPage extends ConsumerWidget {
     final content = contentController.text.trim();
     if (content.isEmpty) return;
 
-    final repo = KbRepo(ref.read(apiClientProvider));
+    final repo = ref.read(kbRepoProvider);
     try {
       if (existing == null) {
         final deduped = await repo.saveTodo(agentId, content, startAt: date);
@@ -170,19 +171,15 @@ class KbTodosPage extends ConsumerWidget {
           content: content,
           status: done ? 'done' : existing.status.isEmpty ? 'pending' : existing.status,
           startAt: date,
-          clearDates: date == null && existing.startAt != null,
         );
       }
       ref.invalidate(kbTodosProvider(agentId));
       ref.invalidate(kbSourcesProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 
-  String _fmt(DateTime d) => '${d.year}/${d.month}/${d.day}';
 }
 
 class _TodoTile extends ConsumerWidget {
@@ -227,7 +224,9 @@ class _TodoTile extends ConsumerWidget {
               )
             : null,
       ),
-      subtitle: todo.startAt == null ? null : Text(_time(todo.startAt!), maxLines: 1),
+      subtitle: todo.startAt == null
+            ? null
+            : Text(formatShortDate(todo.startAt!, withTime: true), maxLines: 1),
       trailing: TextButton(
         onPressed: () => KbTodosPage()._edit(context, ref, agentId, todo),
         child: Text(l.kbDueDate, style: const TextStyle(fontSize: 12)),
@@ -237,7 +236,8 @@ class _TodoTile extends ConsumerWidget {
 
   void _toggle(WidgetRef ref) {
     final next = todo.status == 'done' ? 'pending' : 'done';
-    KbRepo(ref.read(apiClientProvider))
+    ref
+        .read(kbRepoProvider)
         .updateTodo(agentId, todo.id, status: next)
         .then((_) {
       ref.invalidate(kbTodosProvider(agentId));
@@ -245,8 +245,5 @@ class _TodoTile extends ConsumerWidget {
     }).catchError((_) {});
   }
 
-  String _time(DateTime d) {
-    final local = d.toLocal();
-    return '${local.month}/${local.day} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-  }
+
 }

@@ -4,7 +4,18 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../auth/auth_controller.dart';
+import '../auth/session_cookie.dart';
 import '../l10n/app_localizations.dart';
+
+/// Web-app routes the native app embeds in the fallback container — the
+/// WebView-fallback contract in one place (a web-side rename breaks here,
+/// visibly, instead of at four inline call sites).
+abstract final class WebRoutes {
+  static String wiki(String agentId) => '/agents/$agentId/wiki';
+  static String workflows(String agentId) => '/agents/$agentId/workflows';
+  static String noteEditor(String agentId) => '/agents/$agentId/knowledge/notes';
+  static String diagnostics() => '/settings/diag';
+}
 
 /// Generic WebView fallback container (ticket 10): expensive features
 /// (whiteboard / graph / workflow editor / diagnostics) load the web app
@@ -38,21 +49,19 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
     // browser; URL params and localStorage are not needed).
     final cookieManager = WebViewCookieManager();
     if (auth.sid != null && auth.sid!.isNotEmpty) {
-      await cookieManager.setCookie(
-        WebViewCookie(
-          name: 'fluctio_session',
-          value: auth.sid!,
-          domain: base.host,
-          path: '/',
-        ),
-      );
+      await cookieManager.setCookie(sessionWebViewCookie(auth.sid!, base));
     }
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.transparent)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onProgress: (p) => setState(() => _progress = p / 100.0),
+          onProgress: (p) {
+            // Progress fires dozens of times per load; only rebuild on
+            // meaningful deltas.
+            final v = p / 100.0;
+            if (v - _progress >= 0.1 || v >= 1.0) setState(() => _progress = v);
+          },
           onPageFinished: (_) => setState(() => _stackIndex = 1),
           onWebResourceError: (e) {
             if (e.isForMainFrame == true && _stackIndex != 1) {
@@ -161,23 +170,29 @@ void openWebContainer(BuildContext context, String title, String path) {
 /// Full-screen mermaid renderer: a tiny local HTML page loading mermaid
 /// from CDN and rendering the given source; the cookie is irrelevant
 /// here so a plain WebView suffices.
-class MermaidViewerPage extends StatelessWidget {
+class MermaidViewerPage extends StatefulWidget {
   const MermaidViewerPage({super.key, required this.source});
 
   final String source;
 
   @override
+  State<MermaidViewerPage> createState() => _MermaidViewerPageState();
+}
+
+class _MermaidViewerPageState extends State<MermaidViewerPage> {
+  late final WebViewController _controller = WebViewController()
+    ..setJavaScriptMode(JavaScriptMode.unrestricted)
+    ..loadHtmlString(_html(widget.source), baseUrl: 'https://cdn.jsdelivr.net/');
+
+  @override
   Widget build(BuildContext context) {
-    final controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadHtmlString(_html(source), baseUrl: 'https://cdn.jsdelivr.net/');
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         iconTheme: const IconThemeData(color: Colors.black87),
       ),
-      body: WebViewWidget(controller: controller),
+      body: WebViewWidget(controller: _controller),
     );
   }
 

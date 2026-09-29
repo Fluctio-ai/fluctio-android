@@ -72,11 +72,7 @@ class ProjectsPage extends ConsumerWidget {
                     final p = list[i];
                     return Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-                        borderRadius: AppRadius.cardBorder,
-                        border: Border.all(color: theme.colorScheme.outlineVariant),
-                      ),
+                      decoration: surfaceCardDecoration(theme.colorScheme),
                       child: Row(
                         children: [
                           Container(

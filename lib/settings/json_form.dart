@@ -2,22 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../api/api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 
 /// Generic editor for free-form settings blobs (vectorization / privacy /
-/// recall-tuning / usage): bool → switch, num → numeric field, string →
-/// text field, `List<String>` → tag editor, nested map → section. Values
-/// round-trip untouched for keys we don't render.
+/// recall-tuning): bool → switch, num → numeric field, string → text
+/// field, `List<String>` → tag editor, nested map → section. Keys listed
+/// in [hiddenKeys] ride along untouched on every change (credential
+/// namespaces the server masks and that must round-trip verbatim).
 class JsonForm extends StatelessWidget {
-  const JsonForm({super.key, required this.value, required this.onChanged, this.hiddenKeys = const {}});
+  const JsonForm({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.hiddenKeys = const {},
+  });
 
   final Map<String, dynamic> value;
   final void Function(Map<String, dynamic> next) onChanged;
-
-  /// Keys present in [value] but neither rendered nor editable — they
-  /// ride along untouched on every onChanged (credential namespaces that
-  /// the server masks and that must round-trip verbatim).
   final Set<String> hiddenKeys;
 
   void _set(String key, Object? v) => onChanged({...value, key: v});
@@ -45,37 +48,25 @@ class JsonForm extends StatelessWidget {
       );
     }
     if (v is num) {
-      return _labeled(
+      return labeledField(
         context,
         key,
-        TextField(
-          controller: TextEditingController(text: '$v')
-            ..selection = TextSelection.collapsed(offset: '$v'.length),
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]')),
-          ],
-          decoration: const InputDecoration(isDense: true),
-          onChanged: (text) {
-            final parsed = int.tryParse(text) ?? double.tryParse(text);
-            if (parsed != null) _set(key, parsed);
-          },
-        ),
+        _NumField(initial: v, onChanged: (parsed) => _set(key, parsed)),
       );
     }
     if (v is String) {
-      return _labeled(
+      return labeledField(
         context,
         key,
-        TextField(
-          controller: TextEditingController(text: v),
-          decoration: const InputDecoration(isDense: true),
-          onChanged: (text) => _set(key, text),
-        ),
+        _StrField(initial: v, onChanged: (text) => _set(key, text)),
       );
     }
     if (v is List && v.every((e) => e is String)) {
-      return _labeled(context, key, _TagEditor(tags: v.cast<String>(), onChanged: (next) => _set(key, next)));
+      return labeledField(
+        context,
+        key,
+        _TagEditor(tags: v.cast<String>(), onChanged: (next) => _set(key, next)),
+      );
     }
     if (v is Map) {
       return Padding(
@@ -89,31 +80,98 @@ class JsonForm extends StatelessWidget {
             const SizedBox(height: 4),
             JsonForm(
               value: Map<String, dynamic>.from(v),
+              hiddenKeys: hiddenKeys,
               onChanged: (next) => _set(key, next),
             ),
           ],
         ),
       );
     }
-    return _labeled(
+    return labeledField(
       context,
       key,
       Text(v == null ? 'null' : '$v', style: theme.textTheme.bodySmall),
     );
   }
+}
 
-  Widget _labeled(BuildContext context, String label, Widget field) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: theme.textTheme.labelMedium),
-          const SizedBox(height: 4),
-          field,
-        ],
-      ),
+/// Label over a form field — shared with the hand-built settings tabs.
+Widget labeledField(BuildContext context, String label, Widget field) {
+  final theme = Theme.of(context);
+  return Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.labelMedium),
+        const SizedBox(height: 4),
+        field,
+      ],
+    ),
+  );
+}
+
+/// Field owning its controller (a fresh controller per build would lose
+/// the cursor and leak ChangeNotifiers on every parent setState).
+class _StrField extends StatefulWidget {
+  const _StrField({required this.initial, required this.onChanged});
+
+  final String initial;
+  final void Function(String text) onChanged;
+
+  @override
+  State<_StrField> createState() => _StrFieldState();
+}
+
+class _StrFieldState extends State<_StrField> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      decoration: const InputDecoration(isDense: true),
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
+class _NumField extends StatefulWidget {
+  const _NumField({required this.initial, required this.onChanged});
+
+  final num initial;
+  final void Function(num parsed) onChanged;
+
+  @override
+  State<_NumField> createState() => _NumFieldState();
+}
+
+class _NumFieldState extends State<_NumField> {
+  late final _controller = TextEditingController(text: '${widget.initial}');
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.\-]'))],
+      decoration: const InputDecoration(isDense: true),
+      onChanged: (text) {
+        final parsed = int.tryParse(text) ?? double.tryParse(text);
+        if (parsed != null) widget.onChanged(parsed);
+      },
     );
   }
 }
@@ -134,6 +192,12 @@ class _TagEditorState extends State<_TagEditor> {
       TextEditingController(text: widget.tags.join(', '));
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
@@ -146,7 +210,11 @@ class _TagEditorState extends State<_TagEditor> {
             suffixIcon: IconButton(
               icon: const Icon(LucideIcons.check, size: 16),
               onPressed: () => widget.onChanged(
-                _controller.text.split(',').map((t) => t.trim()).where((t) => t.isNotEmpty).toList(),
+                _controller.text
+                    .split(',')
+                    .map((t) => t.trim())
+                    .where((t) => t.isNotEmpty)
+                    .toList(),
               ),
             ),
           ),
@@ -204,7 +272,7 @@ class JsonView extends StatelessWidget {
   }
 }
 
-/// Reusable save bar for blob tabs.
+/// Reusable save bar for blob editors.
 class BlobSaveBar extends StatelessWidget {
   const BlobSaveBar({super.key, required this.dirty, required this.onSave, required this.saving});
 
@@ -230,6 +298,84 @@ class BlobSaveBar extends StatelessWidget {
           label: Text(l.settingsSave),
         ),
       ),
+    );
+  }
+}
+
+/// The blob-editor state machine in one place: load → JsonForm → save,
+/// shared by the agent settings tabs (recall / vectorization / privacy)
+/// and the system settings screens.
+class BlobEditor extends StatefulWidget {
+  const BlobEditor({
+    super.key,
+    required this.load,
+    required this.save,
+    this.hiddenKeys = const {},
+  });
+
+  final Future<Map<String, dynamic>> Function() load;
+  final Future<void> Function(Map<String, dynamic> blob) save;
+  final Set<String> hiddenKeys;
+
+  @override
+  State<BlobEditor> createState() => _BlobEditorState();
+}
+
+class _BlobEditorState extends State<BlobEditor> {
+  Map<String, dynamic>? _blob;
+  bool _dirty = false;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final blob = await widget.load();
+      if (!mounted) return;
+      setState(() => _blob = blob);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await widget.save(_blob!);
+      if (mounted) setState(() => _dirty = false);
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    if (_error != null) {
+      return Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)));
+    }
+    final blob = _blob;
+    if (blob == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        JsonForm(
+          value: blob,
+          hiddenKeys: widget.hiddenKeys,
+          onChanged: (next) => setState(() {
+            _blob = next;
+            _dirty = true;
+          }),
+        ),
+        BlobSaveBar(dirty: _dirty, saving: _saving, onSave: _save),
+      ],
     );
   }
 }

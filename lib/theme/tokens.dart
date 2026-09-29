@@ -122,6 +122,14 @@ final appPaletteDark = AppPalette(
   chart5: oklch(0.72, 0.13, 180), // teal
 );
 
+/// The app's signature grouped-card surface: tinted secondary container,
+/// hairline border, card radius. One owner instead of per-page copies.
+BoxDecoration surfaceCardDecoration(ColorScheme scheme) => BoxDecoration(
+      color: scheme.secondaryContainer.withValues(alpha: 0.4),
+      borderRadius: AppRadius.cardBorder,
+      border: Border.all(color: scheme.outlineVariant),
+    );
+
 /// Radius families pinned like the web (globals.css @theme): 4px nested,
 /// 6px controls, 12px cards/menus/modals, 16px fullscreen.
 abstract final class AppRadius {

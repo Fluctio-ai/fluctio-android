@@ -4,7 +4,6 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
@@ -13,6 +12,7 @@ import '../../chat/math_render.dart';
 import '../../webview/web_container.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
+import '../../util/open_url.dart';
 import 'chat_image.dart';
 import 'image_viewer.dart';
 
@@ -296,9 +296,9 @@ class _AssistantBubble extends ConsumerWidget {
             extensionSet: md.ExtensionSet.gitHubWeb,
             inlineSyntaxes: mathInlineSyntaxes,
             blockSyntaxes: mathBlockSyntaxes,
-            builders: {...mathBuilders, 'code': _MermaidCodeBuilder()},
+            builders: markdownBuilders,
             styleSheet: _markdownStyle(context),
-            onTapLink: (_, href, _) => _openLink(context, href),
+            onTapLink: (_, href, _) => href == null ? null : openExternalUrl(href),
             sizedImageBuilder: (config) => _MarkdownImage(
               url: config.uri.toString(),
               width: config.width,
@@ -595,6 +595,13 @@ class _AuthCard extends ConsumerWidget {
   }
 }
 
+/// Markdown element builders hoisted once (a per-bubble spread would
+/// allocate a new map + builder on every rebuild of every bubble).
+final markdownBuilders = <String, MarkdownElementBuilder>{
+  ...mathBuilders,
+  'code': _MermaidCodeBuilder(),
+};
+
 /// Mermaid fenced blocks become a tappable card that opens the
 /// full-screen WebView renderer (ticket 10); other code falls through
 /// to the default block style.
@@ -641,12 +648,4 @@ void _openImage(BuildContext context, String url, String baseUrl, String? cookie
   openImageViewer(context, chatImageProvider(url, baseUrl: baseUrl, cookie: cookie));
 }
 
-Future<void> _openLink(BuildContext context, String? href) async {
-  final uri = Uri.tryParse(href ?? '');
-  if (uri == null || !uri.hasScheme) return;
-  try {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } catch (_) {
-    // No handler for the scheme — ignore silently.
-  }
-}
+

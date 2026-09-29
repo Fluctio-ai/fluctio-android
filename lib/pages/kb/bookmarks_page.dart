@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../util/open_url.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
 /// so the link survives rot), edit metadata, promote into a full KB
@@ -61,7 +61,7 @@ class KbBookmarksPage extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         trailing: _Menu(agentId: agentId!, bookmark: b),
-                        onTap: () => _open(b.url),
+                        onTap: () => openExternalUrl(b.url),
                       );
                     },
                   ),
@@ -103,22 +103,13 @@ class KbBookmarksPage extends ConsumerWidget {
     final url = urlController.text.trim();
     if (url.isEmpty) return;
     try {
-      await KbRepo(ref.read(apiClientProvider))
+      await ref
+          .read(kbRepoProvider)
           .saveBookmark(agentId, url, title: titleController.text.trim());
       ref.invalidate(kbBookmarksProvider(agentId));
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
-  }
-
-  void _open(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) return;
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {}
   }
 
   String _host(String url) => Uri.tryParse(url)?.host ?? url;
@@ -185,7 +176,7 @@ class _Menu extends ConsumerWidget {
             ref.invalidate(kbBookmarksProvider(agentId));
           }
         case 'promote':
-          await repo.promoteBookmark(agentId, bookmark.id);
+          await ref.read(kbRepoProvider).promoteBookmark(agentId, bookmark.id);
           ref.invalidate(kbBookmarksProvider(agentId));
           ref.invalidate(kbSourcesProvider(agentId));
           if (context.mounted) {
@@ -212,9 +203,7 @@ class _Menu extends ConsumerWidget {
           }
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) showApiError(context, e);
     }
   }
 }

@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../l10n/app_localizations.dart';
-import '../../settings/agents_admin_repo.dart';
 import '../../settings/json_form.dart';
+import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
 
 /// Agent management list (from 我的 → Agent 管理).
@@ -28,16 +29,15 @@ class AgentsAdminPage extends ConsumerWidget {
                 return ListTile(
                   leading: CircleAvatar(
                     backgroundColor: theme.colorScheme.secondaryContainer,
-                    child: Icon(LucideIcons.bot,
-                        size: 20, color: theme.colorScheme.outline),
+                    child: Icon(LucideIcons.bot, size: 20, color: theme.colorScheme.outline),
                   ),
                   title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(a.model.isEmpty ? a.description : a.model, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(a.model.isEmpty ? a.description : a.model,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
                   trailing: const Icon(LucideIcons.chevronRight, size: 18),
-                  onTap: () =>
-                      Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => AgentSettingsPage(agentId: a.id, agentName: a.name),
-                          )),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => AgentSettingsPage(agentId: a.id, agentName: a.name),
+                      )),
                 );
               },
             ),
@@ -66,10 +66,18 @@ class AgentSettingsPage extends ConsumerStatefulWidget {
 class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   Map<String, dynamic>? _scope;
   Map<String, dynamic>? _config;
-  final List<String> _models = const [];
   String _tab = 'profile';
-  String? _error;
   bool _saving = false;
+
+  // Field-tab controllers owned by the page state (a fresh controller
+  // per build would reset sibling fields and the cursor on every
+  // keystroke / spinner toggle).
+  late final _name = TextEditingController();
+  late final _description = TextEditingController();
+  late final _maxTokens = TextEditingController();
+  late final _temperature = TextEditingController();
+  late final _iterations = TextEditingController();
+  late final _threshold = TextEditingController();
 
   static final _tabs = [
     _TabDef('profile', (l) => l.tabProfile),
@@ -89,26 +97,44 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
     _TabDef('channels', (l) => l.tabChannels),
   ];
 
-  AgentsAdminRepo get _repo => ref.read(agentsAdminRepoProvider);
-
   @override
   void initState() {
     super.initState();
     _load();
   }
 
+  @override
+  void dispose() {
+    for (final c in [_name, _description, _maxTokens, _temperature, _iterations, _threshold]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  SettingsRepo get _repo => ref.read(settingsRepoProvider);
+
   Future<void> _load() async {
     try {
-      final scope = await _repo.agent(widget.agentId);
-      final config = await _repo.agentConfig(widget.agentId);
+      final (scope, config) =
+          await (_repo.agent(widget.agentId), _repo.agentConfig(widget.agentId)).wait;
       if (!mounted) return;
+      _syncControllers(scope, config);
       setState(() {
         _scope = scope;
         _config = config;
       });
     } catch (e) {
-      if (mounted) setState(() => _error = '$e');
+      if (mounted) showApiError(context, e);
     }
+  }
+
+  void _syncControllers(Map<String, dynamic> scope, Map<String, dynamic> config) {
+    _name.text = '${scope['name'] ?? ''}';
+    _description.text = '${scope['description'] ?? ''}';
+    _maxTokens.text = '${scope['maxTokens'] ?? ''}';
+    _temperature.text = '${scope['temperature'] ?? ''}';
+    _iterations.text = '${scope['maxToolIterations'] ?? ''}';
+    _threshold.text = '${config['compactionThreshold'] ?? ''}';
   }
 
   Future<void> _savePatch(Map<String, dynamic> patch) async {
@@ -120,9 +146,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
         ref.read(agentsProvider.notifier).load();
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (mounted) showApiError(context, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -134,70 +158,81 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(widget.agentName.isEmpty ? l.meAgentManage : widget.agentName)),
-      body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
-          : Column(
+      body: Column(
+        children: [
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               children: [
-                SizedBox(
-                  height: 44,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    children: [
-                      for (final t in _tabs)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(t.labelKey(l), style: const TextStyle(fontSize: 12)),
-                            visualDensity: VisualDensity.compact,
-                            selected: _tab == t.id,
-                            onSelected: (_) => setState(() => _tab = t.id),
-                          ),
-                        ),
-                    ],
+                for (final t in _tabs)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(t.labelKey(l), style: const TextStyle(fontSize: 12)),
+                      visualDensity: VisualDensity.compact,
+                      selected: _tab == t.id,
+                      onSelected: (_) => setState(() => _tab = t.id),
+                    ),
                   ),
-                ),
-                Divider(height: 1, color: theme.colorScheme.outlineVariant),
-                Expanded(
-                  child: _scope == null || _config == null
-                      ? const Center(child: CircularProgressIndicator())
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: _tabBody(context),
-                        ),
-                ),
               ],
             ),
+          ),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          Expanded(
+            child: _scope == null || _config == null
+                ? const Center(child: CircularProgressIndicator())
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _tabBody(context),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
+  /// `/api/agents/<id>/<leaf>` for the blob subresources.
+  String _scopedPath(String leaf) => '/api/agents/${widget.agentId}/$leaf';
+
   Widget _tabBody(BuildContext context) {
+    final agentId = widget.agentId;
     return switch (_tab) {
       'profile' => _profileTab(),
       'models' => _modelsTab(),
       'context' => _contextTab(),
       'customize' => _customizeTab(),
       'knowledge' => _knowledgeTab(),
-      'recall' => _BlobTab(
-          repo: _repo,
-          agentId: widget.agentId,
-          path: '/api/agents/${widget.agentId}/recall-tuning'),
-      'vectorization' => _BlobTab(
-          repo: _repo,
-          agentId: widget.agentId,
-          path: '/api/agents/${widget.agentId}/vectorization'),
-      'privacy' => _BlobTab(
-          repo: _repo,
-          agentId: widget.agentId,
-          path: '/api/agents/${widget.agentId}/privacy'),
-      'usage' => _UsageTab(repo: _repo, agentId: widget.agentId),
-      'skills' => _SkillsTab(repo: _repo, agentId: widget.agentId),
+      'recall' => BlobEditor(
+          load: () => _repo.scopedGet(_scopedPath('recall-tuning')),
+          save: (blob) => _repo.scopedPut(_scopedPath('recall-tuning'), blob)),
+      'vectorization' => BlobEditor(
+          load: () => _repo.scopedGet(_scopedPath('vectorization')),
+          save: (blob) => _repo.scopedPut(_scopedPath('vectorization'), blob)),
+      'privacy' => BlobEditor(
+          load: () => _repo.scopedGet(_scopedPath('privacy')),
+          save: (blob) => _repo.scopedPut(_scopedPath('privacy'), blob)),
+      'usage' => _UsageTab(path: _scopedPath('usage')),
+      'skills' => _SkillsTab(agentId: agentId),
       'mcp' => _McpTab(config: _config!, onSaved: _savePatch),
-      'plugins' => _PluginsTab(
-          repo: _repo, agentId: widget.agentId, scope: _scope!, onSaved: _savePatch),
-      'scheduler' => _CronTab(repo: _repo, agentId: widget.agentId),
-      'regex' => _RegexTab(repo: _repo, agentId: widget.agentId),
-      'channels' => _ChannelsTab(repo: _repo, agentId: widget.agentId),
+      'plugins' => _PluginsTab(scope: _scope!, onSaved: _savePatch),
+      'scheduler' => _RepoListTab(
+          fetch: () => _repo.cronJobs(agentId),
+          tileBuilder: (context, row, reload) => _cronTile(
+              context,
+              row,
+              () => _repo.toggleCron(agentId, '${row['id']}').then((_) => reload()),
+              () => _repo.deleteCron(agentId, '${row['id']}').then((_) => reload()))),
+      'regex' => _RepoListTab(
+          fetch: () => _repo.regexHooks(agentId),
+          tileBuilder: (context, row, reload) => _regexTile(
+              context,
+              row,
+              () => _repo.deleteRegexHook(agentId, '${row['id']}').then((_) => reload()))),
+      'channels' => _RepoListTab(
+          fetch: () => _repo.channels(agentId),
+          tileBuilder: (context, row, _) => _channelTile(context, row)),
       _ => const SizedBox.shrink(),
     };
   }
@@ -206,111 +241,133 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
 
   Widget _profileTab() {
     final l = AppLocalizations.of(context)!;
-    final name = TextEditingController(text: '${_scope!['name'] ?? ''}');
-    final desc = TextEditingController(text: '${_scope!['description'] ?? ''}');
     return _FieldCard(
       onSave: () => _savePatch({
-        if (name.text.trim().isNotEmpty) 'name': name.text.trim(),
-        'description': desc.text,
+        if (_name.text.trim().isNotEmpty) 'name': _name.text.trim(),
+        'description': _description.text,
       }),
       saving: _saving,
       children: [
-        _labeled(l.tabName, TextField(controller: name)),
-        _labeled(l.tabDescription, TextField(controller: desc, maxLines: 3)),
+        labeledField(context, l.tabName, TextField(controller: _name)),
+        labeledField(context, l.tabDescription, TextField(controller: _description, maxLines: 3)),
       ],
     );
   }
 
   Widget _modelsTab() {
     final l = AppLocalizations.of(context)!;
-    final current = '${_scope!['model'] ?? ''}';
-    final maxTokens = TextEditingController(text: '${_scope!['maxTokens'] ?? ''}');
-    final temperature = TextEditingController(text: '${_scope!['temperature'] ?? ''}');
-    final iterations = TextEditingController(text: '${_scope!['maxToolIterations'] ?? ''}');
     return _FieldCard(
       onSave: () => _savePatch({
-        'model': current,
-        'maxTokens': int.tryParse(maxTokens.text) ?? 0,
-        'temperature': double.tryParse(temperature.text) ?? 0,
-        'maxToolIterations': int.tryParse(iterations.text) ?? 0,
+        'model': '${_scope!['model'] ?? ''}',
+        'maxTokens': int.tryParse(_maxTokens.text) ?? 0,
+        'temperature': double.tryParse(_temperature.text) ?? 0,
+        'maxToolIterations': int.tryParse(_iterations.text) ?? 0,
       }),
       saving: _saving,
       children: [
-        _labeled(l.tabModel, _ModelField(
-          current: current,
-          models: _models,
-          onChanged: (m) => setState(() => _scope!['model'] = m),
-        )),
-        _labeled('maxTokens', TextField(controller: maxTokens, keyboardType: TextInputType.number)),
-        _labeled('temperature', TextField(controller: temperature, keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-        _labeled('maxToolIterations', TextField(controller: iterations, keyboardType: TextInputType.number)),
+        labeledField(
+          context,
+          l.tabModel,
+          _ModelField(
+            current: '${_scope!['model'] ?? ''}',
+            onChanged: (m) => setState(() => _scope!['model'] = m),
+          ),
+        ),
+        labeledField(
+            context,
+            'maxTokens',
+            TextField(controller: _maxTokens, keyboardType: TextInputType.number)),
+        labeledField(
+            context,
+            'temperature',
+            TextField(
+                controller: _temperature,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+        labeledField(
+            context,
+            'maxToolIterations',
+            TextField(controller: _iterations, keyboardType: TextInputType.number)),
       ],
     );
   }
 
   Widget _contextTab() {
     final cfg = _config!;
-    final promptMode = '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}';
-    final guidance = '${_scope!['guidance'] ?? ''}';
-    final compaction = '${cfg['compactionMode'] ?? ''}';
-    final threshold = TextEditingController(text: '${cfg['compactionThreshold'] ?? ''}');
-    final language = '${cfg['language'] ?? ''}';
     return _FieldCard(
       onSave: () => _savePatch({
-        'promptMode': promptMode,
-        'guidance': guidance,
-        'compactionMode': compaction,
-        'compactionThreshold': int.tryParse(threshold.text) ?? 0,
-        'language': language,
+        'promptMode': '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}',
+        'guidance': '${_scope!['guidance'] ?? ''}',
+        'compactionMode': '${cfg['compactionMode'] ?? ''}',
+        'compactionThreshold': int.tryParse(_threshold.text) ?? 0,
+        'language': '${cfg['language'] ?? ''}',
       }),
       saving: _saving,
       children: [
-        _labeled('promptMode', _dropdown(['agent', 'chatbot', 'customize'], promptMode, (v) => setState(() => _scope!['promptMode'] = v))),
-        _labeled('guidance', _dropdown(['autonomous', 'guided'], guidance, (v) => setState(() => _scope!['guidance'] = v))),
-        _labeled('compactionMode', _dropdown(['conservative', 'balanced', 'aggressive'], compaction, (v) => setState(() => _config!['compactionMode'] = v))),
-        _labeled('compactionThreshold', TextField(controller: threshold, keyboardType: TextInputType.number)),
-        _labeled('language', _dropdown(['zh-CN', 'en'], language, (v) => setState(() => _config!['language'] = v))),
+        labeledField(
+            context,
+            'promptMode',
+            _dropdown(['agent', 'chatbot', 'customize'],
+                '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}',
+                (v) => setState(() => _scope!['promptMode'] = v))),
+        labeledField(
+            context,
+            'guidance',
+            _dropdown(['autonomous', 'guided'], '${_scope!['guidance'] ?? ''}',
+            (v) => setState(() => _scope!['guidance'] = v))),
+        labeledField(
+            context,
+            'compactionMode',
+            _dropdown(['conservative', 'balanced', 'aggressive'], '${cfg['compactionMode'] ?? ''}',
+                (v) => setState(() => _config!['compactionMode'] = v))),
+        labeledField(
+            context,
+            'compactionThreshold',
+            TextField(controller: _threshold, keyboardType: TextInputType.number)),
+        labeledField(
+            context,
+            'language',
+            _dropdown(['zh-CN', 'en'], '${cfg['language'] ?? ''}',
+            (v) => setState(() => _config!['language'] = v))),
       ],
     );
   }
 
   Widget _customizeTab() {
     final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final scope = _scope!;
-    final scopeCfg = _config!;
-    bool b(String key, Map src) => src[key] == true || src[key] == 'true';
+    bool b(String key) => scope[key] == true || scope[key] == 'true';
     return _FieldCard(
       onSave: () => _savePatch({
-        'splitReplies': b('splitReplies', scope),
-        'autoPersist': b('autoPersist', scope),
-        'sharedIdentity': b('sharedIdentity', scope),
+        'splitReplies': b('splitReplies'),
+        'autoPersist': b('autoPersist'),
+        'sharedIdentity': b('sharedIdentity'),
       }),
       saving: _saving,
       children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('splitReplies'),
-          value: b('splitReplies', scope),
+          value: b('splitReplies'),
           onChanged: (v) => setState(() => scope['splitReplies'] = v),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('autoPersist'),
-          value: b('autoPersist', scope),
+          value: b('autoPersist'),
           onChanged: (v) => setState(() => scope['autoPersist'] = v),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('sharedIdentity'),
-          value: b('sharedIdentity', scope),
+          value: b('sharedIdentity'),
           onChanged: (v) => setState(() => scope['sharedIdentity'] = v),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text(l.tabCustomizeHint, style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Theme.of(context).colorScheme.outline)),
+          child: Text(l.tabCustomizeHint,
+              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
         ),
-        // keep scopeCfg referenced so analyzer sees intent when fields shift
-        if (scopeCfg.isEmpty) const SizedBox.shrink(),
       ],
     );
   }
@@ -341,34 +398,19 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       initialValue: valid ? current : options.first,
       decoration: const InputDecoration(isDense: true),
       items: [
-        for (final o in options) DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))),
+        for (final o in options)
+          DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))),
       ],
       onChanged: (v) => v == null ? null : onChanged(v),
-    );
-  }
-
-  Widget _labeled(String label, Widget field) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: theme.textTheme.labelMedium),
-          const SizedBox(height: 4),
-          field,
-        ],
-      ),
     );
   }
 }
 
 /// Text field + builtin-model suggestions for the model tab.
 class _ModelField extends ConsumerStatefulWidget {
-  const _ModelField({required this.current, required this.models, required this.onChanged});
+  const _ModelField({required this.current, required this.onChanged});
 
   final String current;
-  final List<String> models;
   final ValueChanged<String> onChanged;
 
   @override
@@ -377,18 +419,21 @@ class _ModelField extends ConsumerStatefulWidget {
 
 class _ModelFieldState extends ConsumerState<_ModelField> {
   late final TextEditingController _controller = TextEditingController(text: widget.current);
+  List<String> _models = const [];
 
   @override
   void initState() {
     super.initState();
-    if (widget.models.isEmpty) {
-      ref.read(agentsAdminRepoProvider).builtinModels().then((models) {
-        if (mounted) setState(() => _models = models);
-      }).catchError((_) {});
-    }
+    ref.read(settingsRepoProvider).builtinModels().then((models) {
+      if (mounted) setState(() => _models = models);
+    }).catchError((_) {});
   }
 
-  List<String> _models = const [];
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -442,74 +487,11 @@ class _FieldCard extends StatelessWidget {
   }
 }
 
-/// GET blob → JsonForm → PUT blob tabs (recall-tuning / vectorization /
-/// privacy).
-class _BlobTab extends ConsumerStatefulWidget {
-  const _BlobTab({required this.repo, required this.agentId, required this.path});
-
-  final AgentsAdminRepo repo;
-  final String agentId;
-  final String path;
-
-  @override
-  ConsumerState<_BlobTab> createState() => _BlobTabState();
-}
-
-class _BlobTabState extends ConsumerState<_BlobTab> {
-  Map<String, dynamic>? _blob;
-  bool _dirty = false;
-  bool _saving = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.repo.scopedGet(widget.path).then((blob) {
-      if (mounted) setState(() => _blob = blob);
-    }).catchError((e) {
-      if (mounted) setState(() => _error = '$e');
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (_error != null) {
-      return Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)));
-    }
-    final blob = _blob;
-    if (blob == null) return const Center(child: CircularProgressIndicator());
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        JsonForm(value: blob, onChanged: (next) => setState(() {_blob = next; _dirty = true;})),
-        BlobSaveBar(
-          dirty: _dirty,
-          saving: _saving,
-          onSave: () async {
-            setState(() => _saving = true);
-            try {
-              await widget.repo.scopedPut(widget.path, _blob!);
-              if (mounted) setState(() => _dirty = false);
-            } catch (e) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-              }
-            } finally {
-              if (mounted) setState(() => _saving = false);
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
+/// Read-only usage blob in a card.
 class _UsageTab extends ConsumerStatefulWidget {
-  const _UsageTab({required this.repo, required this.agentId});
+  const _UsageTab({required this.path});
 
-  final AgentsAdminRepo repo;
-  final String agentId;
+  final String path;
 
   @override
   ConsumerState<_UsageTab> createState() => _UsageTabState();
@@ -518,13 +500,14 @@ class _UsageTab extends ConsumerStatefulWidget {
 class _UsageTabState extends ConsumerState<_UsageTab> {
   Map<String, dynamic>? _data;
 
-
   @override
   void initState() {
     super.initState();
-    widget.repo.scopedGet('/api/agents/${widget.agentId}/usage').then((d) {
+    ref.read(settingsRepoProvider).scopedGet(widget.path).then((d) {
       if (mounted) setState(() => _data = d);
-    }).catchError((_) {});
+    }).catchError((_) {
+      if (mounted) setState(() => _data = {});
+    });
   }
 
   @override
@@ -536,20 +519,17 @@ class _UsageTabState extends ConsumerState<_UsageTab> {
     }
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-        borderRadius: AppRadius.cardBorder,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
+      decoration: surfaceCardDecoration(theme.colorScheme),
       child: JsonView(value: data),
     );
   }
 }
 
+/// Skills list with the reload action (its header is what keeps it off
+/// the generic [_RepoListTab]).
 class _SkillsTab extends ConsumerStatefulWidget {
-  const _SkillsTab({required this.repo, required this.agentId});
+  const _SkillsTab({required this.agentId});
 
-  final AgentsAdminRepo repo;
   final String agentId;
 
   @override
@@ -568,7 +548,8 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
 
   Future<void> _load() async {
     try {
-      final skills = await widget.repo.skills(widget.agentId);
+      final skills =
+          await ref.read(settingsRepoProvider).skills(widget.agentId);
       if (mounted) setState(() => _skills = skills);
     } catch (_) {
       if (mounted) setState(() => _skills = []);
@@ -580,23 +561,29 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final skills = _skills;
-    if (skills == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     return Column(
       children: [
         Row(
           children: [
             TextButton.icon(
-              onPressed: _busy ? null : () async {
-                setState(() => _busy = true);
-                try { await widget.repo.reloadSkills(widget.agentId); await _load(); } catch (_) {}
-                if (mounted) setState(() => _busy = false);
-              },
-              icon: Icon(LucideIcons.refreshCw, size: 14),
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      setState(() => _busy = true);
+                      try {
+                        await ref.read(settingsRepoProvider).reloadSkills(widget.agentId);
+                        await _load();
+                      } catch (_) {}
+                      if (mounted) setState(() => _busy = false);
+                    },
+              icon: const Icon(LucideIcons.refreshCw, size: 14),
               label: Text(l.settingsReload, style: const TextStyle(fontSize: 13)),
             ),
           ],
         ),
-        if (skills.isEmpty)
+        if (skills == null)
+          const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        else if (skills.isEmpty)
           Text(l.settingsEmpty, style: theme.textTheme.bodySmall)
         else
           for (final s in skills)
@@ -605,18 +592,117 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
               dense: true,
               leading: Icon(LucideIcons.sparkles, size: 18, color: theme.colorScheme.primary),
               title: Text('${s['name'] ?? s['id'] ?? ''}'),
-              subtitle: s['description'] is String ? Text(s['description'], maxLines: 1) : null,
+              subtitle: s['description'] is String ? Text('${s['description']}', maxLines: 1) : null,
               trailing: IconButton(
                 icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-                onPressed: () async {
-                  await widget.repo.deleteSkill(widget.agentId, '${s['name'] ?? s['id'] ?? ''}');
-                  _load();
-                },
+                onPressed: () => ref
+                    .read(settingsRepoProvider)
+                    .deleteSkill(widget.agentId, '${s['name'] ?? s['id'] ?? ''}')
+                    .then((_) => _load()),
               ),
             ),
       ],
     );
   }
+}
+
+/// One generic "repo list tab" (load → spinner/empty/tiles), the shared
+/// state machine for scheduler / regex hooks / channels.
+class _RepoListTab extends StatefulWidget {
+  const _RepoListTab({required this.fetch, required this.tileBuilder});
+
+  final Future<List<Map<String, dynamic>>> Function() fetch;
+  final Widget Function(BuildContext context, Map<String, dynamic> row, void Function() reload)
+      tileBuilder;
+
+  @override
+  State<_RepoListTab> createState() => _RepoListTabState();
+}
+
+class _RepoListTabState extends State<_RepoListTab> {
+  List<Map<String, dynamic>>? _rows;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  Future<void> _reload() async {
+    try {
+      final rows = await widget.fetch();
+      if (mounted) setState(() => _rows = rows);
+    } catch (_) {
+      if (mounted) setState(() => _rows = []);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final rows = _rows;
+    if (rows == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (rows.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
+    return Column(
+      children: [for (final row in rows) widget.tileBuilder(context, row, _reload)],
+    );
+  }
+}
+
+Widget _cronTile(
+    BuildContext context, Map<String, dynamic> row, VoidCallback onToggle, VoidCallback onDelete) {
+  final theme = Theme.of(context);
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    dense: true,
+    leading: Icon(LucideIcons.clock, size: 18, color: theme.colorScheme.primary),
+    title: Text('${row['name'] ?? row['id'] ?? ''}', maxLines: 1),
+    subtitle: Text('${row['schedule'] ?? row['cron'] ?? ''}', maxLines: 1),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Switch(value: row['enabled'] == true, onChanged: (_) => onToggle()),
+        IconButton(
+          icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
+          onPressed: onDelete,
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _regexTile(BuildContext context, Map<String, dynamic> row, VoidCallback onDelete) {
+  final theme = Theme.of(context);
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    dense: true,
+    leading: Icon(LucideIcons.regex, size: 18, color: theme.colorScheme.primary),
+    title: Text('${row['name'] ?? row['pattern'] ?? row['id'] ?? ''}', maxLines: 1),
+    subtitle: row['pattern'] is String && row['name'] != null
+        ? Text('${row['pattern']}', maxLines: 1)
+        : null,
+    trailing: IconButton(
+      icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
+      onPressed: onDelete,
+    ),
+  );
+}
+
+Widget _channelTile(BuildContext context, Map<String, dynamic> row) {
+  final theme = Theme.of(context);
+  return ListTile(
+    contentPadding: EdgeInsets.zero,
+    dense: true,
+    leading: Icon(LucideIcons.radio, size: 18, color: theme.colorScheme.primary),
+    title: Text('${row['type'] ?? row['channel'] ?? row['name'] ?? ''}'),
+    subtitle: row['account'] is Map
+        ? Text('${(row['account'] as Map)['name'] ?? row['account']}', maxLines: 1)
+        : null,
+    trailing: row['connected'] == true || row['status'] == 'connected'
+        ? Icon(LucideIcons.checkCircle2, size: 16, color: theme.colorScheme.primary)
+        : null,
+  );
 }
 
 class _McpTab extends StatefulWidget {
@@ -648,10 +734,7 @@ class _McpTabState extends State<_McpTab> {
                 : null,
             trailing: IconButton(
               icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-              onPressed: () async {
-                final next = {...servers}..remove(name);
-                await widget.onSaved({'mcpServers': next});
-              },
+              onPressed: () => widget.onSaved({'mcpServers': {...servers}..remove(name)}),
             ),
           ),
         OutlinedButton.icon(
@@ -677,7 +760,7 @@ class _McpTabState extends State<_McpTab> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: name, decoration: InputDecoration(hintText: 'name')),
+            TextField(controller: name, decoration: const InputDecoration(hintText: 'name')),
             const SizedBox(height: 8),
             TextField(controller: url, decoration: const InputDecoration(hintText: 'https://…')),
           ],
@@ -699,10 +782,8 @@ class _McpTabState extends State<_McpTab> {
 }
 
 class _PluginsTab extends ConsumerStatefulWidget {
-  const _PluginsTab({required this.repo, required this.agentId, required this.scope, required this.onSaved});
+  const _PluginsTab({required this.scope, required this.onSaved});
 
-  final AgentsAdminRepo repo;
-  final String agentId;
   final Map<String, dynamic> scope;
   final Future<void> Function(Map<String, dynamic>) onSaved;
 
@@ -719,10 +800,10 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
     super.initState();
     final plugins = widget.scope['plugins'];
     if (plugins is Map) _overlay = Map<String, dynamic>.from(plugins);
-    widget.repo.pluginRegistry().then((r) {
-      if (mounted) setState(() => _registry = r);
-    }).catchError((_) {
-      if (mounted) setState(() => _registry = []);
+    ref.read(settingsRepoProvider).pluginRegistry().catchError((_) {
+      return const <Map<String, dynamic>>[];
+    }).then((rows) {
+      if (mounted) setState(() => _registry = rows);
     });
   }
 
@@ -735,7 +816,10 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
     if (registry.isEmpty && _overlay.isEmpty) {
       return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
     }
-    final names = <String>{..._overlay.keys, for (final r in registry) '${r['id'] ?? r['name'] ?? ''}'};
+    final names = <String>{
+      ..._overlay.keys,
+      for (final r in registry) '${r['id'] ?? r['name'] ?? ''}',
+    };
     return Column(
       children: [
         for (final name in names)
@@ -751,175 +835,6 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
           saving: false,
           onSave: () => widget.onSaved({'plugins': _overlay}),
         ),
-      ],
-    );
-  }
-}
-
-class _CronTab extends ConsumerStatefulWidget {
-  const _CronTab({required this.repo, required this.agentId});
-
-  final AgentsAdminRepo repo;
-  final String agentId;
-
-  @override
-  ConsumerState<_CronTab> createState() => _CronTabState();
-}
-
-class _CronTabState extends ConsumerState<_CronTab> {
-  List<Map<String, dynamic>>? _jobs;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    try {
-      final jobs = await widget.repo.cronJobs(widget.agentId);
-      if (mounted) setState(() => _jobs = jobs);
-    } catch (_) {
-      if (mounted) setState(() => _jobs = []);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final jobs = _jobs;
-    if (jobs == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    if (jobs.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
-    return Column(
-      children: [
-        for (final j in jobs)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(LucideIcons.clock, size: 18, color: theme.colorScheme.primary),
-            title: Text('${j['name'] ?? j['id'] ?? ''}', maxLines: 1),
-            subtitle: Text('${j['schedule'] ?? j['cron'] ?? ''}', maxLines: 1),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Switch(
-                  value: j['enabled'] == true,
-                  onChanged: (_) async {
-                    await widget.repo.toggleCron(widget.agentId, '${j['id']}');
-                    _load();
-                  },
-                ),
-                IconButton(
-                  icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-                  onPressed: () async {
-                    await widget.repo.deleteCron(widget.agentId, '${j['id']}');
-                    _load();
-                  },
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _RegexTab extends ConsumerStatefulWidget {
-  const _RegexTab({required this.repo, required this.agentId});
-
-  final AgentsAdminRepo repo;
-  final String agentId;
-
-  @override
-  ConsumerState<_RegexTab> createState() => _RegexTabState();
-}
-
-class _RegexTabState extends ConsumerState<_RegexTab> {
-  List<Map<String, dynamic>>? _hooks;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.repo.regexHooks(widget.agentId).then((h) {
-      if (mounted) setState(() => _hooks = h);
-    }).catchError((_) {
-      if (mounted) setState(() => _hooks = []);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final hooks = _hooks;
-    if (hooks == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    if (hooks.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
-    return Column(
-      children: [
-        for (final h in hooks)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(LucideIcons.regex, size: 18, color: theme.colorScheme.primary),
-            title: Text('${h['name'] ?? h['pattern'] ?? h['id'] ?? ''}', maxLines: 1),
-            subtitle: h['pattern'] is String && h['name'] != null ? Text('${h['pattern']}', maxLines: 1) : null,
-            trailing: IconButton(
-              icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-              onPressed: () async {
-                await widget.repo.deleteRegexHook(widget.agentId, '${h['id']}');
-                setState(() => _hooks!.remove(h));
-              },
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _ChannelsTab extends ConsumerStatefulWidget {
-  const _ChannelsTab({required this.repo, required this.agentId});
-
-  final AgentsAdminRepo repo;
-  final String agentId;
-
-  @override
-  ConsumerState<_ChannelsTab> createState() => _ChannelsTabState();
-}
-
-class _ChannelsTabState extends ConsumerState<_ChannelsTab> {
-  List<Map<String, dynamic>>? _channels;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.repo.channels(widget.agentId).then((c) {
-      if (mounted) setState(() => _channels = c);
-    }).catchError((_) {
-      if (mounted) setState(() => _channels = []);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final channels = _channels;
-    if (channels == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    if (channels.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
-    return Column(
-      children: [
-        for (final c in channels)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            leading: Icon(LucideIcons.radio, size: 18, color: theme.colorScheme.primary),
-            title: Text('${c['type'] ?? c['channel'] ?? c['name'] ?? ''}'),
-            subtitle: c['account'] is Map ? Text('${(c['account'] as Map)['name'] ?? c['account']}', maxLines: 1) : null,
-            trailing: c['connected'] == true || c['status'] == 'connected'
-                ? Icon(LucideIcons.checkCircle2, size: 16, color: theme.colorScheme.primary)
-                : null,
-          ),
       ],
     );
   }
