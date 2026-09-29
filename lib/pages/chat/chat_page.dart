@@ -11,7 +11,6 @@ import '../../chat/chat_engine.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
-import '../app_drawer.dart';
 import 'composer.dart';
 import 'message_list.dart';
 import 'panels.dart';
@@ -130,7 +129,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.smart_toy_outlined, size: 40, color: theme.colorScheme.outline),
+              Icon(LucideIcons.bot, size: 40, color: theme.colorScheme.outline),
               const SizedBox(height: 12),
               Text(l.chatNoAgent, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 12),
@@ -147,9 +146,6 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     final selected = agents.selected!;
     final store = ref.watch(chatStoreProvider);
     final activeSessionId = store.activeKey?.substring(store.activeKey!.indexOf('|') + 1);
-    // Sub-line = the open session's title, so switching sessions from the
-    // drawer gives immediate visual confirmation (empty/new sessions show
-    // "New chat").
     final sessionTitle = ref
         .watch(sessionsProvider)
         .value
@@ -166,7 +162,6 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         ? selected.model
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
     return Scaffold(
-      drawer: const AppDrawer(),
       appBar: AppBar(
         title: PopupMenuButton<String>(
           initialValue: selected.id,

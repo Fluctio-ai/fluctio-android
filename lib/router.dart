@@ -10,6 +10,7 @@ import 'pages/chat/chat_page.dart';
 import 'pages/kb_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/projects_page.dart';
+import 'pages/session_list_page.dart';
 import 'pages/setup_page.dart';
 import 'pages/wiki_page.dart';
 import 'pages/workflow_page.dart';
@@ -46,7 +47,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => RootShell(shell: navigationShell),
         branches: [
-          StatefulShellBranch(routes: [GoRoute(path: '/', builder: (_, _) => const ChatPage())]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/', builder: (_, _) => const SessionListPage()),
+            GoRoute(path: '/c/:sid', builder: (_, _) => const ChatPage()),
+          ]),
           StatefulShellBranch(routes: [GoRoute(path: '/kb', builder: (_, _) => const KbPage())]),
           StatefulShellBranch(routes: [GoRoute(path: '/projects', builder: (_, _) => const ProjectsPage())]),
           StatefulShellBranch(routes: [GoRoute(path: '/me', builder: (_, _) => const ProfilePage())]),

@@ -272,10 +272,12 @@ class ChatStoreController extends Notifier<ChatStore> {
     _startSubscribe(agentId, sessionId);
   }
 
-  Future<void> newChat() async {
+  Future<String> newChat() async {
     final agentId = ref.read(agentsProvider).selectedId;
-    if (agentId == null) return;
-    await openSession(agentId, _generateSessionKey());
+    if (agentId == null) return '';
+    final key = _generateSessionKey();
+    await openSession(agentId, key);
+    return key;
   }
 
   Future<void> loadMore() async {    final key = state.activeKey;

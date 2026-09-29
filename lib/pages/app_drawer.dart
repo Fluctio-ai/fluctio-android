@@ -60,9 +60,12 @@ class AppDrawer extends ConsumerWidget {
                     child: _ActionChip(
                       icon: LucideIcons.messageSquarePlus,
                       label: l.chatNew,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.of(context).pop();
-                        ref.read(chatStoreProvider.notifier).newChat();
+                        final sid = await ref.read(chatStoreProvider.notifier).newChat();
+                        if (sid.isNotEmpty && context.mounted) {
+                          context.go('/c/${Uri.encodeComponent(sid)}');
+                        }
                       },
                     ),
                   ),
@@ -140,6 +143,7 @@ class AppDrawer extends ConsumerWidget {
                                 if (agentId != null) {
                                   Navigator.of(context).pop();
                                   ref.read(chatStoreProvider.notifier).openSession(agentId, s.id);
+                                  context.go('/c/${Uri.encodeComponent(s.id)}');
                                 }
                               },
                             ),
