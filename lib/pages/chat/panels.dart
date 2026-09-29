@@ -91,10 +91,6 @@ class _SessionMenu extends ConsumerWidget {
       icon: Icon(Icons.more_vert, size: 18, color: Theme.of(context).colorScheme.outline),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
-        PopupMenuItem(
-          value: 'chatOnly',
-          child: Text('${session.chatOnly ? '✓ ' : ''}${l.chatOnlyMode}'),
-        ),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
       ],
     );
@@ -106,12 +102,6 @@ class _SessionMenu extends ConsumerWidget {
     switch (action) {
       case 'rename':
         await _promptRename(context, ref, l);
-      case 'chatOnly':
-        try {
-          await notifier.setChatOnly(session.id, !session.chatOnly);
-        } catch (_) {
-          // Toggle failures surface as the stale list state.
-        }
       case 'delete':
         final yes = await showDialog<bool>(
           context: context,

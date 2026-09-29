@@ -90,5 +90,7 @@
   "chatSuggest2": "帮我列一个今日待办",
   "chatSuggest3": "随便聊点什么",
   "chatSend": "发送",
-  "chatAttach": "添加图片"
+  "chatAttach": "添加图片",
+  "chatOnlyChip": "仅对话",
+  "chatOnlyNeedsMessage": "先发送一条消息创建会话后即可切换"
 }

@@ -281,4 +281,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatAttach => '添加图片';
+
+  @override
+  String get chatOnlyChip => '仅对话';
+
+  @override
+  String get chatOnlyNeedsMessage => '先发送一条消息创建会话后即可切换';
 }

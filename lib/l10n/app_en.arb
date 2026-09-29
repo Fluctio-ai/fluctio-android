@@ -90,5 +90,7 @@
   "chatSuggest2": "Draft today's todo list",
   "chatSuggest3": "Just chat",
   "chatSend": "Send",
-  "chatAttach": "Attach image"
+  "chatAttach": "Attach image",
+  "chatOnlyChip": "Chat only",
+  "chatOnlyNeedsMessage": "Send a message first to create the session"
 }

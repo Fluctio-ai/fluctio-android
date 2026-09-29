@@ -51,6 +51,30 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     }
   }
 
+  /// Chat-only toggle inside the composer. Sessions that only exist
+  /// locally (generated key, no first message yet) can't be toggled —
+  /// the PATCH needs a persisted session row.
+  Future<void> _toggleChatOnly(BuildContext context, bool on) async {
+    final l = AppLocalizations.of(context)!;
+    final key = ref.read(chatStoreProvider).activeKey;
+    if (key == null) return;
+    final sessionId = key.substring(key.indexOf('|') + 1);
+    final exists = ref.read(sessionsProvider).value?.any((s) => s.id == sessionId);
+    if (exists != true) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l.chatOnlyNeedsMessage)));
+      return;
+    }
+    try {
+      await ref.read(sessionsProvider.notifier).setChatOnly(sessionId, on);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
+      }
+    }
+  }
+
   Future<void> _pickImages() async {
     final l = AppLocalizations.of(context);
     try {
@@ -129,6 +153,12 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         ?.where((s) => s.id == activeSessionId)
         .firstOrNull
         ?.title;
+    final activeSession = ref
+        .watch(sessionsProvider)
+        .value
+        ?.where((s) => s.id == activeSessionId)
+        .firstOrNull;
+    final chatOnly = activeSession?.chatOnly ?? false;
     final subtitle = activeSessionId == null
         ? selected.model
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
@@ -238,6 +268,8 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   controller: _input,
                   state: active,
                   pendingImages: _pendingImages,
+                  chatOnly: chatOnly,
+                  onToggleChatOnly: (on) => _toggleChatOnly(context, on),
                   onChanged: () => setState(() {}),
                   onPickImages: _pickImages,
                   onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),

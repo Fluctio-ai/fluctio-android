@@ -285,4 +285,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatAttach => 'Attach image';
+
+  @override
+  String get chatOnlyChip => 'Chat only';
+
+  @override
+  String get chatOnlyNeedsMessage =>
+      'Send a message first to create the session';
 }

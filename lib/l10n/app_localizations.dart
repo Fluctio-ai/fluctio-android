@@ -643,6 +643,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'添加图片'**
   String get chatAttach;
+
+  /// No description provided for @chatOnlyChip.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅对话'**
+  String get chatOnlyChip;
+
+  /// No description provided for @chatOnlyNeedsMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'先发送一条消息创建会话后即可切换'**
+  String get chatOnlyNeedsMessage;
 }
 
 class _AppLocalizationsDelegate

@@ -13,6 +13,8 @@ class Composer extends StatelessWidget {
     required this.controller,
     required this.state,
     required this.pendingImages,
+    required this.chatOnly,
+    required this.onToggleChatOnly,
     required this.onChanged,
     required this.onPickImages,
     required this.onRemoveImage,
@@ -24,6 +26,11 @@ class Composer extends StatelessWidget {
   final TextEditingController controller;
   final ChatUiState state;
   final List<String> pendingImages;
+
+  /// Pure-conversation mode of the open session (no tools sent to the
+  /// LLM); toggled in-place like the web composer.
+  final bool chatOnly;
+  final ValueChanged<bool> onToggleChatOnly;
   final VoidCallback onChanged;
   final VoidCallback onPickImages;
   final void Function(int index) onRemoveImage;
@@ -93,18 +100,65 @@ class Composer extends StatelessWidget {
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: theme.colorScheme.outlineVariant),
                     ),
-                    child: TextField(
-                      controller: controller,
-                      onChanged: (_) => onChanged(),
-                      minLines: 1,
-                      maxLines: 6,
-                      keyboardType: TextInputType.multiline,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: InputDecoration(
-                        hintText: l.chatEmpty,
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                      ),
+                    child: Row(
+                      children: [
+                        // Chat-only toggle lives in the capsule like the
+                        // web composer's tool row (icon + label, primary
+                        // tint when active).
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => onToggleChatOnly(!chatOnly),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: chatOnly
+                                    ? theme.colorScheme.primaryContainer
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.forum_outlined,
+                                    size: 15,
+                                    color: chatOnly
+                                        ? theme.colorScheme.onPrimaryContainer
+                                        : theme.colorScheme.outline,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    l.chatOnlyChip,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: chatOnly
+                                          ? theme.colorScheme.onPrimaryContainer
+                                          : theme.colorScheme.outline,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            onChanged: (_) => onChanged(),
+                            minLines: 1,
+                            maxLines: 6,
+                            keyboardType: TextInputType.multiline,
+                            textCapitalization: TextCapitalization.sentences,
+                            decoration: InputDecoration(
+                              hintText: l.chatEmpty,
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
