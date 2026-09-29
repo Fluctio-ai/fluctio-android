@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
+import '../../chat/math_render.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import 'chat_image.dart';
@@ -292,6 +293,9 @@ class _AssistantBubble extends ConsumerWidget {
           MarkdownBody(
             data: entry.text,
             extensionSet: md.ExtensionSet.gitHubWeb,
+            inlineSyntaxes: mathInlineSyntaxes,
+            blockSyntaxes: mathBlockSyntaxes,
+            builders: mathBuilders,
             styleSheet: _markdownStyle(context),
             onTapLink: (_, href, _) => _openLink(context, href),
             sizedImageBuilder: (config) => _MarkdownImage(
