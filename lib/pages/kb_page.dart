@@ -1,92 +1,74 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../chat/chat_controller.dart';
+import '../kb/kb_repo.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 
-/// Knowledge tab per the prototype: search field + entry grid. Counts and
-/// recent-documents arrive with the M2 tickets; Wiki routes now.
-class KbPage extends StatefulWidget {
+/// Knowledge tab per the prototype: entry grid with live counts from the
+/// KB sources / bookmarks of the selected agent. Wiki routes now; notes,
+/// diary and cards arrive with ticket 06.
+class KbPage extends ConsumerWidget {
   const KbPage({super.key});
 
   @override
-  State<KbPage> createState() => _KbPageState();
-}
-
-class _KbPageState extends State<KbPage> {
-  final _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
+    final sources = agentId == null ? null : ref.watch(kbSourcesProvider(agentId));
+    final bookmarks = agentId == null ? null : ref.watch(kbBookmarksProvider(agentId));
+
+    int? count(bool Function(String type) match) {
+      final list = sources?.value;
+      if (list == null) return null;
+      return list.where((s) => match(s.type)).length;
+    }
+
     final entries = <_KbEntry>[
-      _KbEntry(l.kbArticles, LucideIcons.fileText, () => _comingSoon(context, l)),
-      _KbEntry(l.kbNotes, LucideIcons.stickyNote, () => _comingSoon(context, l)),
-      _KbEntry(l.kbIdeas, LucideIcons.lightbulb, () => _comingSoon(context, l)),
-      _KbEntry(l.kbTodos, LucideIcons.listChecks, () => _comingSoon(context, l)),
-      _KbEntry(l.kbDiary, LucideIcons.calendarDays, () => _comingSoon(context, l)),
-      _KbEntry(l.kbBookmarks, LucideIcons.bookmark, () => _comingSoon(context, l)),
-      _KbEntry(l.kbCards, LucideIcons.layers, () => _comingSoon(context, l)),
+      _KbEntry(l.kbArticles, LucideIcons.fileText,
+          () => context.push('/kb/articles'), count: count((t) => t == 'article')),
+      _KbEntry(l.kbIdeas, LucideIcons.stickyNote, () => context.push('/kb/flash'),
+          count: count((t) => t == 'flash')),
+      _KbEntry(l.kbTodos, LucideIcons.listChecks, () => context.push('/kb/todos'),
+          count: count((t) => t == 'todo')),
+      _KbEntry(l.kbDiary, LucideIcons.calendarDays, () => _soon(context, l)),
+      _KbEntry(l.kbBookmarks, LucideIcons.bookmark, () => context.push('/kb/bookmarks'),
+          count: bookmarks?.value?.length),
+      _KbEntry(l.kbNotes, LucideIcons.notebookPen, () => _soon(context, l)),
+      _KbEntry(l.kbCards, LucideIcons.layers, () => _soon(context, l)),
       _KbEntry(l.kbWiki, LucideIcons.globe, () => context.push('/wiki')),
     ];
-    final query = _search.text.trim().toLowerCase();
-    final visible = query.isEmpty
-        ? entries
-        : entries.where((e) => e.name.toLowerCase().contains(query)).toList();
 
     return Scaffold(
       appBar: AppBar(title: Text(l.navKnowledge)),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _search,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: l.kbSearchHint,
-                prefixIcon: const Icon(Icons.search),
-                isDense: true,
-              ),
-            ),
-          ),
-          Expanded(
-            child: visible.isEmpty
-                ? Center(child: Text(l.comingSoon, style: theme.textTheme.bodyMedium))
-                : GridView.count(
-                    crossAxisCount: 4,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 0.86,
-                    children: [
-                      for (final e in visible) _KbCard(entry: e),
-                    ],
-                  ),
-          ),
-        ],
+      body: GridView.count(
+        crossAxisCount: 4,
+        padding: const EdgeInsets.all(16),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 0.86,
+        children: [for (final e in entries) _KbCard(entry: e)],
       ),
     );
   }
 
-  void _comingSoon(BuildContext context, AppLocalizations l) {
+  void _soon(BuildContext context, AppLocalizations l) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.comingSoon)));
   }
 }
 
 class _KbEntry {
-  const _KbEntry(this.name, this.icon, this.onTap);
+  const _KbEntry(this.name, this.icon, this.onTap, {this.count});
+
   final String name;
   final IconData icon;
   final VoidCallback onTap;
+
+  /// null = not yet loaded / not applicable.
+  final int? count;
 }
 
 class _KbCard extends StatelessWidget {
@@ -112,12 +94,14 @@ class _KbCard extends StatelessWidget {
           children: [
             Icon(entry.icon, size: 26, color: theme.colorScheme.primary),
             const SizedBox(height: 8),
-            Text(
-              entry.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelMedium,
-            ),
+            Text(entry.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelMedium),
+            if (entry.count != null)
+              Text('${entry.count}',
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
           ],
         ),
       ),

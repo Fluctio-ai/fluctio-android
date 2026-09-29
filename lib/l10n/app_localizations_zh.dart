@@ -290,4 +290,61 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatOnlyNeedsMessage => '先发送一条消息创建会话后即可切换';
+
+  @override
+  String get kbEmpty => '暂无内容';
+
+  @override
+  String get kbTomorrow => '明天';
+
+  @override
+  String get kbNoDate => '无日期';
+
+  @override
+  String get kbAddTodo => '新建待办';
+
+  @override
+  String get kbTodoHint => '待办内容';
+
+  @override
+  String get kbDueDate => '日期';
+
+  @override
+  String get kbAddFlash => '记一笔';
+
+  @override
+  String get kbFlashHint => '一闪而过的灵感…';
+
+  @override
+  String get kbDeduped => '与已有内容重复，未保存';
+
+  @override
+  String get kbAddBookmark => '保存书签';
+
+  @override
+  String get kbTitleOptional => '标题（可选）';
+
+  @override
+  String get kbSummary => '摘要';
+
+  @override
+  String get kbPromote => '升格为文章';
+
+  @override
+  String get kbPromoted => '已升格为文章';
+
+  @override
+  String get kbGenerateInsights => '生成深度解读';
+
+  @override
+  String get kbInsights => '深度解读';
+
+  @override
+  String get kbQuotes => '金句';
+
+  @override
+  String get kbActions => '行动';
+
+  @override
+  String get kbGenerating => '生成中…';
 }

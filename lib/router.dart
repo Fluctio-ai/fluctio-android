@@ -7,6 +7,11 @@ import 'auth/auth_controller.dart';
 import 'auth/auth_state.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/chat/chat_page.dart';
+import 'pages/kb/article_detail_page.dart';
+import 'pages/kb/articles_page.dart';
+import 'pages/kb/bookmarks_page.dart';
+import 'pages/kb/flash_page.dart';
+import 'pages/kb/todos_page.dart';
 import 'pages/kb_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/projects_page.dart';
@@ -51,7 +56,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(path: '/', builder: (_, _) => const SessionListPage()),
             GoRoute(path: '/c/:sid', builder: (_, _) => const ChatPage()),
           ]),
-          StatefulShellBranch(routes: [GoRoute(path: '/kb', builder: (_, _) => const KbPage())]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/kb', builder: (_, _) => const KbPage(), routes: [
+              GoRoute(path: 'articles', builder: (_, _) => const KbArticlesPage(), routes: [
+                GoRoute(
+                  path: ':sid',
+                  builder: (_, state) => KbArticleDetailPage(
+                    sourceId: state.pathParameters['sid'] ?? '',
+                    title: state.uri.queryParameters['title'] ?? '',
+                  ),
+                ),
+              ]),
+              GoRoute(path: 'flash', builder: (_, _) => const KbFlashPage()),
+              GoRoute(path: 'todos', builder: (_, _) => const KbTodosPage()),
+              GoRoute(path: 'bookmarks', builder: (_, _) => const KbBookmarksPage()),
+            ]),
+          ]),
           StatefulShellBranch(routes: [GoRoute(path: '/projects', builder: (_, _) => const ProjectsPage())]),
           StatefulShellBranch(routes: [GoRoute(path: '/me', builder: (_, _) => const ProfilePage())]),
         ],

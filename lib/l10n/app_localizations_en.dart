@@ -295,4 +295,61 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get chatOnlyNeedsMessage =>
       'Send a message first to create the session';
+
+  @override
+  String get kbEmpty => 'Nothing here yet';
+
+  @override
+  String get kbTomorrow => 'Tomorrow';
+
+  @override
+  String get kbNoDate => 'No date';
+
+  @override
+  String get kbAddTodo => 'New todo';
+
+  @override
+  String get kbTodoHint => 'Todo content';
+
+  @override
+  String get kbDueDate => 'Date';
+
+  @override
+  String get kbAddFlash => 'Capture a flash';
+
+  @override
+  String get kbFlashHint => 'A fleeting thought…';
+
+  @override
+  String get kbDeduped => 'Duplicate of an existing entry — skipped';
+
+  @override
+  String get kbAddBookmark => 'Save bookmark';
+
+  @override
+  String get kbTitleOptional => 'Title (optional)';
+
+  @override
+  String get kbSummary => 'Summary';
+
+  @override
+  String get kbPromote => 'Promote to article';
+
+  @override
+  String get kbPromoted => 'Promoted to article';
+
+  @override
+  String get kbGenerateInsights => 'Generate deep reading';
+
+  @override
+  String get kbInsights => 'Deep reading';
+
+  @override
+  String get kbQuotes => 'Quotes';
+
+  @override
+  String get kbActions => 'Actions';
+
+  @override
+  String get kbGenerating => 'Generating…';
 }

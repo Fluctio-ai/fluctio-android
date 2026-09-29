@@ -661,6 +661,120 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'先发送一条消息创建会话后即可切换'**
   String get chatOnlyNeedsMessage;
+
+  /// No description provided for @kbEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无内容'**
+  String get kbEmpty;
+
+  /// No description provided for @kbTomorrow.
+  ///
+  /// In zh, this message translates to:
+  /// **'明天'**
+  String get kbTomorrow;
+
+  /// No description provided for @kbNoDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'无日期'**
+  String get kbNoDate;
+
+  /// No description provided for @kbAddTodo.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建待办'**
+  String get kbAddTodo;
+
+  /// No description provided for @kbTodoHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'待办内容'**
+  String get kbTodoHint;
+
+  /// No description provided for @kbDueDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'日期'**
+  String get kbDueDate;
+
+  /// No description provided for @kbAddFlash.
+  ///
+  /// In zh, this message translates to:
+  /// **'记一笔'**
+  String get kbAddFlash;
+
+  /// No description provided for @kbFlashHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'一闪而过的灵感…'**
+  String get kbFlashHint;
+
+  /// No description provided for @kbDeduped.
+  ///
+  /// In zh, this message translates to:
+  /// **'与已有内容重复，未保存'**
+  String get kbDeduped;
+
+  /// No description provided for @kbAddBookmark.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存书签'**
+  String get kbAddBookmark;
+
+  /// No description provided for @kbTitleOptional.
+  ///
+  /// In zh, this message translates to:
+  /// **'标题（可选）'**
+  String get kbTitleOptional;
+
+  /// No description provided for @kbSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'摘要'**
+  String get kbSummary;
+
+  /// No description provided for @kbPromote.
+  ///
+  /// In zh, this message translates to:
+  /// **'升格为文章'**
+  String get kbPromote;
+
+  /// No description provided for @kbPromoted.
+  ///
+  /// In zh, this message translates to:
+  /// **'已升格为文章'**
+  String get kbPromoted;
+
+  /// No description provided for @kbGenerateInsights.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成深度解读'**
+  String get kbGenerateInsights;
+
+  /// No description provided for @kbInsights.
+  ///
+  /// In zh, this message translates to:
+  /// **'深度解读'**
+  String get kbInsights;
+
+  /// No description provided for @kbQuotes.
+  ///
+  /// In zh, this message translates to:
+  /// **'金句'**
+  String get kbQuotes;
+
+  /// No description provided for @kbActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'行动'**
+  String get kbActions;
+
+  /// No description provided for @kbGenerating.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成中…'**
+  String get kbGenerating;
 }
 
 class _AppLocalizationsDelegate

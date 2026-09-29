@@ -150,17 +150,44 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 ## 7. 知识库（KB）
 
-端点组 `GET/POST/PATCH/DELETE /api/agents/{id}/kb/*`：
+端点组 `/api/agents/{id}/kb/*`（`handlers_kb.go`；形状见 `internal/kb/types.go`）：
 
-- 源：`sources`（list）、`ingest/text`、`ingest/url`、`sources/{id}`（del）、`sources/{id}/entries`、`sources/{id}/insights(+/generate)`、`stats`、`search`、`mcp`
-- 闪记：`flash`（save）、`flash/{id}`（update）
-- 待办：`todo`（save）、`todos`（list）、`todos/{id}`（update）
-- 书签：`bookmarks` CRUD + `{id}/promote`
-- 笔记：`notes` CRUD + `{id}/attachments` CRUD
-- 卡片：`cards` CRUD、`cards/stats`、`{id}/review|archive|restore`、`cards/generate`
-- 查重：`pending`（list）、`pending/{id}/resolve`
+**通用形状**
+- `KBSource`：`{id, agent_id, title, source_type("text"|"url"|"file"), source_ref, entry_count, total_chars, created_at, updated_at, wiki_generated_at?, type?("article"|"flash"|"todo"), status?(todo: pending/in_progress/done/cancelled), start_at?/end_at?(todo，ISO 字符串), reminded_at?}`
+- `KBEntry`：`{id, source_id, chunk_index, content}`（详情 = chunks 拼接）
+- `KBBookmark`：`{id, agent_id, url, title, summary, content?, fetched_at?, source?, created_at, updated_at, promoted_to_article_id?}`
+- `KBResult`：`{source_id, source_title, source_kind("kb"|"wiki"), content_type?("flash"|"todo"), chunk_index, content, snippet, rank}`
 
-（body 形状实现 M2 时逐个补。）
+**文章（type=article，默认）**
+| 端点 | 说明 |
+|---|---|
+| `GET /kb/sources` | 全类型混合列表 `KBSource[]`（上限 50，客户端按 `type` 过滤） |
+| `POST /kb/ingest/text` `{title?, content}` | → `201 {source_id, chars}` |
+| `POST /kb/ingest/url` `{url, title?}` | 抓取入库 |
+| `DELETE /kb/sources/{sid}` | 删除（级联清 wiki 派生页） |
+| `GET /kb/sources/{sid}/entries` | → `KBEntry[]` |
+| `POST /kb/search` `{query, limit?}` | → `KBResult[]`（默认 5；向量召回可选） |
+| `GET /kb/sources/{sid}/insights` | 深读 → `ArticleInsights{summary{core,topics[],chapters[]}, quotes[], actions[], sprouts, generated_at}` |
+| `POST /kb/sources/{sid}/insights/generate` | LLM 生成深读并返回 |
+| `GET /kb/stats` | `{source_count, entry_count, total_chars}` |
+
+**闪记（flash）**
+- `POST /kb/flash` `{content}` → `201 {source_id}`；命中去重 → `200 {deduped:true, existing_source_id, existing_title, reason}`
+- `PATCH /kb/flash/{sid}` `{content}` → `{status:"updated"}`（重写重嵌）
+- 列表复用 `GET /kb/sources` 过滤 `type=flash`
+
+**待办（todo）**
+- `POST /kb/todo` `{content, status?("pending"), start_at?, end_at?}` → `201 {source_id}` / 去重 200
+- `GET /kb/todos?status=&due_within_hours=` → `KBSource[]`（status 空全量；`active`=未完成）
+- `PATCH /kb/todos/{sid}` `{content?, status?, start_at?, end_at?}` — 仅非空字段生效 → `{status:"updated"}`
+
+**书签（bookmark）**
+- `GET /kb/bookmarks` → `KBBookmark[]`（新→旧，上限 200）
+- `POST /kb/bookmarks` `{url, title?, summary?}` — 保存时抓取正文防失效，失败仅存 URL → `201 {id, title, content_chars}`
+- `PATCH /kb/bookmarks/{bid}` `{title?, summary?}`；`DELETE /kb/bookmarks/{bid}` → `{status:"deleted"}`
+- `POST /kb/bookmarks/{bid}/promote` → `{article_source_id, bookmark_id}`（升格为文章进 wiki 生成，幂等）
+
+（notes/cards/pending 查重留待票 06 补。）
 
 ## 8. Wiki / Diary / Workflow
 
