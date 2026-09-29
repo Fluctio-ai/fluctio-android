@@ -1,0 +1,10 @@
+{
+  "@@locale": "zh",
+  "appName": "fluctio",
+  "navChat": "对话",
+  "navKnowledge": "知识库",
+  "navWiki": "Wiki",
+  "navWorkflow": "工作流",
+  "navSettings": "设置",
+  "comingSoon": "此模块将在后续里程碑提供"
+}

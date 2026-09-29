@@ -1,0 +1,10 @@
+{
+  "@@locale": "en",
+  "appName": "fluctio",
+  "navChat": "Chat",
+  "navKnowledge": "Knowledge",
+  "navWiki": "Wiki",
+  "navWorkflow": "Workflows",
+  "navSettings": "Settings",
+  "comingSoon": "This module arrives in a later milestone"
+}

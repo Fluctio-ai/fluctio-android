@@ -1,0 +1,190 @@
+# fluctio gateway HTTP API 契约（安卓客户端视角）
+
+- 反推自 `fastclaw` dev 分支 `internal/setup/server.go`（路由注册）+ `internal/setup/handlers*.go` + `internal/auth/auth.go` + `internal/agent/loop.go`，2026-09-29。
+- 本文档是 fluctio-android 的**唯一事实源**：端点失配先改这里再改码。标注 `待补` 的字段在实现对应功能时读 handler 补全。
+
+## 0. 通用约定
+
+- 基址：用户配置（如 `https://<domain>`），本地默认 `http://127.0.0.1:18953`。
+- 全部 JSON（除文件上传/下载/SSE）。
+- 错误形状统一为 `{"ok": false, "error": "<msg>"}`；chat/stream 早退路径是裸 `{"error": "<msg>"}`——**客户端解析错误时两种都要认**。
+- 时间戳：Unix 毫秒（`int64`）。
+- 路由使用 Go 1.22 method+path 风格；`{id}` 为路径段。
+
+## 1. 认证
+
+**主路径（APP 采用）：cookie session。**
+
+- `POST /api/login` 成功后 `Set-Cookie: fluctio_session=<sid>`（HTTPS 下带 `Secure; HttpOnly`）。后续所有请求带该 cookie 即可，`internal/auth/auth.go` 的 `extract()` 优先读 cookie。
+- 客户端持久化：将 sid 存加密存储（Keystore），启动时恢复为 cookie。session 可能被服务端撤销（改密/登出全部设备）→ 收到 401 即回登录屏。
+- 限流：按 IP+登录名，超限 `429 {"error": "too many attempts; retry in a few minutes"}`。
+
+**备用路径：Bearer apikey。**
+
+- `Authorization: Bearer fc_...`，对 `apikeys` 表校验，可有 per-agent ACL（`agent_scope`）。程序化访问用；APP 不作主登录。
+
+**query `?token=` 例外**（仅 3 处，其余必须 header/cookie）：
+- `GET /api/agents/*/files*`、`GET /api/agents/*/system-files/*`、`GET /api/chat/subscribe`。
+
+## 2. 探活与状态
+
+| 端点 | 说明 |
+|---|---|
+| `GET /healthz` `/livez` `/readyz` | 无鉴权，200 `ok` 文本。**APP 连通性测试用这个** |
+| `GET /api/status` | optionalAuth；onboard 状态等（形状待补，登录前界面分支用） |
+| `POST /api/onboard` | 首次设置（自部署已有实例无需） |
+
+## 3. 登录态与账号
+
+| 端点 | Body / 响应 |
+|---|---|
+| `POST /api/login` | req `{"login": "...", "password": "..."}` → `200 {"ok":true,"user":{...}}` + Set-Cookie；`401` 凭证错；`429` 限流 |
+| `POST /api/logout` | 吊销 session + 清 cookie → `{"ok":true}` |
+| `GET /api/me` | → `{ok, user, authMethod, deployMode("self-hosted"\|"hosted")}`；user 含 `avatarURL`（可缓存图片 URL 而非 base64） |
+| `PUT /api/me` | `{"displayName": ...}` 待补 |
+| `POST /api/me/password` | 改密（待补；成功后会话吊销语义注意） |
+| `GET/POST /api/me/avatar` | 头像读/传（传 base64，上限 256KB） |
+| `POST /api/push/devices` `DELETE /api/push/devices/{token}` | APNS 设备注册（安卓不用） |
+
+## 4. 发消息（核心）
+
+### `POST /api/chat/stream` — SSE 流式（APP 默认）
+
+请求体（`chatRequest`，全字段）：
+
+```json
+{
+  "agentId": "agt_xxx",        // 必填
+  "sessionId": "web-ui",       // 空串 = 沿用当前；新会话传新 key
+  "projectId": "",             // 可选；会话行不存在时作为归属项目的 hint，行存在后被服务端覆盖
+  "message": "文本",
+  "images": ["data:...|https://..."],   // 视觉直显内容（data URL / HTTPS URL）
+  "imageUrls": [...],                    // 同 images，web 历史拼写，二者合并
+  "attachments": [{"url":"data:...","name":"report.pdf"}], // 仅落 /workspace，不进视觉；name 作为文件名
+  "params": {},                // 可选透传（如 lang）
+  "rollbackPendingUser": false // true = 先丢弃上一条未应答 user 再追加（失败重发流程）
+}
+```
+
+语义要点（`handlers.go:1304`）：
+
+- 附件先物化进会话工作区，正文自动追加 `[Attached: /workspace/X]` 面包屑。
+- **断连不杀 turn**：agent 跑在 detached ctx（45min 上限），断线重连后用 `GET /api/chat/subscribe?since=<seq>` 补齐。**客户端绝不因网络断开把 UI 置为"已停止"**。
+- 同会话旧在飞 turn 会被 supersede（用户刷新而非停止的场景）。
+- 每 30s 一条 `: ping` 注释行保活；`X-Accel-Buffering: no`。
+
+**SSE 线协议**：
+
+```
+id: 42
+data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
+```
+
+- 只有 `id:` 行 + `data:` 行（**无 `event:` 行**），载荷是 JSON。
+- `seq` 同时在 `id:` 行与 JSON 内（fetch 解析器与并行 subscribe 去重用）。
+
+**事件类型表**：
+
+| type | data 形状 | 客户端处理 |
+|---|---|---|
+| `content_delta` | `{"delta":"..."}` | 追加到进行中气泡 |
+| `content` | `{"content":"全文","metadata":{...}}` | 整段替换/新气泡；metadata.planMode 等可带标记 |
+| `tool_call` | 待补（工具名/参数） | 工具卡片区 |
+| `tool_result` | 待补 | 同上 |
+| `function` | 待补（authgate 相关） | 次要 |
+| `auth_prompt` | 待补（exec 授权提示） | 需要用户点授权时处理 |
+| `steer` | 待补 | 渲染为插话 user 气泡 |
+| `session_title` | 待补 | 更新会话标题 |
+| `compaction_notice` | 待补 | 提示上下文压缩 |
+| `reconnecting` | 待补 | LLM 层重连提示 |
+| `turn_pending` | （内部信号） | **不下发到 wire**（handler 吞掉），无需处理 |
+| `error` | `{"message":"..."}` | 错误提示 |
+| `done` | 无 data | 结束本轮；agent 零输出时 handler 合成 `error: "agent finished without emitting a response"` + 结束 |
+
+### 其他发送/控制端点
+
+| 端点 | 说明 |
+|---|---|
+| `POST /api/chat` | 同步版本，等回复完返回 `{"reply":"..."}`（调试/降级用） |
+| `POST /api/chat/stop` | **显式停止**在飞 turn（body 待补：agentId+sessionId） |
+| `POST /api/chat/steer` | 向在飞 turn 插话；无在飞 turn 返回 `409`（客户端回退为普通发送） |
+| `POST /api/chat/team/stream` | 多 agent team 流（P2+） |
+| `GET /api/chat/subscribe?agentId=&sessionId=&since=` | 长连 SSE：重放 `seq>since` + 实时事件 + cron 异步回复。首帧 `: ok`；支持 `Last-Event-ID` 头 |
+| `POST /api/chat/recall-feedback` | 召回质量反馈（待补） |
+
+## 5. 会话管理
+
+| 端点 | 说明 |
+|---|---|
+| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 |
+| `PUT /api/chat/sessions/{key}` | 重命名 `{"title":...}` |
+| `DELETE /api/chat/sessions/{key}` | 删除 |
+| `PATCH /api/chat/sessions/{key}/project` | 移动到项目 `{"projectId":...}`（空=脱离） |
+| `PATCH /api/chat/sessions/{key}/chat-only` | 仅聊天模式开关 `{"on":bool}`（形状待核） |
+| `POST /api/chat/sessions/fork` | 分叉（body 待补：sourceSessionKey+forkSeq） |
+| `GET /api/chat/history?agentId=&sessionId=` | 历史消息（`beforeSeq/limit` 分页待核） |
+| `GET /api/chat/todo?agentId=&sessionId=` | 读会话 todo.md |
+| `GET /api/chats` | chat 列表（旧） |
+| `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；POST sessions 属于「项目内新聊天」路径 |
+
+## 6. Agents
+
+| 端点 | 说明 |
+|---|---|
+| `GET /api/agents` / `POST /api/agents` | 列表（`?all=true` 仅管理员）/ 创建 |
+| `GET/PUT/DELETE /api/agents/{id}` | 配置读/写/删（model/provider/promptMode/thinking 等） |
+| `GET /api/agents/{id}/config` | 配置视图 |
+| `GET /api/agents/{id}/tools/registered` | 活跃工具注册表（Tools 页勾选） |
+| recall 系 | `GET/PUT .../recall-tuning`、`GET .../recall-events`、`POST .../recall-test` |
+| IM 绑定 | `POST .../im-claim|im-unbind|im-rebind`、`GET .../im-claim/{channel}` |
+| 文件 | `GET/POST/DELETE .../files*`、`GET .../files.zip`、`POST .../workspace/reveal`（self-hosted） |
+| system-files | `GET/PUT/DELETE .../system-files/{name}` |
+| 频道绑定 | `GET .../channels` + 各 IM 的 connect/status/retry/disconnect |
+| usage | `GET .../usage`、`GET /api/usage`（管理员） |
+| 模型 | `GET /api/models/builtin`、`POST /api/models/fetch`、`POST .../models/fetch` |
+| 上下文 | `GET .../compaction/preview` |
+
+## 7. 知识库（KB）
+
+端点组 `GET/POST/PATCH/DELETE /api/agents/{id}/kb/*`：
+
+- 源：`sources`（list）、`ingest/text`、`ingest/url`、`sources/{id}`（del）、`sources/{id}/entries`、`sources/{id}/insights(+/generate)`、`stats`、`search`、`mcp`
+- 闪记：`flash`（save）、`flash/{id}`（update）
+- 待办：`todo`（save）、`todos`（list）、`todos/{id}`（update）
+- 书签：`bookmarks` CRUD + `{id}/promote`
+- 笔记：`notes` CRUD + `{id}/attachments` CRUD
+- 卡片：`cards` CRUD、`cards/stats`、`{id}/review|archive|restore`、`cards/generate`
+- 查重：`pending`（list）、`pending/{id}/resolve`
+
+（body 形状实现 M2 时逐个补。）
+
+## 8. Wiki / Diary / Workflow
+
+- Wiki：`/api/agents/{id}/wiki/` — `stats`、`pages`、`pages/{id}`、`graph`、`generate`、`reindex-embed`、`progress`、`autogen-status`、`DELETE pages/{id}`
+- Diary：`/api/agents/{id}/diary`、`diary/{date}`、`diary/generate`
+- Workflow：`/api/agents/{agentID}/workflows` 全套 CRUD + `run`、`run/stream`、`runs`（list/get/del/批量删）、`runs/{runID}/resume(/stream)`（M6 表单交互）、`schedules` CRUD
+- Workflow 运行流事件：NodeStart/NodeComplete/Done（形状待补，M4 时补）
+
+## 9. 设置面（system settings）
+
+- `GET/POST /api/config` — 用户级系统设置（providers/channels scope 内）
+- providers：`/api/providers` CRUD + `/{id}/test`
+- scoped-channels：`/api/scoped-channels` CRUD
+- memory/向量化/隐私：`/api/memory/test-embedding|test-reranker`、`.../memory`、`.../vectorization`、`/api/vectorization`、`.../privacy`、`/api/privacy`
+- 备份：`/api/backup` 系列（get/update/list/now/download/delete）
+- cron：`/api/cron` CRUD + per-agent `/api/agents/{id}/cron`
+- regex-hooks：`/api/agents/{id}/regex-hooks` CRUD + reorder + scripts
+- apikeys：`/api/apikeys` CRUD + rotate
+- users：`POST /api/users/{id}/apikeys`、`GET/POST /api/users/{id}/agents`
+- skills：`/api/skills` 系列 + per-agent skills
+- plugins/tools/channels/tasks/diag：`/api/plugins`、`/api/tools`、`/api/channels`、`/api/tasks`、`/api/diag/reports` 系列
+
+## 10. OpenAI 兼容层
+
+`POST /v1/chat/completions` 等（`internal/api`）——第三方客户端用，APP 不走。
+
+---
+
+## 附：版本
+
+- 契约 v0.1（2026-09-29）：路由全景 + 认证 + 登录 + chat SSE 线协议 + 事件类型表。KB/Wiki/Workflow body 细节按票补。
