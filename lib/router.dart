@@ -1,30 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'auth/auth_controller.dart';
+import 'auth/auth_state.dart';
 import 'l10n/app_localizations.dart';
 import 'pages/chat_page.dart';
 import 'pages/kb_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/setup_page.dart';
 import 'pages/wiki_page.dart';
 import 'pages/workflow_page.dart';
 
 /// Bottom-tab navigation — the mobile replacement for the web sidebar:
 /// 对话 / 知识库 / Wiki / 工作流 / 设置. Agent and session management live
-/// inside the Chat tab.
-final appRouter = GoRouter(
-  routes: [
-    StatefulShellRoute.indexedStack(
-      builder: (context, state, navigationShell) => RootShell(shell: navigationShell),
-      branches: [
-        StatefulShellBranch(routes: [GoRoute(path: '/', builder: (_, _) => const ChatPage())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/kb', builder: (_, _) => const KbPage())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/wiki', builder: (_, _) => const WikiPage())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/workflow', builder: (_, _) => const WorkflowPage())]),
-        StatefulShellBranch(routes: [GoRoute(path: '/settings', builder: (_, _) => const SettingsPage())]),
-      ],
-    ),
-  ],
-);
+/// inside the Chat tab. `/setup` (address + login) sits outside the shell;
+/// the redirect gates everything on the auth state machine.
+final routerProvider = Provider<GoRouter>((ref) {
+  // GoRouter wants a Listenable; bridge auth-state changes into it.
+  final refresh = ValueNotifier(0);
+  ref.listen(authControllerProvider, (_, _) => refresh.value++);
+  ref.onDispose(refresh.dispose);
+
+  return GoRouter(
+    refreshListenable: refresh,
+    redirect: (context, state) {
+      final auth = ref.read(authControllerProvider);
+      final onSetup = state.matchedLocation == '/setup';
+      switch (auth.status) {
+        case AuthStatus.loading:
+          return null;
+        case AuthStatus.loggedIn:
+          return onSetup ? '/' : null;
+        case AuthStatus.needSetup:
+        case AuthStatus.loggedOut:
+          return onSetup ? null : '/setup';
+      }
+    },
+    routes: [
+      GoRoute(path: '/setup', builder: (_, _) => const SetupPage()),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) => RootShell(shell: navigationShell),
+        branches: [
+          StatefulShellBranch(routes: [GoRoute(path: '/', builder: (_, _) => const ChatPage())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/kb', builder: (_, _) => const KbPage())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/wiki', builder: (_, _) => const WikiPage())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/workflow', builder: (_, _) => const WorkflowPage())]),
+          StatefulShellBranch(routes: [GoRoute(path: '/settings', builder: (_, _) => const SettingsPage())]),
+        ],
+      ),
+    ],
+  );
+});
 
 class RootShell extends StatelessWidget {
   const RootShell({super.key, required this.shell});

@@ -29,4 +29,100 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get comingSoon => 'This module arrives in a later milestone';
+
+  @override
+  String get setupTitle => 'Connect to your fluctio';
+
+  @override
+  String get serverAddress => 'Server address';
+
+  @override
+  String get serverAddressHint => 'https://your-domain.com';
+
+  @override
+  String get allowSelfSigned => 'Trust self-signed certificates';
+
+  @override
+  String get allowSelfSignedSub => 'For LAN / self-hosted test addresses only';
+
+  @override
+  String get testConnection => 'Test connection';
+
+  @override
+  String get testing => 'Testing…';
+
+  @override
+  String get connectionOk => 'Connected';
+
+  @override
+  String get connectionFailed => 'Could not reach this address';
+
+  @override
+  String get saveAndContinue => 'Save and continue';
+
+  @override
+  String get loginTitle => 'Sign in';
+
+  @override
+  String get currentServer => 'Server';
+
+  @override
+  String get changeServer => 'Change server';
+
+  @override
+  String get accountLabel => 'Account';
+
+  @override
+  String get passwordLabel => 'Password';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get signingIn => 'Signing in…';
+
+  @override
+  String get errorInvalidCredentials => 'Wrong account or password';
+
+  @override
+  String get errorRateLimited => 'Too many attempts; retry in a few minutes';
+
+  @override
+  String get errorNetwork =>
+      'Network error — check the address and your connection';
+
+  @override
+  String get errorInvalidFormat =>
+      'Invalid address — must start with https:// (or LAN http://)';
+
+  @override
+  String get errorHttpsRequired => 'Public addresses must use https';
+
+  @override
+  String get errorLanNeedsTrust =>
+      'LAN http addresses need \"trust self-signed\" enabled';
+
+  @override
+  String get sectionServer => 'Server';
+
+  @override
+  String get sectionAccount => 'Account';
+
+  @override
+  String get signedInAs => 'Signed in';
+
+  @override
+  String get notSignedIn => 'Not signed in';
+
+  @override
+  String get signOut => 'Sign out';
+
+  @override
+  String get switchServer => 'Switch server';
+
+  @override
+  String get confirmSignOut => 'Sign out of the current account?';
+
+  @override
+  String get cancel => 'Cancel';
 }

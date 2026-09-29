@@ -29,4 +29,97 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get comingSoon => '此模块将在后续里程碑提供';
+
+  @override
+  String get setupTitle => '连接你的 fluctio';
+
+  @override
+  String get serverAddress => '服务器地址';
+
+  @override
+  String get serverAddressHint => 'https://your-domain.com';
+
+  @override
+  String get allowSelfSigned => '信任自签名证书';
+
+  @override
+  String get allowSelfSignedSub => '仅用于局域网 / 自部署测试地址';
+
+  @override
+  String get testConnection => '测试连接';
+
+  @override
+  String get testing => '测试中…';
+
+  @override
+  String get connectionOk => '连接成功';
+
+  @override
+  String get connectionFailed => '无法连接到该地址';
+
+  @override
+  String get saveAndContinue => '保存并继续';
+
+  @override
+  String get loginTitle => '登录';
+
+  @override
+  String get currentServer => '服务器';
+
+  @override
+  String get changeServer => '更改服务器';
+
+  @override
+  String get accountLabel => '账号';
+
+  @override
+  String get passwordLabel => '密码';
+
+  @override
+  String get signIn => '登录';
+
+  @override
+  String get signingIn => '登录中…';
+
+  @override
+  String get errorInvalidCredentials => '账号或密码错误';
+
+  @override
+  String get errorRateLimited => '尝试次数过多，请几分钟后再试';
+
+  @override
+  String get errorNetwork => '网络错误，请检查地址与连接';
+
+  @override
+  String get errorInvalidFormat => '地址无效，需以 https://（或局域网 http://）开头';
+
+  @override
+  String get errorHttpsRequired => '公网地址必须使用 https';
+
+  @override
+  String get errorLanNeedsTrust => '局域网 http 地址需开启「信任自签名证书」';
+
+  @override
+  String get sectionServer => '服务器';
+
+  @override
+  String get sectionAccount => '账号';
+
+  @override
+  String get signedInAs => '已登录';
+
+  @override
+  String get notSignedIn => '未登录';
+
+  @override
+  String get signOut => '登出';
+
+  @override
+  String get switchServer => '切换服务器';
+
+  @override
+  String get confirmSignOut => '确定要登出当前账号吗？';
+
+  @override
+  String get cancel => '取消';
 }
