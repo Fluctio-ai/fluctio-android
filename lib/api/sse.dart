@@ -56,22 +56,43 @@ class SseClient {
   );
 
   Stream<SseFrame> post(String path, {Object? body, CancelToken? cancelToken}) =>
-      _open(() => _dio.post(path, data: body, options: _streamOptions, cancelToken: cancelToken));
+      _open(() => _dio.post(path, data: body, options: _streamOptions, cancelToken: cancelToken),
+          cancelToken);
 
   Stream<SseFrame> get(String path, Map<String, Object?> query, {CancelToken? cancelToken}) =>
-      _open(() => _dio.get(path, queryParameters: query, options: _streamOptions, cancelToken: cancelToken));
+      _open(
+          () => _dio.get(path, queryParameters: query, options: _streamOptions, cancelToken: cancelToken),
+          cancelToken);
 
-  Stream<SseFrame> _open(Future<Response<ResponseBody>> Function() request) async* {
-    final response = await request();
+  Stream<SseFrame> _open(
+      Future<Response<ResponseBody>> Function() request, CancelToken? cancelToken) async* {
+    final Response<ResponseBody> response;
+    try {
+      response = await request();
+    } on DioException catch (e) {
+      // Deliberate cancellation (switch/dispose/stop): the subscription is
+      // often gone by now, so letting this escape turns into an unhandled
+      // zone error. Errors nobody asked for still rethrow.
+      if (_isCancelled(e, cancelToken)) return;
+      rethrow;
+    }
     final body = response.data;
     if (body == null) return;
     final parser = SseLineParser();
-    await for (final line
-        in body.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter())) {
-      final frame = parser.pushLine(line);
-      if (frame != null) yield frame;
+    try {
+      await for (final line
+          in body.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter())) {
+        final frame = parser.pushLine(line);
+        if (frame != null) yield frame;
+      }
+    } on DioException catch (e) {
+      if (_isCancelled(e, cancelToken)) return;
+      rethrow;
     }
   }
+
+  static bool _isCancelled(DioException e, CancelToken? token) =>
+      token?.isCancelled == true || e.type == DioExceptionType.cancel;
 }
 
 /// Early-failure text extraction for SSE requests: dio raises a

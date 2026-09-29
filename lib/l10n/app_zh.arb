@@ -64,5 +64,7 @@
   "chatOnlyMode": "仅聊天模式",
   "chatThinking": "思考中…",
   "chatSteer": "插话到当前回合",
+  "chatToday": "今天",
+  "chatYesterday": "昨天",
   "chatPickImageError": "图片读取失败"
 }

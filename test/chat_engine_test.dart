@@ -173,10 +173,11 @@ void main() {
       expect(fx.titleKey, 's-1');
     });
 
-    test('legacy cron bus frame (no type) renders as assistant content', () {
+    test('legacy bus frames (no type) are ignored, not rendered', () {
       final e = _primed();
-      e.applyFrame(null, {'text': 'cron reply', 'parseMode': 'markdown'});
-      expect((e.snapshot().entries.last as AssistantEntry).text, 'cron reply');
+      e.applyFrame(null, {'text': '616852424:1727714683780-0; Typing...', 'parseMode': 'text'});
+      e.applyFrame(null, {'text': '', 'parseMode': 'text'});
+      expect(e.snapshot().entries, isEmpty);
     });
   });
 

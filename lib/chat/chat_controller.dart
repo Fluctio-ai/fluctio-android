@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:dio/dio.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/sse.dart';
@@ -185,6 +185,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   Timer? _subscribeRetry;
   int _retryDelaySeconds = 1;
   Timer? _flush;
+  bool _disposed = false;
   final _random = Random();
 
   @override
@@ -200,6 +201,14 @@ class ChatStoreController extends Notifier<ChatStore> {
     ref.listen(authControllerProvider.select((s) => s.status), (prev, next) {
       if (prev == AuthStatus.loggedIn && next != AuthStatus.loggedIn) _teardown();
     });
+    // This notifier builds lazily — if agents finished loading before the
+    // first read (fast connection, warm providers), the listener above
+    // already missed the selectedId transition. Catch up from the current
+    // state instead of waiting for a change that already happened.
+    final readyAgentId = ref.read(agentsProvider).selectedId;
+    if (readyAgentId != null && ref.read(authControllerProvider).status == AuthStatus.loggedIn) {
+      _openRemembered(readyAgentId);
+    }
     return const ChatStore();
   }
 
@@ -281,6 +290,17 @@ class ChatStoreController extends Notifier<ChatStore> {
     _publish();
   }
 
+  /// App foregrounded: backgrounding reaps the subscribe socket, and
+  /// nothing else re-opens it for an already-open session — live events
+  /// would stop until a restart. Reconnect here; `since=lastSeq` replay
+  /// picks up everything missed while backgrounded.
+  void onAppResumed() {
+    final key = state.activeKey;
+    if (key == null || _disposed) return;
+    final (agentId, sessionId) = _split(key);
+    _ensureSubscribe(agentId, sessionId);
+  }
+
   // ---- sending ----
 
   Future<void> send(String text, {List<String> images = const []}) async {
@@ -345,13 +365,13 @@ class ChatStoreController extends Notifier<ChatStore> {
               'message': text,
               if (images.isNotEmpty) 'images': images,
               'rollbackPendingUser': rollback,
-              'params': {'lang': WidgetsBinding.instance.platformDispatcher.locale.languageCode},
+              'params': {'lang': PlatformDispatcher.instance.locale.languageCode},
             },
             cancelToken: live.cancelToken,
           );
       await for (final frame in frames) {
         gotFrame = true;
-        _apply(agentId, sessionId, frame);
+        _apply(agentId, sessionId, frame, tag: '·P');
       }
       // Server closed the stream. A healthy turn ends with a `done` frame
       // (engine already idle); anything else means the connection was cut
@@ -448,7 +468,7 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   // ---- SSE plumbing ----
 
-  void _apply(String agentId, String sessionId, SseFrame frame) {
+  void _apply(String agentId, String sessionId, SseFrame frame, {String tag = ''}) {
     Map<String, dynamic> payload;
     try {
       final decoded = jsonDecode(frame.data);
@@ -458,7 +478,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     }
     final engine = _engineFor(agentId, sessionId);
     engine.markStreaming();
-    final effects = engine.applyFrame(frame.id, payload);
+    final effects = engine.applyFrame(frame.id, payload, tag: tag);
     if (effects.turnDone) _onTurnDone(agentId, sessionId);
     if (effects.title != null) ref.read(sessionsProvider.notifier).reload();
     _schedulePublish();
@@ -475,7 +495,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   }
 
   void _ensureSubscribe(String agentId, String sessionId) {
-    if (state.activeKey != '$agentId|$sessionId') return; // stale retry
+    if (_disposed || state.activeKey != '$agentId|$sessionId') return; // stale retry
     _stopSubscribe();
     final live = _LiveStream(CancelToken());
     _subscribe = live;
@@ -495,14 +515,14 @@ class ChatStoreController extends Notifier<ChatStore> {
         .listen(
           (frame) {
             _retryDelaySeconds = 1;
-            _apply(agentId, sessionId, frame);
+            _apply(agentId, sessionId, frame, tag: '·S');
           },
           onError: (Object _) {
-            if (live.cancelToken.isCancelled) return;
+            if (live.cancelToken.isCancelled || _disposed) return;
             _scheduleReconnect(agentId, sessionId);
           },
           onDone: () {
-            if (live.cancelToken.isCancelled) return;
+            if (live.cancelToken.isCancelled || _disposed) return;
             _scheduleReconnect(agentId, sessionId);
           },
           cancelOnError: true,
@@ -516,6 +536,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     _retryDelaySeconds = min(delay * 2, 30);
     _subscribeRetry?.cancel();
     _subscribeRetry = Timer(Duration(seconds: delay), () {
+      if (_disposed) return;
       if (state.activeKey == '$agentId|$sessionId') {
         _ensureSubscribe(agentId, sessionId);
       }
@@ -525,15 +546,19 @@ class ChatStoreController extends Notifier<ChatStore> {
   void _stopSubscribe() {
     _subscribeRetry?.cancel();
     _subscribeRetry = null;
-    _subscribe?.cancelToken.cancel('switch');
-    _subscribe = null;
+    // Cancel the subscription before the token — cancelling the token
+    // first makes dio deliver a cancel error to the still-live
+    // subscription, which escaped as an unhandled exception at teardown.
     _subscribeSub?.cancel();
     _subscribeSub = null;
+    _subscribe?.cancelToken.cancel('switch');
+    _subscribe = null;
   }
 
   /// Cancels every live connection and forgets all sessions. No state
   /// writes — safe inside ref.onDispose.
   void _disposeStreams() {
+    _disposed = true;
     _stopSubscribe();
     for (final live in _sends.values) {
       live.cancelToken.cancel('teardown');

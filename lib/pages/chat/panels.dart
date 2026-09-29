@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
@@ -15,6 +16,20 @@ Future<void> showSessionsSheet(BuildContext context) {
     showDragHandle: true,
     builder: (_) => const _SessionsSheet(),
   );
+}
+
+/// Today → HH:mm; this year → M/d HH:mm; older → yyyy/M/d.
+String _formatSessionTime(BuildContext context, int ts) {
+  if (ts <= 0) return '';
+  final locale = Localizations.localeOf(context).toString();
+  final date = DateTime.fromMillisecondsSinceEpoch(ts);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  if (!date.isBefore(today)) return DateFormat.Hm(locale).format(date);
+  if (date.year == now.year) {
+    return '${DateFormat.Md(locale).format(date)} ${DateFormat.Hm(locale).format(date)}';
+  }
+  return DateFormat.yMd(locale).format(date);
 }
 
 class _SessionsSheet extends ConsumerWidget {
@@ -101,8 +116,12 @@ class _SessionsSheet extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: s.preview.isEmpty
-                            ? null
-                            : Text(s.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ? (s.updatedAt > 0 ? Text(_formatSessionTime(context, s.updatedAt)) : null)
+                            : Text(
+                                '${s.preview} · ${_formatSessionTime(context, s.updatedAt)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

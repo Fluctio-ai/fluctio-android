@@ -202,5 +202,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSteer => '插话到当前回合';
 
   @override
+  String get chatToday => '今天';
+
+  @override
+  String get chatYesterday => '昨天';
+
+  @override
   String get chatPickImageError => '图片读取失败';
 }

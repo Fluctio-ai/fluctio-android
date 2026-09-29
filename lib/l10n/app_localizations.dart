@@ -482,6 +482,18 @@ abstract class AppLocalizations {
   /// **'插话到当前回合'**
   String get chatSteer;
 
+  /// No description provided for @chatToday.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天'**
+  String get chatToday;
+
+  /// No description provided for @chatYesterday.
+  ///
+  /// In zh, this message translates to:
+  /// **'昨天'**
+  String get chatYesterday;
+
   /// No description provided for @chatPickImageError.
   ///
   /// In zh, this message translates to:

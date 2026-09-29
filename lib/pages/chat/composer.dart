@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../chat/chat_engine.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/tokens.dart';
 
-/// Composer row + pending-image strip. While a turn runs, the primary
-/// button becomes Stop; a small send arrow stays available to steer the
-/// in-flight turn (steer falls back to a normal send on 409).
+/// Composer card + pending-image strip. The input, attach and send
+/// controls sit inside one bordered rounded container (card radius from
+/// the token families). While a turn runs, the primary button becomes
+/// Stop; a small send arrow stays available to steer the in-flight turn
+/// (steer falls back to a normal send on 409).
 class Composer extends StatelessWidget {
   const Composer({
     super.key,
@@ -32,6 +35,7 @@ class Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     final turnActive = state.turnActive;
     final hasInput = controller.text.trim().isNotEmpty || pendingImages.isNotEmpty;
@@ -54,12 +58,19 @@ class Composer extends StatelessWidget {
                 ),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+          Container(
+            margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: AppRadius.cardBorder,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
+                  visualDensity: VisualDensity.compact,
                   onPressed: turnActive ? null : onPickImages,
                   icon: const Icon(Icons.image_outlined),
                 ),
@@ -69,26 +80,34 @@ class Composer extends StatelessWidget {
                     controller: controller,
                     onChanged: (_) => onChanged(),
                     minLines: 1,
-                    maxLines: 5,
+                    maxLines: 6,
                     keyboardType: TextInputType.multiline,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(hintText: l.chatEmpty, isDense: true),
+                    decoration: InputDecoration(
+                      hintText: l.chatEmpty,
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
                 if (turnActive && controller.text.trim().isNotEmpty)
                   IconButton(
+                    visualDensity: VisualDensity.compact,
                     tooltip: l.chatSteer,
                     onPressed: onSteer,
                     icon: const Icon(Icons.send_outlined),
                   ),
                 turnActive
                     ? IconButton.filledTonal(
+                        visualDensity: VisualDensity.compact,
                         tooltip: l.chatStop,
                         onPressed: state.phase == TurnPhase.stopping ? null : onStop,
                         icon: const Icon(Icons.stop_circle_outlined),
                       )
                     : IconButton.filled(
+                        visualDensity: VisualDensity.compact,
                         onPressed: hasInput ? onSend : null,
                         icon: const Icon(Icons.arrow_upward),
                       ),

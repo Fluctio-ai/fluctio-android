@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,14 +23,31 @@ class ChatPage extends ConsumerStatefulWidget {
   ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends ConsumerState<ChatPage> {
+class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver {
   final _input = TextEditingController();
   final List<String> _pendingImages = [];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _input.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Backgrounding kills the subscribe socket; the chat store reconnects
+    // on resume so live events (and anything missed) flow again without a
+    // restart.
+    if (state == AppLifecycleState.resumed) {
+      ref.read(chatStoreProvider.notifier).onAppResumed();
+    }
   }
 
   Future<void> _pickImages() async {
@@ -124,11 +142,24 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ],
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(selected.name, style: theme.textTheme.titleMedium),
-                const Icon(Icons.arrow_drop_down),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: Text(selected.name, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis)),
+                    const Icon(Icons.arrow_drop_down),
+                  ],
+                ),
+                if (selected.model.isNotEmpty)
+                  Text(
+                    selected.model,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
+                  ),
               ],
             ),
           ),
@@ -150,8 +181,28 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
+                if (kDebugMode)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Text(
+                      'dbg f=${active.debugFrames} last=${active.debugLastEvent} '
+                      'ph=${active.phase.name} seq=${active.lastSeq}\n'
+                      '${active.debugTypeCounts.entries.map((e) => '${e.key}:${e.value}').join(' ')}\n'
+                      'bus=${active.debugLastBus}',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
                 if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
-                Expanded(child: MessageList(state: active)),
+                Expanded(
+                  // Keyed by session: entrance-animation bookkeeping lives
+                  // in MessageList's state and must reset on switch.
+                  child: MessageList(key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
+                ),
                 if (active.turnActive && active.awaitingFirstDelta)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),

@@ -24,6 +24,7 @@ class UserEntry extends UiEntry {
     this.imageUrls = const [],
     this.pendingSteer = false,
     this.failed = false,
+    this.ts = 0,
   });
 
   final String text;
@@ -31,26 +32,39 @@ class UserEntry extends UiEntry {
   final bool pendingSteer;
   final bool failed;
 
-  UserEntry copyWith({String? text, List<String>? imageUrls, bool? pendingSteer, bool? failed}) =>
+  /// Unix ms — history entries carry the server timestamp, live entries
+  /// are stamped locally (wire frames carry none). 0 = unknown.
+  final int ts;
+
+  UserEntry copyWith({
+    String? text,
+    List<String>? imageUrls,
+    bool? pendingSteer,
+    bool? failed,
+    int? ts,
+  }) =>
       UserEntry(
         key: key,
         text: text ?? this.text,
         imageUrls: imageUrls ?? this.imageUrls,
         pendingSteer: pendingSteer ?? this.pendingSteer,
         failed: failed ?? this.failed,
+        ts: ts ?? this.ts,
       );
 }
 
 class AssistantEntry extends UiEntry {
-  const AssistantEntry({required super.key, required this.text, this.streaming = false});
+  const AssistantEntry({required super.key, required this.text, this.streaming = false, this.ts = 0});
 
   final String text;
   final bool streaming;
+  final int ts;
 
-  AssistantEntry copyWith({String? text, bool? streaming}) => AssistantEntry(
+  AssistantEntry copyWith({String? text, bool? streaming, int? ts}) => AssistantEntry(
         key: key,
         text: text ?? this.text,
         streaming: streaming ?? this.streaming,
+        ts: ts ?? this.ts,
       );
 }
 
@@ -125,6 +139,10 @@ class ChatUiState {
     this.historyHasMore = false,
     this.earliestSeq,
     this.loadMoreRunning = false,
+    this.debugFrames = 0,
+    this.debugLastEvent = '',
+    this.debugLastBus = '',
+    this.debugTypeCounts = const {},
   });
 
   final List<UiEntry> entries;
@@ -135,6 +153,17 @@ class ChatUiState {
   final bool historyHasMore;
   final int? earliestSeq;
   final bool loadMoreRunning;
+
+  /// On-screen diagnostics (debug builds): raw SSE frames seen by this
+  /// session's engine and the last frame's type@seq.
+  final int debugFrames;
+  final String debugLastEvent;
+
+  /// Type → count histogram of received frames (diagnostics).
+  final Map<String, int> debugTypeCounts;
+
+  /// Last non-empty legacy bus frame text (diagnostics).
+  final String debugLastBus;
 
   bool get turnActive => phase != TurnPhase.idle;
 
@@ -168,6 +197,10 @@ class ChatEngine {
   bool _historyLoading = false;
   bool _loadMoreRunning = false;
   int _counter = 0;
+  int _debugFrames = 0;
+  String _debugLastEvent = '';
+  String _debugLastBus = '';
+  final Map<String, int> _debugTypeCounts = {};
 
   String _key(String prefix) => '$prefix-${_counter++}';
 
@@ -180,6 +213,10 @@ class ChatEngine {
         historyHasMore: _hasMore,
         earliestSeq: _earliestSeq,
         loadMoreRunning: _loadMoreRunning,
+        debugFrames: _debugFrames,
+        debugLastEvent: _debugLastEvent,
+        debugLastBus: _debugLastBus,
+        debugTypeCounts: Map.unmodifiable(_debugTypeCounts),
       );
 
   TurnPhase get phase => _phase;
@@ -193,7 +230,12 @@ class ChatEngine {
   // ---- send / steer / stop transitions (controller-driven) ----
 
   void beginSend(String text, List<String> images) {
-    _entries.add(UserEntry(key: _key('u'), text: text, imageUrls: List.of(images)));
+    _entries.add(UserEntry(
+      key: _key('u'),
+      text: text,
+      imageUrls: List.of(images),
+      ts: DateTime.now().millisecondsSinceEpoch,
+    ));
     _statusHint = '';
     _phase = TurnPhase.sending;
   }
@@ -218,8 +260,12 @@ class ChatEngine {
     }
   }
 
-  void beginSteer(String text) =>
-      _entries.add(UserEntry(key: _key('u'), text: text, pendingSteer: true));
+  void beginSteer(String text) => _entries.add(UserEntry(
+        key: _key('u'),
+        text: text,
+        pendingSteer: true,
+        ts: DateTime.now().millisecondsSinceEpoch,
+      ));
 
   /// Steer rejected (409 — no active turn): drop the optimistic bubble;
   /// the caller falls back to a normal send.
@@ -333,9 +379,11 @@ class ChatEngine {
     switch (m.role) {
       case 'user':
         if (m.content.isEmpty && m.imageUrls.isEmpty) return;
-        batch.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls));
+        batch.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls, ts: m.timestamp));
       case 'assistant':
-        if (m.content.isNotEmpty) batch.add(AssistantEntry(key: _key('a'), text: m.content));
+        if (m.content.isNotEmpty) {
+          batch.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.timestamp));
+        }
         for (final tc in m.toolCalls) {
           batch.add(ToolEntry(key: 'tc-${tc.id}', name: tc.name, arguments: tc.arguments));
         }
@@ -361,11 +409,24 @@ class ChatEngine {
 
   // ---- SSE frames ----
 
-  FrameEffects applyFrame(int? frameId, Map<String, dynamic> payload) {
+  FrameEffects applyFrame(int? frameId, Map<String, dynamic> payload, {String tag = ''}) {
+    _debugFrames++;
+    final dbgType = payload['type'] as String? ?? 'bus';
+    _debugTypeCounts['$dbgType$tag'] = (_debugTypeCounts['$dbgType$tag'] ?? 0) + 1;
+    if (dbgType == 'bus') {
+      final t = payload['text'];
+      if (t is String && t.isNotEmpty) {
+        _debugLastBus = t.length > 48 ? t.substring(0, 48) : t;
+      }
+    }
+    _debugLastEvent = '$dbgType$tag@${payload['seq'] ?? frameId ?? '-'}';
     final rawSeq = payload['seq'];
     final seq = rawSeq is int ? rawSeq : rawSeq is num ? rawSeq.toInt() : null;
     if (seq != null && seq >= 0) {
-      if (seq <= _lastSeq) return const FrameEffects(); // replay overlap
+      if (seq <= _lastSeq) {
+        _debugTypeCounts['DROPPED$tag'] = (_debugTypeCounts['DROPPED$tag'] ?? 0) + 1;
+        return const FrameEffects(); // replay overlap
+      }
       _lastSeq = seq;
     } else if (frameId != null && frameId >= 0) {
       if (frameId <= _lastSeq) return const FrameEffects();
@@ -421,10 +482,11 @@ class ChatEngine {
         _finishTurn();
         return const FrameEffects(turnDone: true);
       default:
-        // Legacy cron bus frame (handlers.go:1666): no seq/type envelope,
-        // just {text, parseMode}. Treat as a completed assistant turn.
-        final text = payload['text'];
-        if (text is String && text.isNotEmpty) _commitContent(text);
+        // Frames without a `type` envelope are legacy bus traffic —
+        // typing indicators from other tabs, pre-hub cron replies. The
+        // web client ignores them; rendering them dumps "Typing…" noise
+        // into the transcript, so we ignore them too.
+        break;
     }
     return const FrameEffects();
   }
@@ -434,7 +496,12 @@ class ChatEngine {
     if (last is AssistantEntry && last.streaming) {
       _entries[_entries.length - 1] = last.copyWith(text: last.text + delta);
     } else {
-      _entries.add(AssistantEntry(key: _key('a'), text: delta, streaming: true));
+      _entries.add(AssistantEntry(
+        key: _key('a'),
+        text: delta,
+        streaming: true,
+        ts: DateTime.now().millisecondsSinceEpoch,
+      ));
       markStreaming();
     }
   }
@@ -453,7 +520,11 @@ class ChatEngine {
       break; // newest assistant entry is committed → this is a new segment
     }
     if (content.isNotEmpty) {
-      _entries.add(AssistantEntry(key: _key('a'), text: content));
+      _entries.add(AssistantEntry(
+        key: _key('a'),
+        text: content,
+        ts: DateTime.now().millisecondsSinceEpoch,
+      ));
     }
   }
 
@@ -478,7 +549,11 @@ class ChatEngine {
         return;
       }
     }
-    _entries.add(UserEntry(key: _key('u'), text: content));
+    _entries.add(UserEntry(
+      key: _key('u'),
+      text: content,
+      ts: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   void _notice(String text, NoticeKind kind, NoticeTone tone) =>

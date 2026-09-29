@@ -206,5 +206,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSteer => 'Steer the running turn';
 
   @override
+  String get chatToday => 'Today';
+
+  @override
+  String get chatYesterday => 'Yesterday';
+
+  @override
   String get chatPickImageError => 'Could not read the image';
 }

@@ -101,7 +101,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 | `error` | `{"message":"..."}` | 错误提示 |
 | `done` | 无 data | 结束本轮；agent 零输出时 handler 合成 `error: "agent finished without emitting a response"` + 结束 |
 
-另：subscribe 长连上还有 **legacy cron bus 帧**（`handlers.go:1666`）——`id:` 行缺失、载荷为 `{"text","parseMode","mediaItems"?}`（无 `seq`/`type` 字段），客户端解析时须容忍无 type 帧（按 content 对待）。
+另：subscribe 长连上还有 **legacy bus 帧**（`handlers.go:1666`）——`id:` 行缺失、载荷为 `{"text","parseMode"}`（无 `seq`/`type` 字段）。当前 web 端**直接忽略**无 `type` 的帧；实测载荷是其他 tab 的打字指示器（`"<uid>:<ts>-0; Typing..."`，高频广播），客户端必须同样忽略，否则 transcript 会被噪声刷屏。
 
 ### 其他发送/控制端点
 

@@ -64,5 +64,7 @@
   "chatOnlyMode": "Chat-only mode",
   "chatThinking": "Thinking…",
   "chatSteer": "Steer the running turn",
+  "chatToday": "Today",
+  "chatYesterday": "Yesterday",
   "chatPickImageError": "Could not read the image"
 }
