@@ -118,6 +118,20 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     }
 
     final selected = agents.selected!;
+    final store = ref.watch(chatStoreProvider);
+    final activeSessionId = store.activeKey?.substring(store.activeKey!.indexOf('|') + 1);
+    // Sub-line = the open session's title, so switching sessions from the
+    // drawer gives immediate visual confirmation (empty/new sessions show
+    // "New chat").
+    final sessionTitle = ref
+        .watch(sessionsProvider)
+        .value
+        ?.where((s) => s.id == activeSessionId)
+        .firstOrNull
+        ?.title;
+    final subtitle = activeSessionId == null
+        ? selected.model
+        : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
@@ -155,13 +169,12 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                     const Icon(Icons.arrow_drop_down),
                   ],
                 ),
-                if (selected.model.isNotEmpty)
-                  Text(
-                    selected.model,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
-                  ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
+                ),
               ],
             ),
           ),

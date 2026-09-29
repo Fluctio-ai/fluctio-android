@@ -83,10 +83,11 @@ class Composer extends StatelessWidget {
                 Expanded(
                   child: Container(
                     // Capsule like the prototype's .input-wrapper (radius
-                    // = half the 44px min height).
+                    // = half the 44px min height). The field's own content
+                    // padding fills the capsule so the focus / cursor
+                    // region matches the visible height.
                     constraints: const BoxConstraints(minHeight: 44),
                     padding: const EdgeInsets.symmetric(horizontal: 14),
-                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(22),
@@ -102,7 +103,7 @@ class Composer extends StatelessWidget {
                       decoration: InputDecoration(
                         hintText: l.chatEmpty,
                         border: InputBorder.none,
-                        isCollapsed: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 11),
                       ),
                     ),
                   ),
