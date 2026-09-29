@@ -46,6 +46,10 @@ class AgentsAdminRepo {
   Future<void> scopedPut(String path, Map<String, dynamic> blob) =>
       _dio.put(path, data: blob);
 
+  /// User-level config blobs save via POST (e.g. /api/config).
+  Future<void> postBlob(String path, Map<String, dynamic> blob) =>
+      _dio.post(path, data: blob);
+
   // ---- skills ----
 
   Future<List<Map<String, dynamic>>> skills(String agentId) async =>

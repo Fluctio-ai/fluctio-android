@@ -484,4 +484,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsEmpty => 'Nothing here yet';
+
+  @override
+  String get settingsCenter => 'System settings';
+
+  @override
+  String get settingsGeneral => 'General';
+
+  @override
+  String get settingsModels => 'Models & providers';
+
+  @override
+  String get settingsAdvanced =>
+      'Advanced (backup / cron / keys / diagnostics)';
+
+  @override
+  String get settingsBackup => 'Backups';
+
+  @override
+  String get settingsCron => 'Scheduled jobs';
+
+  @override
+  String get settingsApiKeys => 'API keys';
+
+  @override
+  String get settingsDiag => 'Diagnostic reports';
 }

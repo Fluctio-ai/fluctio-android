@@ -156,5 +156,13 @@
   "settingsSave": "保存",
   "settingsReload": "重载",
   "settingsAdd": "添加",
-  "settingsEmpty": "暂无内容"
+  "settingsEmpty": "暂无内容",
+  "settingsCenter": "系统设置",
+  "settingsGeneral": "通用",
+  "settingsModels": "模型服务",
+  "settingsAdvanced": "高级（备份 / 定时 / 密钥 / 诊断）",
+  "settingsBackup": "备份",
+  "settingsCron": "定时任务",
+  "settingsApiKeys": "API 密钥",
+  "settingsDiag": "诊断报告"
 }

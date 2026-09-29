@@ -156,5 +156,13 @@
   "settingsSave": "Save",
   "settingsReload": "Reload",
   "settingsAdd": "Add",
-  "settingsEmpty": "Nothing here yet"
+  "settingsEmpty": "Nothing here yet",
+  "settingsCenter": "System settings",
+  "settingsGeneral": "General",
+  "settingsModels": "Models & providers",
+  "settingsAdvanced": "Advanced (backup / cron / keys / diagnostics)",
+  "settingsBackup": "Backups",
+  "settingsCron": "Scheduled jobs",
+  "settingsApiKeys": "API keys",
+  "settingsDiag": "Diagnostic reports"
 }

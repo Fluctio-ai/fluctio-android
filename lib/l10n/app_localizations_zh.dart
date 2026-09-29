@@ -479,4 +479,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsEmpty => '暂无内容';
+
+  @override
+  String get settingsCenter => '系统设置';
+
+  @override
+  String get settingsGeneral => '通用';
+
+  @override
+  String get settingsModels => '模型服务';
+
+  @override
+  String get settingsAdvanced => '高级（备份 / 定时 / 密钥 / 诊断）';
+
+  @override
+  String get settingsBackup => '备份';
+
+  @override
+  String get settingsCron => '定时任务';
+
+  @override
+  String get settingsApiKeys => 'API 密钥';
+
+  @override
+  String get settingsDiag => '诊断报告';
 }

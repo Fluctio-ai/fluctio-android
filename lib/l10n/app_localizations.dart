@@ -1039,6 +1039,54 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'暂无内容'**
   String get settingsEmpty;
+
+  /// No description provided for @settingsCenter.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统设置'**
+  String get settingsCenter;
+
+  /// No description provided for @settingsGeneral.
+  ///
+  /// In zh, this message translates to:
+  /// **'通用'**
+  String get settingsGeneral;
+
+  /// No description provided for @settingsModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型服务'**
+  String get settingsModels;
+
+  /// No description provided for @settingsAdvanced.
+  ///
+  /// In zh, this message translates to:
+  /// **'高级（备份 / 定时 / 密钥 / 诊断）'**
+  String get settingsAdvanced;
+
+  /// No description provided for @settingsBackup.
+  ///
+  /// In zh, this message translates to:
+  /// **'备份'**
+  String get settingsBackup;
+
+  /// No description provided for @settingsCron.
+  ///
+  /// In zh, this message translates to:
+  /// **'定时任务'**
+  String get settingsCron;
+
+  /// No description provided for @settingsApiKeys.
+  ///
+  /// In zh, this message translates to:
+  /// **'API 密钥'**
+  String get settingsApiKeys;
+
+  /// No description provided for @settingsDiag.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断报告'**
+  String get settingsDiag;
 }
 
 class _AppLocalizationsDelegate

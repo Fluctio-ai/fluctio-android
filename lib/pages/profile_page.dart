@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
 import 'agents/agent_settings_page.dart';
+import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 
@@ -78,6 +79,14 @@ class ProfilePage extends ConsumerWidget {
                 icon: LucideIcons.server,
                 label: l.currentServer,
                 value: auth.baseUrl,
+              ),
+              _item(
+                context,
+                icon: LucideIcons.slidersHorizontal,
+                label: l.settingsCenter,
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const SystemSettingsPage())),
+                trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
               if (auth.allowSelfSigned)
                 _item(

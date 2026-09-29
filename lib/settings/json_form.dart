@@ -10,10 +10,15 @@ import '../theme/tokens.dart';
 /// text field, `List<String>` → tag editor, nested map → section. Values
 /// round-trip untouched for keys we don't render.
 class JsonForm extends StatelessWidget {
-  const JsonForm({super.key, required this.value, required this.onChanged});
+  const JsonForm({super.key, required this.value, required this.onChanged, this.hiddenKeys = const {}});
 
   final Map<String, dynamic> value;
   final void Function(Map<String, dynamic> next) onChanged;
+
+  /// Keys present in [value] but neither rendered nor editable — they
+  /// ride along untouched on every onChanged (credential namespaces that
+  /// the server masks and that must round-trip verbatim).
+  final Set<String> hiddenKeys;
 
   void _set(String key, Object? v) => onChanged({...value, key: v});
 
@@ -23,7 +28,9 @@ class JsonForm extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final entry in value.entries) _field(context, theme, entry.key, entry.value),
+        for (final entry in value.entries)
+          if (!hiddenKeys.contains(entry.key))
+            _field(context, theme, entry.key, entry.value),
       ],
     );
   }
