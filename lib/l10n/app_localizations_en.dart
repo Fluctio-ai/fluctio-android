@@ -415,4 +415,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noteAttachments => 'Attachments (read-only)';
+
+  @override
+  String get tabProfile => 'Profile';
+
+  @override
+  String get tabModels => 'Models';
+
+  @override
+  String get tabContext => 'Context';
+
+  @override
+  String get tabCustomize => 'Replies';
+
+  @override
+  String get tabKnowledge => 'Knowledge';
+
+  @override
+  String get tabSkills => 'Skills';
+
+  @override
+  String get tabMcp => 'MCP';
+
+  @override
+  String get tabPlugins => 'Plugins';
+
+  @override
+  String get tabScheduler => 'Scheduler';
+
+  @override
+  String get tabRegexHooks => 'Regex hooks';
+
+  @override
+  String get tabRecall => 'Recall';
+
+  @override
+  String get tabVectorization => 'Vectorization';
+
+  @override
+  String get tabPrivacy => 'Privacy';
+
+  @override
+  String get tabUsage => 'Usage';
+
+  @override
+  String get tabChannels => 'Channels';
+
+  @override
+  String get tabName => 'Name';
+
+  @override
+  String get tabDescription => 'Description';
+
+  @override
+  String get tabModel => 'Model';
+
+  @override
+  String get tabCustomizeHint => 'Toggles take effect once saved';
+
+  @override
+  String get settingsSave => 'Save';
+
+  @override
+  String get settingsReload => 'Reload';
+
+  @override
+  String get settingsAdd => 'Add';
+
+  @override
+  String get settingsEmpty => 'Nothing here yet';
 }

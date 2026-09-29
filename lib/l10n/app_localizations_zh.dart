@@ -410,4 +410,73 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noteAttachments => '附件（只读）';
+
+  @override
+  String get tabProfile => '资料';
+
+  @override
+  String get tabModels => '模型';
+
+  @override
+  String get tabContext => '上下文';
+
+  @override
+  String get tabCustomize => '回复';
+
+  @override
+  String get tabKnowledge => '知识库';
+
+  @override
+  String get tabSkills => '技能';
+
+  @override
+  String get tabMcp => 'MCP';
+
+  @override
+  String get tabPlugins => '插件';
+
+  @override
+  String get tabScheduler => '定时';
+
+  @override
+  String get tabRegexHooks => '正则钩子';
+
+  @override
+  String get tabRecall => '召回';
+
+  @override
+  String get tabVectorization => '向量化';
+
+  @override
+  String get tabPrivacy => '隐私';
+
+  @override
+  String get tabUsage => '用量';
+
+  @override
+  String get tabChannels => '频道';
+
+  @override
+  String get tabName => '名称';
+
+  @override
+  String get tabDescription => '描述';
+
+  @override
+  String get tabModel => '模型';
+
+  @override
+  String get tabCustomizeHint => '开关保存后立即生效';
+
+  @override
+  String get settingsSave => '保存';
+
+  @override
+  String get settingsReload => '重载';
+
+  @override
+  String get settingsAdd => '添加';
+
+  @override
+  String get settingsEmpty => '暂无内容';
 }

@@ -901,6 +901,144 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'附件（只读）'**
   String get noteAttachments;
+
+  /// No description provided for @tabProfile.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料'**
+  String get tabProfile;
+
+  /// No description provided for @tabModels.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get tabModels;
+
+  /// No description provided for @tabContext.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文'**
+  String get tabContext;
+
+  /// No description provided for @tabCustomize.
+  ///
+  /// In zh, this message translates to:
+  /// **'回复'**
+  String get tabCustomize;
+
+  /// No description provided for @tabKnowledge.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识库'**
+  String get tabKnowledge;
+
+  /// No description provided for @tabSkills.
+  ///
+  /// In zh, this message translates to:
+  /// **'技能'**
+  String get tabSkills;
+
+  /// No description provided for @tabMcp.
+  ///
+  /// In zh, this message translates to:
+  /// **'MCP'**
+  String get tabMcp;
+
+  /// No description provided for @tabPlugins.
+  ///
+  /// In zh, this message translates to:
+  /// **'插件'**
+  String get tabPlugins;
+
+  /// No description provided for @tabScheduler.
+  ///
+  /// In zh, this message translates to:
+  /// **'定时'**
+  String get tabScheduler;
+
+  /// No description provided for @tabRegexHooks.
+  ///
+  /// In zh, this message translates to:
+  /// **'正则钩子'**
+  String get tabRegexHooks;
+
+  /// No description provided for @tabRecall.
+  ///
+  /// In zh, this message translates to:
+  /// **'召回'**
+  String get tabRecall;
+
+  /// No description provided for @tabVectorization.
+  ///
+  /// In zh, this message translates to:
+  /// **'向量化'**
+  String get tabVectorization;
+
+  /// No description provided for @tabPrivacy.
+  ///
+  /// In zh, this message translates to:
+  /// **'隐私'**
+  String get tabPrivacy;
+
+  /// No description provided for @tabUsage.
+  ///
+  /// In zh, this message translates to:
+  /// **'用量'**
+  String get tabUsage;
+
+  /// No description provided for @tabChannels.
+  ///
+  /// In zh, this message translates to:
+  /// **'频道'**
+  String get tabChannels;
+
+  /// No description provided for @tabName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get tabName;
+
+  /// No description provided for @tabDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'描述'**
+  String get tabDescription;
+
+  /// No description provided for @tabModel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get tabModel;
+
+  /// No description provided for @tabCustomizeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'开关保存后立即生效'**
+  String get tabCustomizeHint;
+
+  /// No description provided for @settingsSave.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存'**
+  String get settingsSave;
+
+  /// No description provided for @settingsReload.
+  ///
+  /// In zh, this message translates to:
+  /// **'重载'**
+  String get settingsReload;
+
+  /// No description provided for @settingsAdd.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加'**
+  String get settingsAdd;
+
+  /// No description provided for @settingsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无内容'**
+  String get settingsEmpty;
 }
 
 class _AppLocalizationsDelegate

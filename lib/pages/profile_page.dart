@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
+import 'agents/agent_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 
@@ -62,7 +63,8 @@ class ProfilePage extends ConsumerWidget {
                 context,
                 icon: LucideIcons.bot,
                 label: l.meAgentManage,
-                onTap: () => _soon(context, l),
+                onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const AgentsAdminPage())),
                 trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
             ],
@@ -184,10 +186,6 @@ class ProfilePage extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  void _soon(BuildContext context, AppLocalizations l) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.comingSoon)));
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref, AppLocalizations l) async {
