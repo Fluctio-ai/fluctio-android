@@ -28,6 +28,30 @@ class ChatRepo {
       key: 'projects',
       fromJson: ProjectInfo.fromJson);
 
+  Future<void> createProject(String agentId, String name, {String description = ''}) =>
+      _dio.post('/api/agents/$agentId/projects',
+          data: {'name': name, if (description.isNotEmpty) 'description': description});
+
+  Future<void> updateProject(String agentId, String projectId,
+          {required String name, String description = ''}) =>
+      _dio.patch('/api/agents/$agentId/projects/$projectId',
+          data: {'name': name, if (description.isNotEmpty) 'description': description});
+
+  /// 409 when the project still owns chats; [sessionCount] from the error
+  /// body (0 = none/absent). Other failures rethrow.
+  Future<int> deleteProject(String agentId, String projectId) async {
+    try {
+      await _dio.delete('/api/agents/$agentId/projects/$projectId');
+      return 0;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 409) {
+        final body = e.response?.data;
+        return body is Map ? (body['sessionCount'] as num?)?.toInt() ?? -1 : -1;
+      }
+      rethrow;
+    }
+  }
+
   Future<HistoryPage> history(String agentId, String sessionId, {int before = 0, int limit = 50}) async {
     final res = await _dio.get('/api/chat/history', queryParameters: {
       'agentId': agentId,

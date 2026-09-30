@@ -1147,6 +1147,174 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'下载更新'**
   String get updateDownload;
+
+  /// No description provided for @confirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定'**
+  String get confirm;
+
+  /// No description provided for @drawerGroupAgent.
+  ///
+  /// In zh, this message translates to:
+  /// **'智能体'**
+  String get drawerGroupAgent;
+
+  /// No description provided for @drawerChats.
+  ///
+  /// In zh, this message translates to:
+  /// **'对话'**
+  String get drawerChats;
+
+  /// No description provided for @seeAllChats.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看所有对话'**
+  String get seeAllChats;
+
+  /// No description provided for @noProjects.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无项目'**
+  String get noProjects;
+
+  /// No description provided for @newProject.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建项目'**
+  String get newProject;
+
+  /// No description provided for @newChatInProject.
+  ///
+  /// In zh, this message translates to:
+  /// **'在项目中新建对话'**
+  String get newChatInProject;
+
+  /// No description provided for @editProject.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑项目'**
+  String get editProject;
+
+  /// No description provided for @deleteProject.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除项目'**
+  String get deleteProject;
+
+  /// No description provided for @deleteProjectTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除项目'**
+  String get deleteProjectTitle;
+
+  /// No description provided for @deleteProjectConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定删除项目“{name}”？'**
+  String deleteProjectConfirm(Object name);
+
+  /// No description provided for @projectDeleteBlocked.
+  ///
+  /// In zh, this message translates to:
+  /// **'该项目仍有 {count} 个对话，请先删除或移动。'**
+  String projectDeleteBlocked(Object count);
+
+  /// No description provided for @projectNameLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get projectNameLabel;
+
+  /// No description provided for @projectDescriptionLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'描述（可选）'**
+  String get projectDescriptionLabel;
+
+  /// No description provided for @dashHeroHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'发送消息开始对话'**
+  String get dashHeroHint;
+
+  /// No description provided for @dashCardsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'今日卡片'**
+  String get dashCardsTitle;
+
+  /// No description provided for @dashCardsDue.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 张到期'**
+  String dashCardsDue(Object n);
+
+  /// No description provided for @dashCardsNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天没有到期卡片'**
+  String get dashCardsNone;
+
+  /// No description provided for @dashCardsStreak.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连续 {n} 天'**
+  String dashCardsStreak(Object n);
+
+  /// No description provided for @dashCardsBrowse.
+  ///
+  /// In zh, this message translates to:
+  /// **'前往卡片库 →'**
+  String get dashCardsBrowse;
+
+  /// No description provided for @dashTodoTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'待办'**
+  String get dashTodoTitle;
+
+  /// No description provided for @dashTodoNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无待办'**
+  String get dashTodoNone;
+
+  /// No description provided for @dashTodoView.
+  ///
+  /// In zh, this message translates to:
+  /// **'前往待办 →'**
+  String get dashTodoView;
+
+  /// No description provided for @dashTodoOverdue.
+  ///
+  /// In zh, this message translates to:
+  /// **'已过期'**
+  String get dashTodoOverdue;
+
+  /// No description provided for @dashRecentTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近对话'**
+  String get dashRecentTitle;
+
+  /// No description provided for @dashRecentNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'还没有对话'**
+  String get dashRecentNone;
+
+  /// No description provided for @dashCronTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'定时任务'**
+  String get dashCronTitle;
+
+  /// No description provided for @dashCronNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有启用的定时任务'**
+  String get dashCronNone;
 }
 
 class _AppLocalizationsDelegate

@@ -6,6 +6,7 @@ import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../theme/tokens.dart';
 
 /// Spaced-repetition review session: flip-card over the due queue, one
@@ -80,9 +81,9 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
     return Scaffold(
       appBar: AppBar(title: Text(l.cardReview)),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonProse()
           : _error != null
-              ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+              ? ErrorPane(message: _error!)
               : _index >= _queue.length
                   ? _summary(context, theme, l)
                   : _cardArea(context, theme, l),

@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../chat/chat_engine.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
+import '../../ui/press_scale.dart';
 
 /// Composer card per the web chat screen: multi-line field on top, tool
 /// row underneath — paperclip and the chat-only chip on the left, the
@@ -64,12 +65,13 @@ class Composer extends StatelessWidget {
           children: [
             if (pendingImages.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
                 child: SizedBox(
-                  height: 96,
-                  child: ListView.builder(
+                  height: 88,
+                  child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: pendingImages.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 8),
                     itemBuilder: (context, i) => _PendingThumb(
                       url: pendingImages[i],
                       onRemove: () => onRemoveImage(i),
@@ -84,11 +86,14 @@ class Composer extends StatelessWidget {
               maxLines: 6,
               keyboardType: TextInputType.multiline,
               textCapitalization: TextCapitalization.sentences,
+              style: const TextStyle(fontSize: 15, height: 1.4),
               decoration: InputDecoration(
                 hintText: l.chatEmpty,
                 border: InputBorder.none,
                 isDense: true,
-                contentPadding: EdgeInsets.zero,
+                // Web composer rhythm (px-4 py-3, min-height 24px text):
+                // a comfortable touch row, not a sliver.
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
             ),
             const SizedBox(height: 8),
@@ -148,29 +153,32 @@ class _ToolButton extends StatelessWidget {
     final color = toggled ? theme.colorScheme.primary : theme.colorScheme.outline;
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: AppRadius.controlBorder,
-        child: Container(
-          height: 36,
-          padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 10),
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.controlBorder,
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-            color: toggled ? theme.colorScheme.primaryContainer : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 16, color: color),
-              if (label != null) ...[
-                const SizedBox(width: 6),
-                Text(
-                  label!,
-                  style: TextStyle(fontSize: 12, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
-                ),
+      child: TactileScale(
+        enabled: onTap != null,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadius.controlBorder,
+          child: Container(
+            height: 36,
+            padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 10),
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.controlBorder,
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              color: toggled ? theme.colorScheme.primaryContainer : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: color),
+                if (label != null) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label!,
+                    style: TextStyle(fontSize: 12, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -226,21 +234,24 @@ class _ActionButton extends StatelessWidget {
 
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: AppRadius.controlBorder,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            borderRadius: AppRadius.controlBorder,
-            color: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
-          ),
-          child: Icon(
-            icon,
-            size: 16,
-            fill: icon == LucideIcons.square ? 1.0 : 0.0,
-            color: enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
+      child: TactileScale(
+        enabled: onPressed != null,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: AppRadius.controlBorder,
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              borderRadius: AppRadius.controlBorder,
+              color: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
+            ),
+            child: Icon(
+              icon,
+              size: 16,
+              fill: icon == LucideIcons.square ? 1.0 : 0.0,
+              color: enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
+            ),
           ),
         ),
       ),
@@ -259,40 +270,37 @@ class _PendingThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: AppRadius.controlBorder,
-            child: Image.network(
-              url,
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: AppRadius.controlBorder,
+          child: Image.network(
+            url,
+            width: 88,
+            height: 88,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) => Container(
               width: 88,
               height: 88,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (_, _, _) => Container(
-                width: 88,
-                height: 88,
-                color: scheme.secondaryContainer,
-                child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
-              ),
+              color: scheme.secondaryContainer,
+              child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
             ),
           ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: InkWell(
-              onTap: onRemove,
-              child: Container(
-                decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
-                padding: const EdgeInsets.all(3),
-                child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
-              ),
+        ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: InkWell(
+            onTap: onRemove,
+            child: Container(
+              decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
+              padding: const EdgeInsets.all(3),
+              child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

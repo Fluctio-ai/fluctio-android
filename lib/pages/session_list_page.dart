@@ -5,13 +5,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/load_states.dart';
 import 'app_drawer.dart';
 import 'chat/panels.dart';
 
-/// Chat tab root: the session list, one tap from any conversation —
-/// the mobile take on the web's always-visible sidebar. Tapping a row
-/// opens the conversation at `/c/<sessionId>` in the same branch, so
-/// the back gesture / leading arrow returns here.
+/// Full conversation list (`/chats`) — the drawer's "see all chats"
+/// target, the mobile take on the web `/agents/<id>/chats` page. Tapping
+/// a row opens the conversation at `/c/<sessionId>`, so the back gesture
+/// / leading arrow returns here.
 class SessionListPage extends ConsumerWidget {
   const SessionListPage({super.key});
 
@@ -25,26 +26,19 @@ class SessionListPage extends ConsumerWidget {
       return Scaffold(
         drawer: const AppDrawer(),
         appBar: AppBar(title: Text(l.navChat)),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const SkeletonListView(),
       );
     }
     if (agents.agents.isEmpty) {
       return Scaffold(
         drawer: const AppDrawer(),
         appBar: AppBar(title: Text(l.navChat)),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.bot, size: 44, color: theme.colorScheme.outline),
-              const SizedBox(height: 12),
-              Text(l.chatNoAgent, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () => ref.read(agentsProvider.notifier).load(),
-                child: Text(l.chatLoadAgents),
-              ),
-            ],
+        body: EmptyState(
+          icon: LucideIcons.bot,
+          message: l.chatNoAgent,
+          action: FilledButton(
+            onPressed: () => ref.read(agentsProvider.notifier).load(),
+            child: Text(l.chatLoadAgents),
           ),
         ),
       );
@@ -112,20 +106,16 @@ class _SessionListView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final sessions = ref.watch(sessionsProvider);
 
     return RefreshIndicator(
       onRefresh: () => ref.read(sessionsProvider.notifier).reload(),
       child: sessions.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const SkeletonListView(),
         error: (e, _) => ListView( // keep the indicator draggable
           children: [
             const SizedBox(height: 120),
-            Center(
-              child: Text(l.chatHistoryError,
-                  style: TextStyle(color: theme.colorScheme.error)),
-            ),
+            ErrorPane(message: l.chatHistoryError),
           ],
         ),
         data: (list) {
@@ -133,15 +123,7 @@ class _SessionListView extends ConsumerWidget {
             return ListView( // keep the indicator draggable
               children: [
                 const SizedBox(height: 120),
-                Center(
-                  child: Column(
-                    children: [
-                      Icon(LucideIcons.messageCircle, size: 44, color: theme.colorScheme.outline),
-                      const SizedBox(height: 12),
-                      Text(l.chatNoSessions, style: theme.textTheme.bodyMedium),
-                    ],
-                  ),
-                ),
+                EmptyState(icon: LucideIcons.messageCircle, message: l.chatNoSessions),
               ],
             );
           }

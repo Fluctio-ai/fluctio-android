@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/load_states.dart';
 import '../theme/tokens.dart';
 
 /// Generic editor for free-form settings blobs (vectorization / privacy /
@@ -357,12 +358,11 @@ class _BlobEditorState extends State<BlobEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     if (_error != null) {
-      return Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)));
+      return ErrorPane(message: _error!);
     }
     final blob = _blob;
-    if (blob == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (blob == null) return const SkeletonList(itemCount: 4, leading: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

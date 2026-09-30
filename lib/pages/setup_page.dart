@@ -7,6 +7,7 @@ import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
 import '../core/server_url.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/brand_wave.dart';
 
 /// First-run / logged-out screen: server address (with health probe),
 /// then credentials. One route serves both `needSetup` and `loggedOut`.
@@ -105,7 +106,11 @@ class _SetupPageState extends ConsumerState<SetupPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(l.setupTitle, style: Theme.of(context).textTheme.headlineSmall),
+                  const Center(child: BrandWave(size: 48)),
+                  const SizedBox(height: 16),
+                  Text(l.setupTitle,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall),
                   const SizedBox(height: 24),
                   if (showingAddress) _addressForm(l) else _loginForm(l, auth),
                 ],

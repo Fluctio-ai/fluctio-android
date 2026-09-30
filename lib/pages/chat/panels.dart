@@ -6,6 +6,7 @@ import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../util/dates.dart';
 
 /// One session row (used in the navigation drawer): title/preview/time,
@@ -189,8 +190,8 @@ class _TodoSheet extends ConsumerWidget {
                   ? const SizedBox.shrink()
                   : todo.when(
                       loading: () => const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Center(child: CircularProgressIndicator()),
+                        padding: EdgeInsets.all(16),
+                        child: SkeletonList(itemCount: 4),
                       ),
                       error: (_, _) => Padding(
                         padding: const EdgeInsets.all(24),

@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../settings/json_form.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
@@ -244,9 +245,9 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
         child: const Icon(LucideIcons.plus),
       ),
       body: _failed
-          ? Center(child: Text(l.chatHistoryError, style: TextStyle(color: theme.colorScheme.error)))
+          ? ErrorPane(message: l.chatHistoryError)
           : _providers == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonListView()
               : RefreshIndicator(
                   onRefresh: _load,
                   child: _providers!.isEmpty
@@ -324,9 +325,9 @@ class _GenericListScreenState extends ConsumerState<GenericListScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+          ? ErrorPane(message: _error!)
           : _blob == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonProse()
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Container(

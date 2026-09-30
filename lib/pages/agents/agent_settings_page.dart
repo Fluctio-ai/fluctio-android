@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../settings/json_form.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
@@ -182,7 +183,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           Expanded(
             child: _scope == null || _config == null
-                ? const Center(child: CircularProgressIndicator())
+                ? const SkeletonListView()
                 : SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
                     child: _tabBody(context),
@@ -515,7 +516,7 @@ class _UsageTabState extends ConsumerState<_UsageTab> {
     final theme = Theme.of(context);
     final data = _data;
     if (data == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const SkeletonList(itemCount: 3, leading: false);
     }
     return Container(
       padding: const EdgeInsets.all(14),
@@ -582,7 +583,7 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
           ],
         ),
         if (skills == null)
-          const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          const SkeletonList(itemCount: 3, leading: false)
         else if (skills.isEmpty)
           Text(l.settingsEmpty, style: theme.textTheme.bodySmall)
         else
@@ -642,7 +643,7 @@ class _RepoListTabState extends State<_RepoListTab> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final rows = _rows;
-    if (rows == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (rows == null) return const SkeletonList(itemCount: 4);
     if (rows.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
     return Column(
       children: [for (final row in rows) widget.tileBuilder(context, row, _reload)],
@@ -812,7 +813,7 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final registry = _registry;
-    if (registry == null) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (registry == null) return const SkeletonList(itemCount: 4);
     if (registry.isEmpty && _overlay.isEmpty) {
       return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
     }

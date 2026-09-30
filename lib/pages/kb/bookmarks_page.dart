@@ -7,6 +7,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../util/open_url.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
@@ -31,14 +32,11 @@ class KbBookmarksPage extends ConsumerWidget {
       body: bookmarks == null
           ? const SizedBox.shrink()
           : bookmarks.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(l.chatHistoryError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ),
+              loading: () => const SkeletonListView(),
+              error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return Center(child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium));
+                  return EmptyState(icon: LucideIcons.bookmark, message: l.kbEmpty);
                 }
                 return RefreshIndicator(
                   onRefresh: () => agentId == null

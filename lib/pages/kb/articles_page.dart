@@ -10,6 +10,7 @@ import '../../kb/kb_models.dart';
 import '../../util/dates.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
 /// base, plain list otherwise.
@@ -86,16 +87,12 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                 : (sources == null
                     ? const SizedBox.shrink()
                     : sources.when(
-                        loading: () =>
-                            const Center(child: CircularProgressIndicator()),
-                        error: (e, _) => Center(child: Text(l.chatHistoryError,
-                            style: TextStyle(color: theme.colorScheme.error))),
+                        loading: () => const SkeletonListView(),
+                        error: (e, _) => ErrorPane(message: l.chatHistoryError),
                         data: (list) {
                           final articles = list.where((s) => s.type == 'article').toList();
                           if (articles.isEmpty) {
-                            return Center(
-                              child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium),
-                            );
+                            return EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty);
                           }
                           return RefreshIndicator(
                             onRefresh: () => agentId == null
@@ -129,11 +126,11 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
   Widget _searchResults(BuildContext context, ThemeData theme) {
     final l = AppLocalizations.of(context)!;
     if (_searching && _results == null) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+      return const SkeletonListView(itemCount: 4);
     }
     final results = _results ?? const <KbSearchResult>[];
     if (results.isEmpty) {
-      return Center(child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium));
+      return EmptyState(icon: LucideIcons.search, message: l.kbEmpty);
     }
     return ListView.builder(
       itemCount: results.length,

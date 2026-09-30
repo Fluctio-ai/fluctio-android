@@ -540,4 +540,96 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get updateDownload => 'Download update';
+
+  @override
+  String get confirm => 'OK';
+
+  @override
+  String get drawerGroupAgent => 'Agent';
+
+  @override
+  String get drawerChats => 'Chats';
+
+  @override
+  String get seeAllChats => 'See all chats';
+
+  @override
+  String get noProjects => 'No projects yet';
+
+  @override
+  String get newProject => 'New project';
+
+  @override
+  String get newChatInProject => 'New chat in project';
+
+  @override
+  String get editProject => 'Edit project';
+
+  @override
+  String get deleteProject => 'Delete project';
+
+  @override
+  String get deleteProjectTitle => 'Delete project';
+
+  @override
+  String deleteProjectConfirm(Object name) {
+    return 'Delete project \"$name\"?';
+  }
+
+  @override
+  String projectDeleteBlocked(Object count) {
+    return 'This project still has $count chats — delete or move them first.';
+  }
+
+  @override
+  String get projectNameLabel => 'Name';
+
+  @override
+  String get projectDescriptionLabel => 'Description (optional)';
+
+  @override
+  String get dashHeroHint => 'Send a message to start';
+
+  @override
+  String get dashCardsTitle => 'Today\'s cards';
+
+  @override
+  String dashCardsDue(Object n) {
+    return '$n due';
+  }
+
+  @override
+  String get dashCardsNone => 'No cards due today';
+
+  @override
+  String dashCardsStreak(Object n) {
+    return '$n-day streak';
+  }
+
+  @override
+  String get dashCardsBrowse => 'Browse cards →';
+
+  @override
+  String get dashTodoTitle => 'Todos';
+
+  @override
+  String get dashTodoNone => 'Nothing open';
+
+  @override
+  String get dashTodoView => 'View todos →';
+
+  @override
+  String get dashTodoOverdue => 'Overdue';
+
+  @override
+  String get dashRecentTitle => 'Recent chats';
+
+  @override
+  String get dashRecentNone => 'No chats yet';
+
+  @override
+  String get dashCronTitle => 'Scheduled jobs';
+
+  @override
+  String get dashCronNone => 'No jobs enabled';
 }

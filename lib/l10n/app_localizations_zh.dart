@@ -533,4 +533,96 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get updateDownload => '下载更新';
+
+  @override
+  String get confirm => '确定';
+
+  @override
+  String get drawerGroupAgent => '智能体';
+
+  @override
+  String get drawerChats => '对话';
+
+  @override
+  String get seeAllChats => '查看所有对话';
+
+  @override
+  String get noProjects => '暂无项目';
+
+  @override
+  String get newProject => '新建项目';
+
+  @override
+  String get newChatInProject => '在项目中新建对话';
+
+  @override
+  String get editProject => '编辑项目';
+
+  @override
+  String get deleteProject => '删除项目';
+
+  @override
+  String get deleteProjectTitle => '删除项目';
+
+  @override
+  String deleteProjectConfirm(Object name) {
+    return '确定删除项目“$name”？';
+  }
+
+  @override
+  String projectDeleteBlocked(Object count) {
+    return '该项目仍有 $count 个对话，请先删除或移动。';
+  }
+
+  @override
+  String get projectNameLabel => '名称';
+
+  @override
+  String get projectDescriptionLabel => '描述（可选）';
+
+  @override
+  String get dashHeroHint => '发送消息开始对话';
+
+  @override
+  String get dashCardsTitle => '今日卡片';
+
+  @override
+  String dashCardsDue(Object n) {
+    return '$n 张到期';
+  }
+
+  @override
+  String get dashCardsNone => '今天没有到期卡片';
+
+  @override
+  String dashCardsStreak(Object n) {
+    return '已连续 $n 天';
+  }
+
+  @override
+  String get dashCardsBrowse => '前往卡片库 →';
+
+  @override
+  String get dashTodoTitle => '待办';
+
+  @override
+  String get dashTodoNone => '暂无待办';
+
+  @override
+  String get dashTodoView => '前往待办 →';
+
+  @override
+  String get dashTodoOverdue => '已过期';
+
+  @override
+  String get dashRecentTitle => '最近对话';
+
+  @override
+  String get dashRecentNone => '还没有对话';
+
+  @override
+  String get dashCronTitle => '定时任务';
+
+  @override
+  String get dashCronNone => '没有启用的定时任务';
 }

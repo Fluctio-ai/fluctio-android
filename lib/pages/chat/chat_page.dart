@@ -10,7 +10,11 @@ import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
+import 'typing_dots.dart';
 import '../../theme/tokens.dart';
+import '../app_drawer.dart';
+import 'chat_dashboard.dart';
 import 'composer.dart';
 import 'message_list.dart';
 import 'panels.dart';
@@ -120,7 +124,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     final active = ref.watch(chatStoreProvider).active;
 
     if (!agents.loaded) {
-      return Scaffold(appBar: AppBar(title: Text(l.navChat)), body: const Center(child: CircularProgressIndicator()));
+      return Scaffold(appBar: AppBar(title: Text(l.navChat)), body: const SkeletonListView());
     }
     if (agents.agents.isEmpty) {
       return Scaffold(
@@ -162,6 +166,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         ? selected.model
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: PopupMenuButton<String>(
           initialValue: selected.id,
@@ -216,7 +221,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         ],
       ),
       body: active == null
-          ? const Center(child: CircularProgressIndicator())
+          ? const SkeletonListView(itemCount: 4)
           : Column(
               children: [
                 if (kDebugMode)
@@ -237,14 +242,20 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                   ),
                 if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
                 Expanded(
-                  // Keyed by session: entrance-animation bookkeeping lives
-                  // in MessageList's state and must reset on switch.
-                  child: MessageList(key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
+                  // Fresh conversation: the dashboard IS the empty state
+                  // (web ChatDashboard); typing hides it, any entry
+                  // swaps back to the transcript.
+                  child: _input.text.isEmpty &&
+                          _pendingImages.isEmpty &&
+                          !active.turnActive &&
+                          !active.historyLoading &&
+                          active.entries.isEmpty
+                      ? const ChatDashboard()
+                      // Keyed by session: entrance-animation bookkeeping lives
+                      // in MessageList's state and must reset on switch.
+                      : MessageList(
+                          key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
                 ),
-                if (!active.turnActive && !active.historyLoading && active.entries.isEmpty)
-                  _QuickSuggestions(onSend: (text) {
-                    ref.read(chatStoreProvider.notifier).send(text);
-                  }),
                 _SlashPalette(
                   matches: matchSlashCommands(_input.text),
                   enabled: !active.turnActive || _input.text.trim().isNotEmpty,
@@ -259,11 +270,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
                     child: Row(
                       children: [
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                        const TypingDots(),
                         const SizedBox(width: 8),
                         Text(l.chatThinking,
                             style: theme.textTheme.bodySmall
@@ -343,34 +350,6 @@ class _SlashPalette extends StatelessWidget {
               );
             },
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuickSuggestions extends StatelessWidget {
-  const _QuickSuggestions({required this.onSend});
-
-  final ValueChanged<String> onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final chips = [l.chatSuggest1, l.chatSuggest2, l.chatSuggest3];
-    return SizedBox(
-      height: 44,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: chips.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, i) => ActionChip(
-          label: Text(chips[i], style: TextStyle(fontSize: 13, color: theme.colorScheme.onSecondaryContainer)),
-          backgroundColor: theme.colorScheme.secondaryContainer,
-          side: BorderSide(color: theme.colorScheme.outlineVariant),
-          onPressed: () => onSend(chips[i]),
         ),
       ),
     );

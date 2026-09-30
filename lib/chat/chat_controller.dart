@@ -240,12 +240,17 @@ class ChatStoreController extends Notifier<ChatStore> {
   final Map<String, ChatEngine> _engines = {};
   final Map<String, CancelToken> _sends = {};
   final Set<String> _opened = {};
+  /// Session keys minted by [newChatInProject] awaiting their first turn —
+  /// the chatRequest `projectId` hint binds the not-yet-persisted session
+  /// row to its project (contract §3); dropped once the row exists.
+  final Map<String, String> _pendingProject = {};
   CancelToken? _subscribe;
   StreamSubscription<SseFrame>? _subscribeSub;
   Timer? _subscribeRetry;
   int _retryDelaySeconds = 1;
   Timer? _flush;
   bool _disposed = false;
+  bool _everBuilt = false;
   /// Engines whose snapshot changed since the last publish — only these
   /// get re-snapshotted (each snapshot copies the transcript), so an
   /// 80ms tick during streaming costs one transcript copy, not one per
@@ -255,12 +260,18 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   @override
   ChatStore build() {
-    // onDispose must not touch state (Riverpod forbids it mid-dispose) —
-    // only the stream handles die here; the auth listener resets state.
+    // A rebuild (any agentsProvider state write — the picker, a reload)
+    // is NOT the end of this controller: reset the disposed flag the
+    // onDispose below set, so live plumbing keeps working afterwards.
+    // Without this, one agent switch killed subscribe forever — the
+    // "bubbles stop appearing" symptom class (ticket 04 坑②).
+    _disposed = false;
     ref.onDispose(_disposeStreams);
+    final prev = _everBuilt ? state : const ChatStore();
+    _everBuilt = true;
     ref.listen(agentsProvider, (prev, next) {
       if (next.selectedId != null && next.selectedId != prev?.selectedId) {
-        _openRemembered(next.selectedId!);
+        _openFresh(next.selectedId!);
       }
     });
     ref.listen(authControllerProvider.select((s) => s.status), (prev, next) {
@@ -269,12 +280,29 @@ class ChatStoreController extends Notifier<ChatStore> {
     // This notifier builds lazily — if agents finished loading before the
     // first read (fast connection, warm providers), the listener above
     // already missed the selectedId transition. Catch up from the current
-    // state instead of waiting for a change that already happened.
+    // state instead of waiting for a change that already happened. (No
+    // auth gate: a resolved selectedId implies login, and logout resets
+    // everything via _teardown — same contract the listener follows.)
     final readyAgentId = ref.read(agentsProvider).selectedId;
-    if (readyAgentId != null && ref.read(authControllerProvider).status == AuthStatus.loggedIn) {
-      _openRemembered(readyAgentId);
+    if (readyAgentId == null) return prev;
+    if (prev.activeAgentId == readyAgentId) {
+      // Rebuild while a session of this agent is open: keep the
+      // transcript as-is (the engines survive) and just rewire the
+      // subscribe connection the onDispose above tore down.
+      final parts = splitSessionKey(prev.activeKey);
+      if (parts != null) _ensureSubscribe(parts.agentId, parts.sessionId);
+      return prev;
     }
-    return const ChatStore();
+    // First build / agent switch: land on a fresh conversation like the
+    // web agent home (/agents/<id>/chat/), not the remembered session.
+    // Deferred to a microtask — openSession's first act is a synchronous
+    // state write, and writes during build are discarded by Riverpod
+    // (the lazy-build catch-up race this class keeps re-learning).
+    final agentId = readyAgentId;
+    scheduleMicrotask(() {
+      if (ref.mounted) _openFresh(agentId);
+    });
+    return prev;
   }
 
   // ---- session lifecycle ----
@@ -282,9 +310,10 @@ class ChatStoreController extends Notifier<ChatStore> {
   ChatEngine _engineFor(String agentId, String sessionId) =>
       _engines[sessionKeyOf(agentId, sessionId)] ??= ChatEngine();
 
-  Future<void> _openRemembered(String agentId) async {
-    final remembered = await ref.read(configStoreProvider).chatSession(agentId);
-    await openSession(agentId, remembered.isEmpty ? _generateSessionKey() : remembered);
+  /// Web parity: landing on an agent (startup, agent switch) opens a
+  /// fresh conversation — the mobile take on `/agents/<id>/chat/`.
+  Future<void> _openFresh(String agentId) async {
+    await openSession(agentId, _generateSessionKey());
   }
 
   /// New session keys follow the web convention `s-<millis>-<rand>`
@@ -301,6 +330,10 @@ class ChatStoreController extends Notifier<ChatStore> {
     _stopSubscribe();
     state = ChatStore(activeKey: key, chats: state.chats);
     await ref.read(configStoreProvider).setChatSession(agentId, sessionId);
+    // The container may be gone when the continuation lands (fast tests,
+    // app shutdown) — Riverpod 3 throws on any ref/state use after
+    // dispose, and the escaping error poisons unrelated work.
+    if (!ref.mounted) return;
     final engine = _engineFor(agentId, sessionId);
     if (_opened.add(key)) {
       engine.beginHistoryLoad();
@@ -329,6 +362,19 @@ class ChatStoreController extends Notifier<ChatStore> {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return '';
     final key = _generateSessionKey();
+    await openSession(agentId, key);
+    return key;
+  }
+
+  /// New chat pre-bound to a project: the first turn's chatRequest carries
+  /// the projectId hint so the server writes the session row into
+  /// `projects/<pid>/` (web sidebar's "New chat in project",
+  /// nav-projects-list.tsx:236).
+  Future<String> newChatInProject(String projectId) async {
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return '';
+    final key = _generateSessionKey();
+    _pendingProject[sessionKeyOf(agentId, key)] = projectId;
     await openSession(agentId, key);
     return key;
   }
@@ -441,6 +487,10 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engineFor(agentId, sessionId);
     final cancel = CancelToken();
     _sends[key] = cancel;
+    // Project hint: only meaningful while the session row doesn't exist
+    // (contract §3 — the server overwrites it afterwards). Dropped after
+    // the first accepted frame, i.e. once the row is persisted.
+    final projectHint = _pendingProject[key];
     var gotFrame = false;
     try {
       final frames = ref.read(chatRepoProvider).sse.post(
@@ -451,12 +501,14 @@ class ChatStoreController extends Notifier<ChatStore> {
               'message': text,
               if (images.isNotEmpty) 'images': images,
               'rollbackPendingUser': rollback,
+              'projectId': ?projectHint,
               'params': {'lang': PlatformDispatcher.instance.locale.languageCode},
             },
             cancelToken: cancel,
           );
       await for (final frame in frames) {
         gotFrame = true;
+        if (projectHint != null) _pendingProject.remove(key);
         _apply(agentId, sessionId, frame, tag: '·P');
       }
       // Server closed the stream. A healthy turn ends with a `done` frame
@@ -655,24 +707,30 @@ class ChatStoreController extends Notifier<ChatStore> {
     _subscribe = null;
   }
 
-  /// Cancels every live connection and forgets all sessions. No state
-  /// writes — safe inside ref.onDispose.
+  /// Rebuild-safe teardown for ref.onDispose: stop the subscribe socket
+  /// and the publish/cache timers, but keep the engines (pure transcript
+  /// state) and in-flight sends — a provider rebuild must not blank the
+  /// open transcript or abort a running turn. Must not touch state
+  /// (Riverpod forbids it mid-dispose).
   void _disposeStreams() {
     _disposed = true;
     _stopSubscribe();
+    _flush?.cancel();
+    _flush = null;
+    _cacheWrite?.cancel();
+    _cacheWrite = null;
+  }
+
+  /// Logout reset: streams down, sends cancelled, everything forgotten.
+  void _teardown() {
+    _disposeStreams();
     for (final cancel in _sends.values) {
       cancel.cancel('teardown');
     }
     _sends.clear();
-    _flush?.cancel();
-    _flush = null;
     _engines.clear();
     _opened.clear();
-  }
-
-  /// Logout reset: streams down + a fresh store.
-  void _teardown() {
-    _disposeStreams();
+    _pendingProject.clear();
     state = const ChatStore();
   }
 
@@ -693,6 +751,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   /// snapshot copies that session's transcript); everything else rides
   /// along in the previous chats map.
   void _publish() {
+    if (!ref.mounted) return; // late continuation after dispose
     if (_dirty.isEmpty) {
       state = ChatStore(activeKey: state.activeKey, chats: state.chats);
       return;
@@ -710,16 +769,19 @@ class ChatStoreController extends Notifier<ChatStore> {
   Timer? _cacheWrite;
 
   /// Recent messages land in the light cache on a 2s debounce (token
-  /// streams fire constantly; SQLite only needs settled states).
+  /// streams fire constantly; SQLite only needs settled states). The
+  /// timer may fire after the provider (or the whole container) is
+  /// disposed — capture the key/engine now and never touch `state`/`ref`
+  /// inside the callback (Riverpod 3 throws on a dead ref, and the
+  /// escaping error poisons whatever test runs next).
   void _scheduleCacheWrite() {
     _cacheWrite?.cancel();
+    final key = state.activeKey;
+    final parts = splitSessionKey(key);
+    final engine = parts == null ? null : _engines[key];
+    if (parts == null || engine == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
     _cacheWrite = Timer(const Duration(seconds: 2), () {
-      final key = state.activeKey;
-      final parts = splitSessionKey(key);
-      if (parts == null) return;
-      final engine = _engines[key];
-      if (engine == null) return;
-      final (agentId, sessionId) = (parts.agentId, parts.sessionId);
       final messages = <CachedMessage>[];
       for (final e in engine.entries) {
         if (e is UserEntry) {

@@ -8,6 +8,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../theme/tokens.dart';
 
 /// Cards dashboard: stats header, start-review CTA over the due queue,
@@ -93,9 +94,9 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
         child: const Icon(LucideIcons.plus),
       ),
       body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+          ? ErrorPane(message: _error!)
           : stats == null
-              ? const Center(child: CircularProgressIndicator())
+              ? const SkeletonListView(itemCount: 5)
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
