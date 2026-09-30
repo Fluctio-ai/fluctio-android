@@ -80,10 +80,15 @@ class _SessionMenu extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       onSelected: (action) => _run(context, ref, action),
-      // Tight padding keeps the ⋯ hugging the row's right edge — the
-      // default 8px inset eats title width.
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      icon: Icon(LucideIcons.ellipsisVertical, size: 18, color: Theme.of(context).colorScheme.outline),
+      // child form instead of icon: the icon variant centers the 18px
+      // glyph inside a 48dp tap-target box, leaving wide gutters on both
+      // sides; the plain child hugs the glyph.
+      padding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Icon(LucideIcons.ellipsisVertical,
+            size: 18, color: Theme.of(context).colorScheme.outline),
+      ),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),

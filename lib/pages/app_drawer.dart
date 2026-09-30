@@ -425,6 +425,7 @@ class _KbGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     final entries = <(String, IconData, String)>[
       (l.kbArticles, LucideIcons.fileText, '/kb/articles'),
@@ -436,26 +437,39 @@ class _KbGrid extends StatelessWidget {
       (l.kbCards, LucideIcons.layers, '/kb/cards'),
       (l.kbWiki, LucideIcons.bookMarked, '/wiki'),
     ];
-    return Column(
-      children: [
-        for (var i = 0; i < entries.length; i += 3)
-          Row(
-            children: [
-              for (final e in entries.skip(i).take(3))
-                Expanded(child: _KbTile(label: e.$1, icon: e.$2, onTap: () {
-                  if (e.$3.isEmpty) {
-                    // Close the drawer first — a snackbar behind the open
-                    // drawer scrim is invisible.
-                    final messenger = ScaffoldMessenger.of(context);
-                    Navigator.of(context).pop();
-                    messenger.showSnackBar(SnackBar(content: Text(l.comingSoon)));
-                  } else {
-                    onTapNamed(context, e.$3);
-                  }
-                })),
-            ],
-          ),
-      ],
+    Widget tileAt(int j) => _KbTile(label: entries[j].$1, icon: entries[j].$2, onTap: () {
+          if (entries[j].$3.isEmpty) {
+            // Close the drawer first — a snackbar behind the open
+            // drawer scrim is invisible.
+            final messenger = ScaffoldMessenger.of(context);
+            Navigator.of(context).pop();
+            messenger.showSnackBar(SnackBar(content: Text(l.comingSoon)));
+          } else {
+            onTapNamed(context, entries[j].$3);
+          }
+        });
+    return Container(
+      // Web nav-knowledge.tsx container (nav-tile.tsx): a rounded,
+      // bordered, tinted box so the grid reads as one group.
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+        borderRadius: AppRadius.cardBorder,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < entries.length; i += 3)
+            Row(
+              children: [
+                // Fixed thirds — a short last row keeps 1/3-wide cells
+                // (blank slots) instead of stretching its two tiles.
+                for (var j = i; j < i + 3; j++)
+                  Expanded(child: j < entries.length ? tileAt(j) : const SizedBox.shrink()),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }

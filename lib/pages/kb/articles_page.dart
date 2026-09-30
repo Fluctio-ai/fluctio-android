@@ -10,87 +10,10 @@ import '../../kb/kb_models.dart';
 import '../../util/dates.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
-import '../../theme/tokens.dart';
 import '../../ui/load_states.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
 /// base, plain list otherwise.
-/// KB nav grid — the web sidebar's 3-column tile grid (nav-knowledge.tsx /
-/// nav-tile.tsx): bordered tinted container, icon-over-label tiles, and
-/// the last row keeps 1/3-width cells (two tiles + a blank slot). Diary
-/// stays out until its ticket lands; review fills the slot so the row
-/// pairs like the web's.
-class _KbNavGrid extends StatelessWidget {
-  const _KbNavGrid();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
-    final entries = <(IconData, String, VoidCallback)>[
-      (LucideIcons.fileText, l.kbArticles, () => context.go('/kb')),
-      (LucideIcons.stickyNote, l.kbNotes, () => context.push('/kb/notes')),
-      (LucideIcons.lightbulb, l.kbIdeas, () => context.push('/kb/flash')),
-      (LucideIcons.squareCheckBig, l.kbTodos, () => context.push('/kb/todos')),
-      (LucideIcons.link, l.kbBookmarks, () => context.push('/kb/bookmarks')),
-      (LucideIcons.layers, l.kbCards, () => context.push('/kb/cards')),
-      (LucideIcons.brain, l.cardReview, () => context.push('/kb/cards/review')),
-      (LucideIcons.bookMarked, l.navWiki, () => context.push('/wiki')),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
-        borderRadius: AppRadius.cardBorder,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          for (var row = 0; row * 3 < entries.length; row++)
-            Row(
-              children: [
-                for (var i = row * 3; i < row * 3 + 3; i++)
-                  Expanded(
-                    child: i < entries.length
-                        ? _tile(context, entries[i])
-                        : const SizedBox.shrink(),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _tile(BuildContext context, (IconData, String, VoidCallback) e) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(2),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: AppRadius.controlBorder,
-        child: InkWell(
-          borderRadius: AppRadius.controlBorder,
-          onTap: e.$3,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              children: [
-                Icon(e.$1, size: 18, color: theme.colorScheme.outline),
-                const SizedBox(height: 4),
-                Text(e.$2,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class KbArticlesPage extends ConsumerStatefulWidget {
   const KbArticlesPage({super.key});
 
@@ -147,11 +70,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: _KbNavGrid(),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: TextField(
               controller: _search,
               onChanged: _onQuery,
