@@ -18,6 +18,7 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
+import '../../webview/web_container.dart';
 
 /// One session row (used in the navigation drawer): title/preview/time,
 /// per-item menu (rename / delete / chat-only toggle).
@@ -373,20 +374,28 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
         ? f.name.split('.').last.toLowerCase()
         : '';
     const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
+    const htmlExts = {'html', 'htm'};
     const textExts = {
       'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
-      'html', 'htm', 'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
+      'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
       'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
     };
+    final sid = _sessionId;
+    final scoped = '$agentId/files/${f.path}'
+        '${sid == null ? '' : '?sessionId=${Uri.encodeComponent(sid)}'}';
     if (imgExts.contains(ext)) {
       final auth = ref.read(authControllerProvider);
-      final sid = _sessionId;
-      final url = '${auth.baseUrl}/api/agents/$agentId/files/${f.path}'
-          '${sid == null ? '' : '?sessionId=${Uri.encodeComponent(sid)}'}';
       openImageViewer(
         context,
-        chatImageProvider(url, baseUrl: auth.baseUrl, cookie: auth.sid),
+        chatImageProvider('${auth.baseUrl}/api/agents/$scoped',
+            baseUrl: auth.baseUrl, cookie: auth.sid),
       );
+      return;
+    }
+    if (htmlExts.contains(ext)) {
+      // The WebView container renders html natively (cookie injected) —
+      // running it through the markdown viewer mangles the tags.
+      openWebContainer(context, f.name, '/api/agents/$scoped');
       return;
     }
     if (!textExts.contains(ext)) {
