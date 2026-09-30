@@ -119,9 +119,12 @@ void openChatLink(BuildContext context, WidgetRef ref, String href) {
     }
   }
   final agentId = ref.read(agentsProvider).selectedId;
+  // Ends in a file extension — CJK names included (the char class above
+  // the fix only matched ASCII and silently dropped Chinese names to the
+  // browser branch).
   if (agentId != null &&
       !href.contains('://') &&
-      RegExp(r'\.?[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,6}$').hasMatch(bare)) {
+      RegExp(r'\.[A-Za-z0-9]{1,6}$').hasMatch(bare)) {
     openWorkspaceFilePreview(context, ref, agentId: agentId, path: bare);
     return;
   }
