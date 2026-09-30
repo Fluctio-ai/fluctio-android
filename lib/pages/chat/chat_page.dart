@@ -56,27 +56,48 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     }
   }
 
-  /// Chat-only toggle inside the composer. Sessions that only exist
-  /// locally (generated key, no first message yet) can't be toggled —
-  /// the PATCH needs a persisted session row.
+  /// Chat-only local overrides (web chatOnlyLocal parity): the chip is
+  /// flippable on a brand-new chat before any session row exists; the
+  /// override rides params.chatOnly on the first send and the sync
+  /// method below persists it once the row lands.
+  final Map<String, bool> _chatOnlyLocal = {};
+
+  /// Chat-only toggle inside the composer — optimistic flip, any time.
   Future<void> _toggleChatOnly(BuildContext context, bool on) async {
-    final l = AppLocalizations.of(context)!;
     final key = ref.read(chatStoreProvider).activeKey;
     if (key == null) return;
     final sessionId = key.substring(key.indexOf('|') + 1);
-    final exists = ref.read(sessionsProvider).value?.any((s) => s.id == sessionId);
-    if (exists != true) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(l.chatOnlyNeedsMessage)));
-      return;
-    }
-    try {
-      await ref.read(sessionsProvider.notifier).setChatOnly(sessionId, on);
-    } catch (_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
+    setState(() => _chatOnlyLocal[sessionId] = on);
+    _syncChatOnly();
+  }
+
+  /// Single writer (web parity): whenever a local override meets its
+  /// persisted session row, push it once and drop the override —
+  /// overrides for chats with no row yet just wait; they ride
+  /// params.chatOnly on send. A failed push drops the override too,
+  /// reverting the chip to the row's truth.
+  void _syncChatOnly() {
+    for (final e in _chatOnlyLocal.entries.toList()) {
+      final row = ref
+          .read(sessionsProvider)
+          .value
+          ?.where((s) => s.id == e.key)
+          .firstOrNull;
+      if (row == null) continue;
+      void drop() {
+        if (mounted) setState(() => _chatOnlyLocal.remove(e.key));
       }
+
+      if (row.chatOnly == e.value) {
+        drop(); // already persisted (params channel) — just clear
+        continue;
+      }
+      () async {
+        try {
+          await ref.read(sessionsProvider.notifier).setChatOnly(e.key, e.value);
+        } catch (_) {}
+        drop();
+      }();
     }
   }
 
@@ -100,9 +121,13 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
   void _send() {
     final text = _input.text.trim();
     if (text.isEmpty && _pendingImages.isEmpty) return;
-    ref
-        .read(chatStoreProvider.notifier)
-        .send(text, images: List.of(_pendingImages));
+    // Ride the local chat-only override on the first send (the row
+    // doesn't exist yet for a PATCH; the server persists params.chatOnly).
+    final key = ref.read(chatStoreProvider).activeKey;
+    final pendingOnly =
+        key == null ? null : _chatOnlyLocal[key.substring(key.indexOf('|') + 1)];
+    ref.read(chatStoreProvider.notifier).send(text,
+        images: List.of(_pendingImages), chatOnly: pendingOnly);
     _input.clear();
     setState(_pendingImages.clear);
   }
@@ -121,6 +146,9 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     final theme = Theme.of(context);
     final agents = ref.watch(agentsProvider);
     final active = ref.watch(chatStoreProvider).active;
+    // Session rows landing (first send persisted) drive the chat-only
+    // override sync — the listener pattern from the Riverpod race notes.
+    ref.listen(sessionsProvider, (_, _) => _syncChatOnly());
 
     if (!agents.loaded) {
       return Scaffold(appBar: AppBar(title: Text(l.navChat)), body: const SkeletonListView());
@@ -160,7 +188,9 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         .value
         ?.where((s) => s.id == activeSessionId)
         .firstOrNull;
-    final chatOnly = activeSession?.chatOnly ?? false;
+    final chatOnly = activeSessionId == null
+        ? false
+        : (_chatOnlyLocal[activeSessionId] ?? (activeSession?.chatOnly ?? false));
     final subtitle = activeSessionId == null
         ? selected.model
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);

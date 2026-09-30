@@ -426,7 +426,7 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   // ---- sending ----
 
-  Future<void> send(String text, {List<String> images = const []}) async {
+  Future<void> send(String text, {List<String> images = const [], bool? chatOnly}) async {
     final key = state.activeKey;
     if (key == null || text.trim().isEmpty) return;
     final engine = _engines[key];
@@ -437,7 +437,8 @@ class ChatStoreController extends Notifier<ChatStore> {
     final parts = splitSessionKey(key);
     if (parts == null) return;
     final (agentId, sessionId) = (parts.agentId, parts.sessionId);
-    unawaited(_runSend(agentId, sessionId, text, images, rollback: false));
+    unawaited(_runSend(agentId, sessionId, text, images,
+        rollback: false, chatOnly: chatOnly));
   }
 
   /// Resend the failed trailing user bubble verbatim; the server drops
@@ -482,6 +483,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     String text,
     List<String> images, {
     required bool rollback,
+    bool? chatOnly,
   }) async {
     final key = sessionKeyOf(agentId, sessionId);
     final engine = _engineFor(agentId, sessionId);
@@ -502,7 +504,13 @@ class ChatStoreController extends Notifier<ChatStore> {
               if (images.isNotEmpty) 'images': images,
               'rollbackPendingUser': rollback,
               'projectId': ?projectHint,
-              'params': {'lang': PlatformDispatcher.instance.locale.languageCode},
+              'params': {
+                'lang': PlatformDispatcher.instance.locale.languageCode,
+                // Web parity (params channel): the server persists this
+                // onto the brand-new session row — first turn runs pure
+                // even before the row exists for a PATCH.
+                if (chatOnly == true) 'chatOnly': true,
+              },
             },
             cancelToken: cancel,
           );
