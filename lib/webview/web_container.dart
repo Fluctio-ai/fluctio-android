@@ -23,10 +23,14 @@ abstract final class WebRoutes {
 /// cookie, injected via WebViewCookieManager before the first load —
 /// the same mechanism the browser uses, so no token-in-URL exposure.
 class WebContainerPage extends ConsumerStatefulWidget {
-  const WebContainerPage({super.key, required this.title, required this.path});
+  const WebContainerPage({super.key, required this.title, required this.path, this.showTitle = true});
 
   final String title;
   final String path;
+
+  /// False hides the app bar entirely — for web pages that carry their
+  /// own title/back header (Workflows), so the two never stack up.
+  final bool showTitle;
 
   @override
   ConsumerState<WebContainerPage> createState() => _WebContainerPageState();
@@ -106,10 +110,12 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
         }
       },
       child: Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: Text(widget.title),
-      ),
+      appBar: widget.showTitle
+          ? AppBar(
+              automaticallyImplyLeading: false,
+              title: Text(widget.title),
+            )
+          : null,
       body: IndexedStack(
         index: _stackIndex,
         children: [
