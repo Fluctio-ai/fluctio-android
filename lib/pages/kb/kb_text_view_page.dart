@@ -12,13 +12,17 @@ import '../chat/message_list.dart';
 /// renders it as markdown with the transcript's exact look. The pencil
 /// hands off to the caller's edit flow; a true result reloads.
 class KbTextViewPage extends StatefulWidget {
-  const KbTextViewPage({super.key, required this.title, required this.loadContent, this.onEdit});
+  const KbTextViewPage({super.key, required this.title, required this.loadContent, this.onEdit, this.pathLine});
 
   final String title;
   final Future<String> Function() loadContent;
 
   /// Opens the editor for [current]; return true to have the viewer reload.
   final Future<bool> Function(String current)? onEdit;
+
+  /// Optional small source-path line under the app bar (selectable, for
+  /// debugging link resolution).
+  final String? pathLine;
 
   @override
   State<KbTextViewPage> createState() => _KbTextViewPageState();
@@ -61,7 +65,24 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
             ),
         ],
       ),
-      body: FutureBuilder<String>(
+      body: Column(
+        children: [
+          if (widget.pathLine != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SelectableText(
+                  widget.pathLine!,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                ),
+              ),
+            ),
+          Expanded(
+            child: FutureBuilder<String>(
         future: _future,
         builder: (context, snap) => snap.connectionState == ConnectionState.waiting
             ? const SkeletonProse()
@@ -79,6 +100,9 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
                       styleSheet: markdownStyle(context),
                     ),
                   ),
+            ),
+          ),
+        ],
       ),
     );
   }

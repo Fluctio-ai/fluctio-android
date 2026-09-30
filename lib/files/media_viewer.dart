@@ -68,8 +68,25 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
       appBar: AppBar(title: Text(widget.title)),
       body: _failed
           ? Center(
-              child: Text(AppLocalizations.of(context)!.mediaPlayFailed,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(AppLocalizations.of(context)!.mediaPlayFailed,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.colorScheme.error)),
+                    const SizedBox(height: 8),
+                    // The full request URL, selectable — media over a
+                    // self-signed gateway fails TLS here (players don't
+                    // share dio's bad-cert allowance); the URL makes that
+                    // diagnosable at a glance.
+                    SelectableText(widget.url,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: theme.colorScheme.outline)),
+                  ],
+                ),
+              ),
             )
           : widget.kind == 'video'
               ? _videoBody(theme)

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../pages/chat/chat_image.dart';
@@ -93,7 +92,11 @@ Future<void> openWorkspaceFilePreview(
       final text = await repo.fetchText(agentId, file, sessionId: sessionId);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => KbTextViewPage(title: name, loadContent: () async => text),
+        builder: (_) => KbTextViewPage(
+          title: name,
+          loadContent: () async => text,
+          pathLine: path,
+        ),
       ));
       return;
     }
@@ -102,7 +105,17 @@ Future<void> openWorkspaceFilePreview(
           .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.fileNoPreview)));
     }
   } catch (e) {
-    if (context.mounted) showApiError(context, e);
+    if (context.mounted) {
+      // Show the resolved path + full URL (selectable) — link-resolution
+      // bugs are only diagnosable when the actual request is visible.
+      final auth = ref.read(authControllerProvider);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: SelectableText(
+          '$e\npath: $path\nurl: ${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
+        ),
+      ));
+    }
   }
 }
 
