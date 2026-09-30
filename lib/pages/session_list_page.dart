@@ -133,6 +133,7 @@ class _SessionListView extends ConsumerWidget {
               final s = list[i];
               return SessionTile(
                 session: s,
+                slideActions: true,
                 selected:
                     ref.watch(chatStoreProvider.select((st) => st.activeKey)) ==
                         '$agentId|${s.id}',

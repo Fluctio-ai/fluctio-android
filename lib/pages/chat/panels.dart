@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
@@ -18,6 +19,7 @@ class SessionTile extends ConsumerWidget {
     required this.selected,
     this.leading,
     this.trailing,
+    this.slideActions = false,
     required this.onTap,
   });
 
@@ -25,6 +27,10 @@ class SessionTile extends ConsumerWidget {
   final bool selected;
   final Widget? leading;
   final Widget? trailing;
+
+  /// Chat-list rows replace the ⋯ trailing menu with iOS-style swipe
+  /// actions (full-width titles); the drawer keeps the menu (too narrow).
+  final bool slideActions;
   final VoidCallback onTap;
 
   @override
@@ -32,7 +38,7 @@ class SessionTile extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final time = formatSessionTime(session.updatedAt,
         locale: Localizations.localeOf(context).toString());
-    return ListTile(
+    final tile = ListTile(
       dense: true,
       selected: selected,
       leading: leading,
@@ -59,11 +65,37 @@ class SessionTile extends ConsumerWidget {
                     size: 16, color: Theme.of(context).colorScheme.outline),
               ),
             ),
-          _SessionMenu(session: session),
+          if (!slideActions) _SessionMenu(session: session),
           ?trailing,
         ],
       ),
       onTap: onTap,
+    );
+    if (!slideActions) return tile;
+    final scheme = Theme.of(context).colorScheme;
+    return Slidable(
+      key: ValueKey('session-${session.id}'),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.4,
+        children: [
+          SlidableAction(
+            onPressed: (_) => _SessionMenu.run(context, ref, session, 'rename'),
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+            icon: LucideIcons.penLine,
+            label: l.chatRename,
+          ),
+          SlidableAction(
+            onPressed: (_) => _SessionMenu.run(context, ref, session, 'delete'),
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+            icon: LucideIcons.trash2,
+            label: l.chatDelete,
+          ),
+        ],
+      ),
+      child: tile,
     );
   }
 }
@@ -79,7 +111,7 @@ class _SessionMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
-      onSelected: (action) => _run(context, ref, action),
+      onSelected: (action) => run(context, ref, session, action),
       // child form instead of icon: the icon variant centers the 18px
       // glyph inside a 48dp tap-target box, leaving wide gutters on both
       // sides; the plain child hugs the glyph.
@@ -96,12 +128,13 @@ class _SessionMenu extends ConsumerWidget {
     );
   }
 
-  Future<void> _run(BuildContext context, WidgetRef ref, String action) async {
+  static Future<void> run(BuildContext context, WidgetRef ref,
+      ChatSessionInfo session, String action) async {
     final l = AppLocalizations.of(context)!;
     final notifier = ref.read(sessionsProvider.notifier);
     switch (action) {
       case 'rename':
-        await _promptRename(context, ref, l);
+        await promptRename(context, ref, l, session);
       case 'delete':
         final yes = await showDialog<bool>(
           context: context,
@@ -125,7 +158,8 @@ class _SessionMenu extends ConsumerWidget {
     }
   }
 
-  Future<void> _promptRename(BuildContext context, WidgetRef ref, AppLocalizations l) async {
+  static Future<void> promptRename(BuildContext context, WidgetRef ref,
+      AppLocalizations l, ChatSessionInfo session) async {
     final controller = TextEditingController(text: session.title);
     final name = await showDialog<String>(
       context: context,

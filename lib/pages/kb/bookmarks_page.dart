@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -46,28 +47,64 @@ class KbBookmarksPage extends ConsumerWidget {
                     itemCount: list.length,
                     itemBuilder: (context, i) {
                       final b = list[i];
-                      return ListTile(
-                        title: Row(
+                      final scheme = theme.colorScheme;
+                      // iOS-style swipe actions — the row keeps its full
+                      // title width, no trailing menu.
+                      return Slidable(
+                        key: ValueKey('bm-${b.id}'),
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: b.promoted ? 0.4 : 0.58,
                           children: [
-                            if (b.promoted)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 4),
-                                child: Icon(LucideIcons.checkCircle2,
-                                    size: 14, color: theme.colorScheme.primary),
+                            SlidableAction(
+                              onPressed: (_) =>
+                                  _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
+                              icon: LucideIcons.penLine,
+                              label: l.chatRename,
+                            ),
+                            if (!b.promoted)
+                              SlidableAction(
+                                onPressed: (_) =>
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
+                                backgroundColor: scheme.tertiary,
+                                foregroundColor: scheme.onTertiary,
+                                icon: LucideIcons.trendingUp,
+                                label: l.kbPromote,
                               ),
-                            Expanded(
-                              child: Text(b.title.isEmpty ? b.url : b.title,
-                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                            SlidableAction(
+                              onPressed: (_) =>
+                                  _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
+                              backgroundColor: scheme.error,
+                              foregroundColor: scheme.onError,
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
                             ),
                           ],
                         ),
-                        subtitle: Text(
-                          b.summary.isEmpty ? _host(b.url) : b.summary,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: ListTile(
+                          title: Row(
+                            children: [
+                              if (b.promoted)
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 4),
+                                  child: Icon(LucideIcons.checkCircle2,
+                                      size: 14, color: scheme.primary),
+                                ),
+                              Expanded(
+                                child: Text(b.title.isEmpty ? b.url : b.title,
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            b.summary.isEmpty ? _host(b.url) : b.summary,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => openExternalUrl(b.url),
                         ),
-                        trailing: _Menu(agentId: agentId!, bookmark: b),
-                        onTap: () => openExternalUrl(b.url),
                       );
                     },
                   ),
@@ -121,35 +158,12 @@ class KbBookmarksPage extends ConsumerWidget {
   String _host(String url) => Uri.tryParse(url)?.host ?? url;
 }
 
-class _Menu extends ConsumerWidget {
-  const _Menu({required this.agentId, required this.bookmark});
+/// Row-action runner for the swipe actions (edit / promote / delete).
+class _BookmarkActions {
+  _BookmarkActions._();
 
-  final String agentId;
-  final KbBookmark bookmark;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    return PopupMenuButton<String>(
-      onSelected: (action) => _run(context, ref, action),
-      // child form instead of icon: the icon variant centers the 18px
-      // glyph inside a 48dp tap-target box with wide gutters on both
-      // sides; the plain child hugs the glyph (same as _SessionMenu).
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        child: Icon(LucideIcons.ellipsisVertical,
-            size: 18, color: Theme.of(context).colorScheme.outline),
-      ),
-      itemBuilder: (_) => [
-        PopupMenuItem(value: 'edit', child: Text(l.chatRename)),
-        if (!bookmark.promoted) PopupMenuItem(value: 'promote', child: Text(l.kbPromote)),
-        PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
-      ],
-    );
-  }
-
-  Future<void> _run(BuildContext context, WidgetRef ref, String action) async {
+  static Future<void> run(BuildContext context, WidgetRef ref,
+      String agentId, KbBookmark bookmark, String action) async {
     final l = AppLocalizations.of(context)!;
     final repo = KbRepo(ref.read(apiClientProvider));
     try {
