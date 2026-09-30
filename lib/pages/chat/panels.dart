@@ -335,9 +335,15 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
 
   void _reload() {
     final agentId = _agentId;
-    if (agentId == null) return;
+    final sessionId = _sessionId;
+    if (agentId == null || sessionId == null || sessionId.isEmpty) {
+      // No session open — nothing to scope to; show the empty state
+      // rather than falling back to the agent-wide listing.
+      setState(() => _future = null);
+      return;
+    }
     setState(
-        () => _future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: _sessionId));
+        () => _future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: sessionId));
   }
 
   Future<void> _delete(AgentFile f) async {
