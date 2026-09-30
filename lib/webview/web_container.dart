@@ -90,8 +90,26 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+    // No app-bar back button: the embedded web pages carry their own
+    // back affordance, so an automatic leading arrow doubled it up. The
+    // system gesture/back key walks the web history first, then pops
+    // the container.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final c = _controller;
+        if (c != null && await c.canGoBack()) {
+          await c.goBack();
+        } else if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text(widget.title),
+      ),
       body: IndexedStack(
         index: _stackIndex,
         children: [
@@ -119,6 +137,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
             onRelogin: () => ref.read(authControllerProvider.notifier).logout(),
           ),
         ],
+      ),
       ),
     );
   }
