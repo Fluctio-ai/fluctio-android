@@ -1,0 +1,112 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfrx/pdfrx.dart';
+
+import '../api/api_client.dart';
+import '../auth/auth_controller.dart';
+import '../chat/chat_controller.dart';
+import '../pages/chat/chat_image.dart';
+import '../pages/chat/image_viewer.dart';
+import '../l10n/app_localizations.dart';
+import '../util/open_url.dart';
+import '../pages/kb/kb_text_view_page.dart';
+import '../webview/web_container.dart';
+import 'agent_files.dart';
+
+/// Opens one workspace file for preview, routed by extension — the one
+/// shared path behind the files sheet rows and chat-message file links.
+/// [sessionId] is optional: the files sheet scopes to its chat, message
+/// links preview agent-wide (the owner may read every file).
+Future<void> openWorkspaceFilePreview(
+  BuildContext context,
+  WidgetRef ref, {
+  required String agentId,
+  required String path,
+  String? sessionId,
+  String? displayName,
+}) async {
+  final name = displayName ?? path.split('/').last;
+  final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+  const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
+  const htmlExts = {'html', 'htm'};
+  const textExts = {
+    'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
+    'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
+    'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
+  };
+  final repo = ref.read(agentFilesRepoProvider);
+  final file = AgentFile(path: path, name: name, size: 0, modTimeMs: 0);
+  try {
+    if (imgExts.contains(ext)) {
+      final auth = ref.read(authControllerProvider);
+      openImageViewer(
+        context,
+        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/$path',
+            baseUrl: auth.baseUrl, cookie: auth.sid),
+      );
+      return;
+    }
+    if (htmlExts.contains(ext)) {
+      // The WebView container renders html natively (cookie injected) —
+      // running it through the markdown viewer mangles the tags.
+      openWebContainer(context, name, '/api/agents/$agentId/files/$path');
+      return;
+    }
+    if (ext == 'pdf') {
+      // Native pdfium rendering (pdfrx) — WebView can't embed pdfs.
+      final bytes = await repo.fetchBytes(agentId, file, sessionId: sessionId);
+      if (!context.mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(name)),
+          body: PdfViewer.data(Uint8List.fromList(bytes), sourceName: name),
+        ),
+      ));
+      return;
+    }
+    if (textExts.contains(ext)) {
+      final text = await repo.fetchText(agentId, file, sessionId: sessionId);
+      if (!context.mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => KbTextViewPage(title: name, loadContent: () async => text),
+      ));
+      return;
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.fileNoPreview)));
+    }
+  } catch (e) {
+    if (context.mounted) showApiError(context, e);
+  }
+}
+
+/// Routes a tapped chat-message link: gateway file URLs and bare
+/// workspace-looking paths preview natively; everything else goes to the
+/// browser as before.
+void openChatLink(BuildContext context, WidgetRef ref, String href) {
+  final auth = ref.read(authControllerProvider);
+  var p = href;
+  if (auth.baseUrl.isNotEmpty && p.startsWith(auth.baseUrl)) {
+    p = p.substring(auth.baseUrl.length);
+  }
+  final gatewayFile = RegExp(r'^/api/agents/([^/]+)/files/(.+)$').firstMatch(p);
+  if (gatewayFile != null) {
+    openWorkspaceFilePreview(context, ref,
+        agentId: gatewayFile[1]!, path: gatewayFile[2]!, displayName: gatewayFile[2]!.split('/').last);
+    return;
+  }
+  // Bare workspace path (no scheme, has a file extension) — try the
+  // selected agent's workspace before punting to the browser.
+  final agentId = ref.read(agentsProvider).selectedId;
+  if (agentId != null &&
+      !href.contains('://') &&
+      RegExp(r'\.?[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,6}$').hasMatch(href)) {
+    openWorkspaceFilePreview(context, ref,
+        agentId: agentId, path: href.startsWith('/') ? href.substring(1) : href);
+    return;
+  }
+  openExternalUrl(href);
+}

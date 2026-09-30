@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -231,22 +230,6 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
           ? const SkeletonListView(itemCount: 4)
           : Column(
               children: [
-                if (kDebugMode)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Text(
-                      'dbg f=${active.debugFrames} last=${active.debugLastEvent} '
-                      'ph=${active.phase.name} seq=${active.lastSeq}\n'
-                      '${active.debugTypeCounts.entries.map((e) => '${e.key}:${e.value}').join(' ')}\n'
-                      'bus=${active.debugLastBus}',
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.outline,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
                 if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
                 Expanded(
                   // Fresh conversation: the dashboard IS the empty state

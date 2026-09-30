@@ -72,4 +72,11 @@ class AgentFilesRepo {
               queryParameters: _query(sessionId),
               options: Options(responseType: ResponseType.plain)))
           .data as String;
+
+  /// Binary fetch for previewing pdf files.
+  Future<List<int>> fetchBytes(String agentId, AgentFile f, {String? sessionId}) async =>
+      (await _dio.get('/api/agents/$agentId/files/${f.path}',
+              queryParameters: _query(sessionId),
+              options: Options(responseType: ResponseType.bytes)))
+          .data as List<int>;
 }

@@ -14,7 +14,7 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import 'typing_dots.dart';
 import '../../theme/tokens.dart';
-import '../../util/open_url.dart';
+import '../../files/file_preview.dart';
 import 'chat_image.dart';
 import 'image_viewer.dart';
 
@@ -320,7 +320,11 @@ class _AssistantBubble extends ConsumerWidget {
               blockSyntaxes: mathBlockSyntaxes,
               builders: markdownBuilders,
               styleSheet: markdownStyle(context),
-              onTapLink: (_, href, _) => href == null ? null : openExternalUrl(href),
+              onTapLink: (_, href, _) {
+                // Gateway file URLs and bare workspace paths preview
+                // natively; everything else goes to the browser.
+                if (href != null) openChatLink(context, ref, href);
+              },
               sizedImageBuilder: (config) => _MarkdownImage(
                 url: config.uri.toString(),
                 width: config.width,

@@ -1,24 +1,21 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../kb/kb_editor_page.dart';
-import '../kb/kb_text_view_page.dart';
 
-import 'chat_image.dart';
-import 'image_viewer.dart';
 
-import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
 import '../../files/agent_files.dart';
+import '../../files/file_preview.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
-import '../../webview/web_container.dart';
 
 /// One session row (used in the navigation drawer): title/preview/time,
 /// per-item menu (rename / delete / chat-only toggle).
@@ -364,53 +361,20 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
     }
   }
 
-  /// Tap previews: text files open the markdown viewer, images the
-  /// fullscreen viewer (cookie-carrying provider), anything else gets a
-  /// gentle no-preview notice.
+  /// Tap previews route through the shared workspace previewer (same
+  /// path as chat-message file links).
   Future<void> _open(BuildContext context, AgentFile f) async {
     final agentId = _agentId;
     if (agentId == null) return;
-    final ext = f.name.contains('.')
-        ? f.name.split('.').last.toLowerCase()
-        : '';
-    const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
-    const htmlExts = {'html', 'htm'};
-    const textExts = {
-      'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
-      'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
-      'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
-    };
-    final sid = _sessionId;
-    final scoped = '$agentId/files/${f.path}'
-        '${sid == null ? '' : '?sessionId=${Uri.encodeComponent(sid)}'}';
-    if (imgExts.contains(ext)) {
-      final auth = ref.read(authControllerProvider);
-      openImageViewer(
-        context,
-        chatImageProvider('${auth.baseUrl}/api/agents/$scoped',
-            baseUrl: auth.baseUrl, cookie: auth.sid),
-      );
-      return;
-    }
-    if (htmlExts.contains(ext)) {
-      // The WebView container renders html natively (cookie injected) —
-      // running it through the markdown viewer mangles the tags.
-      openWebContainer(context, f.name, '/api/agents/$scoped');
-      return;
-    }
-    if (!textExts.contains(ext)) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.fileNoPreview)));
-      return;
-    }
-    final repo = ref.read(agentFilesRepoProvider);
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => KbTextViewPage(
-        title: f.name,
-        loadContent: () => repo.fetchText(agentId, f, sessionId: _sessionId),
-      ),
-    ));
+    await openWorkspaceFilePreview(context, ref,
+        agentId: agentId, path: f.path, sessionId: _sessionId, displayName: f.name);
   }
+
+  String _fmtSize(int bytes) => bytes < 1024
+      ? '${bytes}B'
+      : bytes < 1024 * 1024
+          ? '${(bytes / 1024).toStringAsFixed(1)}KB'
+          : '${(bytes / 1024 / 1024).toStringAsFixed(1)}MB';
 
   @override
   Widget build(BuildContext context) {
@@ -468,10 +432,4 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
       ),
     );
   }
-
-  String _fmtSize(int bytes) => bytes < 1024
-      ? '${bytes}B'
-      : bytes < 1024 * 1024
-          ? '${(bytes / 1024).toStringAsFixed(1)}KB'
-          : '${(bytes / 1024 / 1024).toStringAsFixed(1)}MB';
 }
