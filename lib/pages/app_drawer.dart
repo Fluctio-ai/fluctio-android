@@ -540,6 +540,9 @@ class _ProjectRow extends StatelessWidget {
         ListTile(
           dense: true,
           visualDensity: VisualDensity.compact,
+          // Right gutter narrowed — the ⋯ hugs the edge like the chat
+          // rows below.
+          contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
           leading: Icon(expanded ? LucideIcons.folderOpen : LucideIcons.folder, size: 18),
           title: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: PopupMenuButton<String>(
@@ -548,7 +551,15 @@ class _ProjectRow extends StatelessWidget {
               'edit' => onEdit(),
               _ => onDelete(),
             },
-            icon: Icon(LucideIcons.ellipsisVertical, size: 18, color: Theme.of(context).colorScheme.outline),
+            // child form instead of icon: the icon variant centers the
+            // glyph in a 48dp box with wide gutters (same fix as the
+            // session/bookmark rows).
+            padding: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Icon(LucideIcons.ellipsisVertical,
+                  size: 18, color: Theme.of(context).colorScheme.outline),
+            ),
             itemBuilder: (_) => [
               PopupMenuItem(value: 'new', child: Text(l.newChatInProject)),
               PopupMenuItem(value: 'edit', child: Text(l.editProject)),
