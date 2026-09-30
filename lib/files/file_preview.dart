@@ -55,6 +55,7 @@ Future<void> openWorkspaceFilePreview(
   try {
     if (imgExts.contains(ext)) {
       final auth = ref.read(authControllerProvider);
+      if (!context.mounted) return;
       openImageViewer(
         context,
         chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
