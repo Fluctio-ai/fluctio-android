@@ -339,11 +339,18 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
     if (agentId == null || sessionId == null || sessionId.isEmpty) {
       // No session open — nothing to scope to; show the empty state
       // rather than falling back to the agent-wide listing.
-      setState(() => _future = null);
+      setState(() {
+        _future = null;
+      });
       return;
     }
-    setState(
-        () => _future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: sessionId));
+    final future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: sessionId);
+    // Block body on purpose: an arrow closure would return the assigned
+    // Future and trip setState's callback-returned-a-Future assertion —
+    // exactly the crash seen on device (sheet dies in initState).
+    setState(() {
+      _future = future;
+    });
   }
 
   Future<void> _delete(AgentFile f) async {

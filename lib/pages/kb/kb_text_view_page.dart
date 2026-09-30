@@ -37,7 +37,14 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
     final current = await _future;
     if (!mounted || current == null || widget.onEdit == null) return;
     final changed = await widget.onEdit!(current);
-    if (changed && mounted) setState(() => _future = widget.loadContent());
+    if (changed && mounted) {
+      // Block body — an arrow closure would return the assigned Future
+      // and trip setState's callback-returned-a-Future assertion.
+      final next = widget.loadContent();
+      setState(() {
+        _future = next;
+      });
+    }
   }
 
   @override
