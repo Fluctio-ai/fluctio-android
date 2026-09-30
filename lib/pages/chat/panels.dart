@@ -321,22 +321,30 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
   Future<List<AgentFile>>? _future;
   String? _agentId;
 
+  /// The open chat's session — files scope to that conversation's
+  /// workspace subtree, not the whole agent (fileScopeForRequest).
+  String? get _sessionId =>
+      splitSessionKey(ref.read(chatStoreProvider).activeKey)?.sessionId;
+
   @override
   void initState() {
     super.initState();
     _agentId = ref.read(agentsProvider).selectedId;
-    if (_agentId != null) {
-      _future = ref.read(agentFilesRepoProvider).list(_agentId!);
-    }
+    _reload();
+  }
+
+  void _reload() {
+    final agentId = _agentId;
+    if (agentId == null) return;
+    setState(
+        () => _future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: _sessionId));
   }
 
   Future<void> _delete(AgentFile f) async {
     if (!await confirmDelete(context)) return;
     try {
-      await ref.read(agentFilesRepoProvider).delete(_agentId!, f);
-      if (mounted) {
-        setState(() => _future = ref.read(agentFilesRepoProvider).list(_agentId!));
-      }
+      await ref.read(agentFilesRepoProvider).delete(_agentId!, f, sessionId: _sessionId);
+      if (mounted) _reload();
     } catch (e) {
       if (mounted) showApiError(context, e);
     }
@@ -359,10 +367,12 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
     };
     if (imgExts.contains(ext)) {
       final auth = ref.read(authControllerProvider);
+      final sid = _sessionId;
+      final url = '${auth.baseUrl}/api/agents/$agentId/files/${f.path}'
+          '${sid == null ? '' : '?sessionId=${Uri.encodeComponent(sid)}'}';
       openImageViewer(
         context,
-        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${f.path}',
-            baseUrl: auth.baseUrl, cookie: auth.sid),
+        chatImageProvider(url, baseUrl: auth.baseUrl, cookie: auth.sid),
       );
       return;
     }
@@ -375,7 +385,7 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => KbTextViewPage(
         title: f.name,
-        loadContent: () => repo.fetchText(agentId, f),
+        loadContent: () => repo.fetchText(agentId, f, sessionId: _sessionId),
       ),
     ));
   }
