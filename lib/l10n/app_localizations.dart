@@ -866,6 +866,24 @@ abstract class AppLocalizations {
   /// **'已掌握'**
   String get cardMastered;
 
+  /// No description provided for @cardArchived.
+  ///
+  /// In zh, this message translates to:
+  /// **'已归档'**
+  String get cardArchived;
+
+  /// No description provided for @cardReviewCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'复习 {count} 次'**
+  String cardReviewCount(Object count);
+
+  /// No description provided for @cardLapseCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败 {count} 次'**
+  String cardLapseCount(Object count);
+
   /// No description provided for @cardStreak.
   ///
   /// In zh, this message translates to:

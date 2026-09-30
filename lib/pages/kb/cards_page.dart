@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:markdown/markdown.dart' as md;
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -13,6 +15,7 @@ import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
+import '../chat/message_list.dart';
 
 /// Cards dashboard: stats header, start-review CTA over the due queue,
 /// manual card creation.
@@ -203,6 +206,9 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                               : Text(formatShortDate(c.dueAt!.toLocal()),
                                   style: theme.textTheme.labelSmall
                                       ?.copyWith(color: theme.colorScheme.outline)),
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                            builder: (_) => _CardViewPage(card: c),
+                          )),
                         ),
                       ),
                   ],
@@ -229,6 +235,60 @@ class _Stat extends StatelessWidget {
         const SizedBox(height: 2),
         Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
       ],
+    );
+  }
+}
+
+/// Read-only card view: question / answer rendered as markdown plus the
+/// schedule metadata row.
+class _CardViewPage extends StatelessWidget {
+  const _CardViewPage({required this.card});
+
+  final KbCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final status = switch (card.status) {
+      'mastered' => l.cardMastered,
+      'archived' => l.cardArchived,
+      _ => l.cardActive,
+    };
+    Widget section(String label, String body) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.outline, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            MarkdownBody(
+              data: body,
+              extensionSet: md.ExtensionSet.gitHubWeb,
+              builders: markdownBuilders,
+              styleSheet: markdownStyle(context),
+            ),
+          ],
+        );
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(card.question, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          section(l.cardQuestion, card.question),
+          const SizedBox(height: 20),
+          section(l.cardAnswer, card.answer),
+          const SizedBox(height: 24),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+          const SizedBox(height: 12),
+          Text(
+            '$status · ${l.cardReviewCount(card.reviewCount)} · ${l.cardLapseCount(card.lapseCount)}'
+            '${card.dueAt == null ? '' : ' · ${formatShortDate(card.dueAt!.toLocal())}'}',
+            style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
     );
   }
 }

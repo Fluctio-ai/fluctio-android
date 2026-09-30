@@ -394,6 +394,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cardMastered => '已掌握';
 
   @override
+  String get cardArchived => '已归档';
+
+  @override
+  String cardReviewCount(Object count) {
+    return '复习 $count 次';
+  }
+
+  @override
+  String cardLapseCount(Object count) {
+    return '失败 $count 次';
+  }
+
+  @override
   String get cardStreak => '连续天数';
 
   @override

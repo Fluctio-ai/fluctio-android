@@ -399,6 +399,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cardMastered => 'Mastered';
 
   @override
+  String get cardArchived => 'Archived';
+
+  @override
+  String cardReviewCount(Object count) {
+    return '$count reviews';
+  }
+
+  @override
+  String cardLapseCount(Object count) {
+    return '$count lapses';
+  }
+
+  @override
   String get cardStreak => 'Streak';
 
   @override
