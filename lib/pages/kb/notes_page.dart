@@ -8,7 +8,10 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/load_states.dart';
 import '../../webview/web_container.dart';
+import 'kb_editor_page.dart';
+import 'kb_text_view_page.dart';
 
 /// Notes: markdown list + plain-text editor (upsert on save), read-only
 /// attachment listing.
@@ -25,20 +28,17 @@ class KbNotesPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l.kbNotes)),
       floatingActionButton: FloatingActionButton(
-        onPressed: agentId == null ? null : () => _edit(context, ref, agentId, null),
+        onPressed: agentId == null ? null : () => _new(context, ref, agentId),
         child: const Icon(LucideIcons.plus),
       ),
       body: notes == null
           ? const SizedBox.shrink()
           : notes.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(l.chatHistoryError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ),
+              loading: () => const SkeletonListView(),
+              error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return Center(child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium));
+                  return EmptyState(icon: LucideIcons.notebookPen, message: l.kbEmpty);
                 }
                 return RefreshIndicator(
                   onRefresh: () =>
@@ -69,7 +69,7 @@ class KbNotesPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        onTap: () => _edit(context, ref, agentId!, n),
+                        onTap: () => _view(context, ref, agentId!, n),
                       );
                     },
                   ),
@@ -79,116 +79,62 @@ class KbNotesPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _edit(
-      BuildContext context, WidgetRef ref, String agentId, KbNote? existing) async {
+  /// Tap opens the note read-only (markdown, transcript look); the
+  /// pencil edits on a full-screen surface (DESIGN.md §4) instead of
+  /// the old alert-box dialog.
+  Future<void> _view(BuildContext context, WidgetRef ref, String agentId, KbNote n) async {
     final l = AppLocalizations.of(context)!;
-    final title = TextEditingController(text: existing?.title ?? '');
-    final body = TextEditingController(text: existing?.contentMd ?? '');
-    var noteId = existing?.id ?? '';
-    var dirty = false;
-    var attachments = const <KbNoteAttachment>[];
-
-    if (existing != null) {
-      try {
-        attachments = await ref.read(kbRepoProvider).noteAttachments(agentId, existing.id);
-      } catch (_) {}
-    }
-
-    if (!context.mounted) return;
-    final saved = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => PopScope(
-          canPop: !dirty,
-          onPopInvokedWithResult: (didPop, _) async {
-            if (didPop) return;
-            final discard = await showDialog<bool>(
-              context: dialogContext,
-              builder: (context) => AlertDialog(
-                content: Text(l.noteDiscard),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-                  FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text(l.chatDelete)),
-                ],
-              ),
-            );
-            if (discard == true && dialogContext.mounted) {
-              Navigator.of(dialogContext).pop(false);
-            }
-          },
-          child: AlertDialog(
-            title: Text(existing == null ? l.noteNew : l.chatRename),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: title,
-                    onChanged: (_) => setDialogState(() => dirty = true),
-                    decoration: InputDecoration(hintText: l.kbTitleOptional),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: body,
-                    onChanged: (_) => setDialogState(() => dirty = true),
-                    maxLines: 8,
-                    minLines: 6,
-                    decoration: InputDecoration(hintText: l.noteBodyHint),
-                  ),
-                  if (attachments.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(l.noteAttachments,
-                          style: Theme.of(dialogContext).textTheme.labelSmall),
-                    ),
-                    for (final a in attachments)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('• ${a.fileName} (${a.size ~/ 1024} KB)',
-                            style: Theme.of(dialogContext).textTheme.bodySmall),
-                      ),
-                  ],
-                ],
-              ),
+    final repo = ref.read(kbRepoProvider);
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => KbTextViewPage(
+        title: n.title.isEmpty ? l.noteUntitled : n.title,
+        loadContent: () async => n.contentMd,
+        onEdit: (current) async {
+          final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+            builder: (_) => KbEditorPage(
+              heading: l.chatRename,
+              hint: l.noteBodyHint,
+              titleLabel: l.kbTitleOptional,
+              initialTitle: n.title,
+              initialText: current,
+              onSave: (text, title, _) async {
+                try {
+                  await repo.saveNote(agentId, id: n.id, title: title.trim(), contentMd: text);
+                  ref.invalidate(kbNotesProvider(agentId));
+                  return true;
+                } catch (e) {
+                  if (context.mounted) showApiError(context, e);
+                  return false;
+                }
+              },
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  noteId = '';
-                  Navigator.of(dialogContext).pop(false);
-                },
-                child: Text(l.cancel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  dirty = false;
-                  Navigator.of(dialogContext).pop(true);
-                },
-                child: Text(l.chatSend),
-              ),
-            ],
-          ),
-        ),
+          ));
+          return saved == true;
+        },
       ),
-    );
-    if (saved != true) return;
-    try {
-      noteId = await ref.read(kbRepoProvider).saveNote(
-            agentId,
-            id: noteId,
-            title: title.text.trim(),
-            contentMd: body.text,
-          );
-      ref.invalidate(kbNotesProvider(agentId));
-    } catch (e) {
-      if (context.mounted) showApiError(context, e);
-    }
+    ));
+  }
+
+  Future<void> _new(BuildContext context, WidgetRef ref, String agentId) async {
+    final l = AppLocalizations.of(context)!;
+    final repo = ref.read(kbRepoProvider);
+    await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: l.noteNew,
+        hint: l.noteBodyHint,
+        titleLabel: l.kbTitleOptional,
+        onSave: (text, title, _) async {
+          try {
+            await repo.saveNote(agentId, title: title.trim(), contentMd: text);
+            ref.invalidate(kbNotesProvider(agentId));
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
+        },
+      ),
+    ));
   }
 
   Future<void> _delete(

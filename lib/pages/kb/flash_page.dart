@@ -7,8 +7,11 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../util/dates.dart';
+import 'kb_editor_page.dart';
+import 'kb_text_view_page.dart';
 
 /// Flash notes (灵感闪记): newest-first list, "记一笔" quick capture,
 /// tap to edit, menu to delete.
@@ -25,21 +28,18 @@ class KbFlashPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l.kbIdeas)),
       floatingActionButton: FloatingActionButton(
-        onPressed: agentId == null ? null : () => _edit(context, ref, agentId, null),
+        onPressed: agentId == null ? null : () => _new(context, ref, agentId),
         child: const Icon(LucideIcons.plus),
       ),
       body: sources == null
           ? const SizedBox.shrink()
           : sources.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(l.chatHistoryError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ),
+              loading: () => const SkeletonListView(),
+              error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 final flashes = list.where((s) => s.type == 'flash').toList();
                 if (flashes.isEmpty) {
-                  return Center(child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium));
+                  return EmptyState(icon: LucideIcons.zap, message: l.kbEmpty);
                 }
                 return RefreshIndicator(
                   onRefresh: () =>
@@ -56,7 +56,7 @@ class KbFlashPage extends ConsumerWidget {
                               size: 18, color: theme.colorScheme.outline),
                           onPressed: () => _delete(context, ref, agentId!, s),
                         ),
-                        onTap: () => _edit(context, ref, agentId!, s),
+                        onTap: () => _view(context, ref, agentId!, s),
                       );
                     },
                   ),
@@ -66,44 +66,63 @@ class KbFlashPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _edit(
-      BuildContext context, WidgetRef ref, String agentId, KbSource? existing) async {
+  /// Tap opens the full content — the list row only carries the
+  /// truncated title, the real text lives in the source's entries (same
+  /// join the web flash view does before editing).
+  Future<void> _view(BuildContext context, WidgetRef ref, String agentId, KbSource s) async {
     final l = AppLocalizations.of(context)!;
-    final controller = TextEditingController(text: existing?.title ?? '');
-    final content = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null ? l.kbAddFlash : l.chatRename),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: 4,
-          decoration: InputDecoration(hintText: l.kbFlashHint),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text),
-              child: Text(l.chatSend)),
-        ],
-      ),
-    );
-    if (content == null || content.trim().isEmpty) return;
     final repo = ref.read(kbRepoProvider);
-    try {
-      if (existing == null) {
-        final deduped = await repo.saveFlash(agentId, content.trim());
-        if (context.mounted && deduped) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l.kbDeduped)));
-        }
-      } else {
-        await repo.updateFlash(agentId, existing.id, content.trim());
-      }
-      ref.invalidate(kbSourcesProvider(agentId));
-    } catch (e) {
-      if (context.mounted) showApiError(context, e);
-    }
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => KbTextViewPage(
+        title: s.title.isEmpty ? l.kbIdeas : s.title,
+        loadContent: () async =>
+            (await repo.entries(agentId, s.id)).map((e) => e.content).join('\n'),
+        onEdit: (current) async {
+          final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+            builder: (_) => KbEditorPage(
+              heading: l.chatRename,
+              hint: l.kbFlashHint,
+              initialText: current,
+              onSave: (text, _, _) async {
+                try {
+                  await repo.updateFlash(agentId, s.id, text.trim());
+                  ref.invalidate(kbSourcesProvider(agentId));
+                  return true;
+                } catch (e) {
+                  if (context.mounted) showApiError(context, e);
+                  return false;
+                }
+              },
+            ),
+          ));
+          return saved == true;
+        },
+      ),
+    ));
+  }
+
+  Future<void> _new(BuildContext context, WidgetRef ref, String agentId) async {
+    final l = AppLocalizations.of(context)!;
+    final repo = ref.read(kbRepoProvider);
+    await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: l.kbAddFlash,
+        hint: l.kbFlashHint,
+        onSave: (text, _, _) async {
+          try {
+            final deduped = await repo.saveFlash(agentId, text.trim());
+            if (deduped && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.kbDeduped)));
+            }
+            ref.invalidate(kbSourcesProvider(agentId));
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
+        },
+      ),
+    ));
   }
 
   Future<void> _delete(

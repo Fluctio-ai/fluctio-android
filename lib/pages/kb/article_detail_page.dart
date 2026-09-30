@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:markdown/markdown.dart' as md;
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
+import '../chat/message_list.dart';
 import '../../theme/tokens.dart';
 
 /// Article detail: full text (chunks joined) with the deep-reading
@@ -73,21 +77,22 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title.isEmpty ? l.kbArticles : widget.title)),
       body: _error != null
-          ? Center(child: Text(_error!, style: TextStyle(color: theme.colorScheme.error)))
+          ? ErrorPane(message: _error!)
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
                 if (_entries == null)
-                  const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
+                  const SkeletonProseLines()
                 else if (_entries!.isEmpty)
-                  Text(l.kbEmpty, style: theme.textTheme.bodyMedium)
+                  EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty)
                 else
-                  SelectableText(
-                    _entries!.map((e) => e.content).join('\n\n'),
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+                  MarkdownBody(
+                    // Same look as the chat transcript — zh 1.7 leading,
+                    // tinted code/blockquote blocks.
+                    data: _entries!.map((e) => e.content).join('\n\n'),
+                    extensionSet: md.ExtensionSet.gitHubWeb,
+                    builders: markdownBuilders,
+                    styleSheet: markdownStyle(context),
                   ),
                 const SizedBox(height: 24),
                 _insightsSection(context, theme, l),

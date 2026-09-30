@@ -11,6 +11,8 @@ import '../../chat/chat_engine.dart';
 import '../../chat/math_render.dart';
 import '../../webview/web_container.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
+import 'typing_dots.dart';
 import '../../theme/tokens.dart';
 import '../../util/open_url.dart';
 import 'chat_image.dart';
@@ -38,7 +40,7 @@ class _MessageListState extends ConsumerState<MessageList> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     if (widget.state.historyLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const SkeletonListView(itemCount: 5, leading: false);
     }
     if (widget.state.entries.isEmpty && !widget.state.turnActive) {
       return _EmptyTranscript(l: l);
@@ -282,6 +284,7 @@ class _AssistantBubble extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final canRegenerate = isLast &&
         !entry.streaming &&
         !ref.watch(chatStoreProvider.select((s) => s.active?.turnActive ?? false));
@@ -291,18 +294,34 @@ class _AssistantBubble extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MarkdownBody(
-            data: entry.text,
-            extensionSet: md.ExtensionSet.gitHubWeb,
-            inlineSyntaxes: mathInlineSyntaxes,
-            blockSyntaxes: mathBlockSyntaxes,
-            builders: markdownBuilders,
-            styleSheet: _markdownStyle(context),
-            onTapLink: (_, href, _) => href == null ? null : openExternalUrl(href),
-            sizedImageBuilder: (config) => _MarkdownImage(
-              url: config.uri.toString(),
-              width: config.width,
-              height: config.height,
+          // Web agent bubble: bg-muted rounded-2xl with one tight corner
+          // (chat-screen.tsx renderRegularBubble). Accidentally flattened
+          // in 35273ff's layout pass — restored per the web contract.
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.secondaryContainer,
+              borderRadius: const BorderRadius.only(
+                topLeft: AppRadius.nested,
+                topRight: AppRadius.fullscreen,
+                bottomLeft: AppRadius.fullscreen,
+                bottomRight: AppRadius.fullscreen,
+              ),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+            ),
+            child: MarkdownBody(
+              data: entry.text,
+              extensionSet: md.ExtensionSet.gitHubWeb,
+              inlineSyntaxes: mathInlineSyntaxes,
+              blockSyntaxes: mathBlockSyntaxes,
+              builders: markdownBuilders,
+              styleSheet: markdownStyle(context),
+              onTapLink: (_, href, _) => href == null ? null : openExternalUrl(href),
+              sizedImageBuilder: (config) => _MarkdownImage(
+                url: config.uri.toString(),
+                width: config.width,
+                height: config.height,
+              ),
             ),
           ),
           if (canRegenerate)
@@ -333,7 +352,9 @@ class _RegenerateButton extends ConsumerWidget {
   }
 }
 
-MarkdownStyleSheet _markdownStyle(BuildContext context) {
+/// Public so non-chat reading surfaces (KB article detail) share the
+/// transcript's exact markdown look — zh 1.7 leading, tinted blocks.
+MarkdownStyleSheet markdownStyle(BuildContext context) {
   final theme = Theme.of(context);
   final zhScope = Localizations.localeOf(context).languageCode == 'zh';
   final lineHeight = zhScope ? 1.7 : 1.5;
@@ -430,12 +451,7 @@ class _ToolCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (running)
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  if (running) const TypingDots()
                   else
                     Row(
                       mainAxisSize: MainAxisSize.min,

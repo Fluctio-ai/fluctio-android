@@ -7,7 +7,9 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/load_states.dart';
 import '../../util/dates.dart';
+import 'kb_editor_page.dart';
 
 /// KB todos grouped by due date (今天 / 明天 / 日期 / 无日期), checkbox to
 /// complete, tap to reschedule/edit.
@@ -30,14 +32,11 @@ class KbTodosPage extends ConsumerWidget {
       body: todos == null
           ? const SizedBox.shrink()
           : todos.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Text(l.chatHistoryError,
-                    style: TextStyle(color: theme.colorScheme.error)),
-              ),
+              loading: () => const SkeletonListView(),
+              error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return Center(child: Text(l.kbEmpty, style: theme.textTheme.bodyMedium));
+                  return EmptyState(icon: LucideIcons.squareCheckBig, message: l.kbEmpty);
                 }
                 final groups = _groupByDay(context, list);
                 return RefreshIndicator(
@@ -97,87 +96,58 @@ class KbTodosPage extends ConsumerWidget {
     return groups;
   }
 
-  Future<void> _edit(
+  /// Edit on a full-screen surface (DESIGN.md §4). Existing todos
+  /// load their real content from the source's entries — the list row
+  /// only carries the truncated title (same join as the web editor).
+  static Future<void> _edit(
       BuildContext context, WidgetRef ref, String agentId, KbSource? existing) async {
     final l = AppLocalizations.of(context)!;
-    final contentController = TextEditingController(text: existing?.title ?? '');
-    DateTime? date = existing?.startAt?.toLocal();
-
-    Future<DateTime?> pickDate() => showDatePicker(
-          context: context,
-          initialDate: date ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2100),
-        );
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(existing == null ? l.kbAddTodo : l.chatRename),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: contentController,
-                autofocus: true,
-                decoration: InputDecoration(hintText: l.kbTodoHint),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      date == null ? l.kbNoDate : formatShortDate(date!),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      final picked = await pickDate();
-                      if (picked != null) setState(() => date = picked);
-                    },
-                    child: Text(l.kbDueDate),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-            FilledButton(
-                onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
-          ],
-        ),
-      ),
-    );
-    if (saved != true) return;
-    final content = contentController.text.trim();
-    if (content.isEmpty) return;
-
     final repo = ref.read(kbRepoProvider);
-    try {
-      if (existing == null) {
-        final deduped = await repo.saveTodo(agentId, content, startAt: date);
-        if (context.mounted && deduped) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(l.kbDeduped)));
-        }
-      } else {
-        final done = existing.status == 'done';
-        await repo.updateTodo(
-          agentId,
-          existing.id,
-          content: content,
-          status: done ? 'done' : existing.status.isEmpty ? 'pending' : existing.status,
-          startAt: date,
-        );
-      }
-      ref.invalidate(kbTodosProvider(agentId));
-      ref.invalidate(kbSourcesProvider(agentId));
-    } catch (e) {
-      if (context.mounted) showApiError(context, e);
+
+    var initial = '';
+    if (existing != null) {
+      try {
+        initial = (await repo.entries(agentId, existing.id)).map((e) => e.content).join('\n');
+      } catch (_) {}
     }
+    if (!context.mounted) return;
+
+    await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: existing == null ? l.kbAddTodo : l.chatRename,
+        hint: l.kbTodoHint,
+        initialText: initial,
+        dateLabel: l.kbDueDate,
+        initialDate: existing?.startAt?.toLocal(),
+        onSave: (text, _, date) async {
+          final content = text.trim();
+          if (content.isEmpty) return false;
+          try {
+            if (existing == null) {
+              final deduped = await repo.saveTodo(agentId, content, startAt: date);
+              if (deduped && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.kbDeduped)));
+              }
+            } else {
+              final done = existing.status == 'done';
+              await repo.updateTodo(
+                agentId,
+                existing.id,
+                content: content,
+                status: done ? 'done' : existing.status.isEmpty ? 'pending' : existing.status,
+                startAt: date,
+              );
+            }
+            ref.invalidate(kbTodosProvider(agentId));
+            ref.invalidate(kbSourcesProvider(agentId));
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
+        },
+      ),
+    ));
   }
 
 }
@@ -191,7 +161,6 @@ class _TodoTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
     final done = todo.status == 'done';
     final cancelled = todo.status == 'cancelled';
     return ListTile(
@@ -227,9 +196,9 @@ class _TodoTile extends ConsumerWidget {
       subtitle: todo.startAt == null
             ? null
             : Text(formatShortDate(todo.startAt!, withTime: true), maxLines: 1),
-      trailing: TextButton(
-        onPressed: () => KbTodosPage()._edit(context, ref, agentId, todo),
-        child: Text(l.kbDueDate, style: const TextStyle(fontSize: 12)),
+      trailing: IconButton(
+        icon: Icon(LucideIcons.penLine, size: 18, color: theme.colorScheme.outline),
+        onPressed: () => KbTodosPage._edit(context, ref, agentId, todo),
       ),
     );
   }
