@@ -758,6 +758,30 @@ abstract class AppLocalizations {
   /// **'深度解读'**
   String get kbInsights;
 
+  /// No description provided for @kbOriginal.
+  ///
+  /// In zh, this message translates to:
+  /// **'原文'**
+  String get kbOriginal;
+
+  /// No description provided for @kbCoreSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'概要'**
+  String get kbCoreSummary;
+
+  /// No description provided for @kbChapters.
+  ///
+  /// In zh, this message translates to:
+  /// **'章节'**
+  String get kbChapters;
+
+  /// No description provided for @kbSprouts.
+  ///
+  /// In zh, this message translates to:
+  /// **'新芽'**
+  String get kbSprouts;
+
   /// No description provided for @kbQuotes.
   ///
   /// In zh, this message translates to:

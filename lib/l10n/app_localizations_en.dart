@@ -345,6 +345,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbInsights => 'Deep reading';
 
   @override
+  String get kbOriginal => 'Original';
+
+  @override
+  String get kbCoreSummary => 'Summary';
+
+  @override
+  String get kbChapters => 'Chapters';
+
+  @override
+  String get kbSprouts => 'Sprouts';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

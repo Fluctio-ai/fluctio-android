@@ -11,10 +11,12 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../chat/message_list.dart';
-import '../../theme/tokens.dart';
 
-/// Article detail: full text (chunks joined) with the deep-reading
-/// insights section — generate on demand, render compactly.
+/// Article detail, tabbed like the web (knowledge-views.tsx DetailTab):
+/// the original text plus the five deep-reading sections — 概要 / 章节 /
+/// 金句 / 行动 / 新芽. Section tabs render only after insights exist, so
+/// an article with no reading yet is just 原文 + the generate action in
+/// the app bar.
 class KbArticleDetailPage extends ConsumerStatefulWidget {
   const KbArticleDetailPage({super.key, required this.sourceId, this.title = ''});
 
@@ -74,113 +76,224 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final hasInsights = _insights != null;
+    final tabCount = hasInsights ? 6 : 1;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title.isEmpty ? l.kbArticles : widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title.isEmpty ? l.kbArticles : widget.title),
+        actions: [
+          if (_generating)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else if (!hasInsights)
+            IconButton(
+              tooltip: l.kbGenerateInsights,
+              icon: Icon(LucideIcons.sparkles, size: 20, color: theme.colorScheme.primary),
+              onPressed: _generate,
+            ),
+        ],
+      ),
+      // ValueKey: TabController.length is immutable, so the controller
+      // must rebuild when the reading arrives and the tabs go 1 → 6.
       body: _error != null
           ? ErrorPane(message: _error!)
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_entries == null)
-                  const SkeletonProseLines()
-                else if (_entries!.isEmpty)
-                  EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty)
-                else
-                  MarkdownBody(
-                    // Same look as the chat transcript — zh 1.7 leading,
-                    // tinted code/blockquote blocks.
-                    data: _entries!.map((e) => e.content).join('\n\n'),
-                    extensionSet: md.ExtensionSet.gitHubWeb,
-                    builders: markdownBuilders,
-                    styleSheet: markdownStyle(context),
+          : DefaultTabController(
+              key: ValueKey(tabCount),
+              length: tabCount,
+              child: Column(
+                children: [
+                  TabBar(
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    tabs: [
+                      Tab(text: l.kbOriginal),
+                      if (hasInsights) ...[
+                        Tab(text: l.kbCoreSummary),
+                        Tab(text: l.kbChapters),
+                        Tab(text: l.kbQuotes),
+                        Tab(text: l.kbActions),
+                        Tab(text: l.kbSprouts),
+                      ],
+                    ],
                   ),
-                const SizedBox(height: 24),
-                _insightsSection(context, theme, l),
-              ],
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _originalTab(context, l),
+                        if (hasInsights) ...[
+                          _proseTab(context, _insights!.core),
+                          _chaptersTab(context),
+                          _quotesTab(context),
+                          _actionsTab(context),
+                          _sproutsTab(context),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
     );
   }
 
-  Widget _insightsSection(BuildContext context, ThemeData theme, AppLocalizations l) {
-    if (_generating) {
-      return Row(
+  Widget _originalTab(BuildContext context, AppLocalizations l) {
+    final entries = _entries;
+    if (entries == null) return const SkeletonProse();
+    if (entries.isEmpty) return EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty);
+    return _proseTab(context, entries.map((e) => e.content).join('\n\n'));
+  }
+
+  /// Markdown content in the transcript's look — zh 1.7 leading, tinted
+  /// code/blockquote blocks.
+  Widget _proseTab(BuildContext context, String text) => SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: MarkdownBody(
+          data: text,
+          extensionSet: md.ExtensionSet.gitHubWeb,
+          builders: markdownBuilders,
+          styleSheet: markdownStyle(context),
+        ),
+      );
+
+  Widget _chaptersTab(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(
-              width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 10),
-          Text(l.kbGenerating, style: theme.textTheme.bodySmall),
-        ],
-      );
-    }
-    if (_insights == null) {
-      return OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
-        ),
-        onPressed: _generate,
-        icon: const Icon(LucideIcons.sparkles, size: 16),
-        label: Text(l.kbGenerateInsights),
-      );
-    }
-    final insights = _insights;
-    if (insights == null) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(LucideIcons.sparkles, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 6),
-            Text(l.kbInsights, style: theme.textTheme.titleSmall),
+          for (final c in _insights!.chapters) ...[
+            Text(c.title, style: theme.textTheme.titleSmall),
+            const SizedBox(height: 4),
+            MarkdownBody(
+              data: c.body,
+              extensionSet: md.ExtensionSet.gitHubWeb,
+              builders: markdownBuilders,
+              styleSheet: markdownStyle(context),
+            ),
+            const SizedBox(height: 16),
           ],
-        ),
-        if (insights.core.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(insights.core, style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
-          ),
-        for (final c in insights.chapters) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Text(c.title, style: theme.textTheme.titleSmall),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(c.body, style: theme.textTheme.bodySmall?.copyWith(height: 1.6)),
-          ),
         ],
-        if (insights.quotes.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Text(l.kbQuotes, style: theme.textTheme.titleSmall),
-          ),
-          for (final q in insights.quotes)
+      ),
+    );
+  }
+
+  Widget _quotesTab(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final q in _insights!.quotes)
             Padding(
-              padding: const EdgeInsets.only(top: 6, left: 8),
+              padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('❝ ', style: TextStyle(color: theme.colorScheme.primary)),
                   Expanded(
                     child: Text('${q.text} — ${q.tag}',
-                        style: theme.textTheme.bodySmall?.copyWith(height: 1.5)),
+                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
                   ),
                 ],
               ),
             ),
         ],
-        if (insights.actions.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Text(l.kbActions, style: theme.textTheme.titleSmall),
-          ),
-          for (final a in insights.actions)
+      ),
+    );
+  }
+
+  Widget _actionsTab(BuildContext context) {
+    final theme = Theme.of(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final a in _insights!.actions)
             Padding(
-              padding: const EdgeInsets.only(top: 4, left: 8),
-              child: Text('• $a', style: theme.textTheme.bodySmall),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• ', style: TextStyle(color: theme.colorScheme.primary)),
+                  Expanded(
+                    child: Text(a,
+                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+                  ),
+                ],
+              ),
             ),
         ],
-      ],
+      ),
+    );
+  }
+
+  /// Sprouts: intro, each seed (title / seed line / body / Aha), and the
+  /// optional cross-domain echo validating one seed quote.
+  Widget _sproutsTab(BuildContext context) {
+    final theme = Theme.of(context);
+    final ins = _insights!;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (ins.sproutsIntro.isNotEmpty)
+            Text(ins.sproutsIntro,
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+          for (final s in ins.sprouts) ...[
+            const SizedBox(height: 16),
+            Text(s.title, style: theme.textTheme.titleSmall),
+            if (s.seed.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(s.seed,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline, height: 1.5)),
+              ),
+            if (s.body.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(s.body,
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+              ),
+            if (s.aha.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text('Aha: ${s.aha}',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.primary, height: 1.5)),
+              ),
+          ],
+          if (ins.echoSeed.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Text('❝ ${ins.echoSeed}',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(color: theme.colorScheme.primary)),
+            if (ins.echoSeedComment.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(ins.echoSeedComment,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline, height: 1.5)),
+              ),
+            for (final e in ins.echoItems) ...[
+              const SizedBox(height: 12),
+              Text('${e.perspective} · ${e.label}', style: theme.textTheme.titleSmall),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('${e.quote} — ${e.source}',
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+              ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }

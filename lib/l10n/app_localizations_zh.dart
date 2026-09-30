@@ -340,6 +340,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbInsights => '深度解读';
 
   @override
+  String get kbOriginal => '原文';
+
+  @override
+  String get kbCoreSummary => '概要';
+
+  @override
+  String get kbChapters => '章节';
+
+  @override
+  String get kbSprouts => '新芽';
+
+  @override
   String get kbQuotes => '金句';
 
   @override

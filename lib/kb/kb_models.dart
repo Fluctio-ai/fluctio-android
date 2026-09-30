@@ -210,12 +210,26 @@ class KbInsights {
     required this.chapters,
     required this.quotes,
     required this.actions,
+    this.sproutsIntro = '',
+    this.sprouts = const [],
+    this.echoSeed = '',
+    this.echoSeedComment = '',
+    this.echoItems = const [],
   });
 
   final String core;
   final List<({String title, String body})> chapters;
   final List<({String text, String tag})> quotes;
   final List<String> actions;
+
+  /// Sprouts (知识延展, InsightSprouts in fastclaw kb/types.go): intro
+  /// plus seeds with their Aha moments, and the optional cross-domain
+  /// echo validating one seed quote across other lenses.
+  final String sproutsIntro;
+  final List<({String emoji, String title, String seed, String body, String aha})> sprouts;
+  final String echoSeed;
+  final String echoSeedComment;
+  final List<({String perspective, String label, String quote, String source})> echoItems;
 
   factory KbInsights.fromJson(Map<String, dynamic> j) {
     final summary = j['summary'];
@@ -246,6 +260,58 @@ class KbInsights {
     if (rawActions is List) {
       actions.addAll(rawActions.whereType<String>());
     }
-    return KbInsights(core: core, chapters: chapters, quotes: quotes, actions: actions);
+    String sproutsIntro = '';
+    final sprouts = <({String emoji, String title, String seed, String body, String aha})>[];
+    final rawSprouts = j['sprouts'];
+    if (rawSprouts is Map) {
+      sproutsIntro = rawSprouts['intro'] as String? ?? '';
+      final items = rawSprouts['items'];
+      if (items is List) {
+        for (final s in items) {
+          if (s is Map) {
+            sprouts.add((
+              emoji: s['emoji'] as String? ?? '',
+              title: s['title'] as String? ?? '',
+              seed: s['seed'] as String? ?? '',
+              body: s['body'] as String? ?? '',
+              aha: s['aha'] as String? ?? '',
+            ));
+          }
+        }
+      }
+    }
+    String echoSeed = '';
+    String echoSeedComment = '';
+    final echoItems =
+        <({String perspective, String label, String quote, String source})>[];
+    final echo = rawSprouts is Map ? rawSprouts['echo'] : null;
+    if (echo is Map) {
+      echoSeed = echo['seed_quote'] as String? ?? '';
+      echoSeedComment = echo['seed_comment'] as String? ?? '';
+      final rawEchoItems = echo['items'];
+      if (rawEchoItems is List) {
+        for (final e in rawEchoItems) {
+          if (e is Map) {
+            echoItems.add((
+              perspective: e['perspective'] as String? ?? '',
+              label: e['label'] as String? ?? '',
+              quote: e['quote'] as String? ?? '',
+              source: e['source'] as String? ?? '',
+            ));
+          }
+        }
+      }
+    }
+    return KbInsights(
+      core: core,
+      chapters: chapters,
+      quotes: quotes,
+      actions: actions,
+      sproutsIntro: sproutsIntro,
+      sprouts: sprouts,
+      echoSeed: echoSeed,
+      echoSeedComment: echoSeedComment,
+      echoItems: echoItems,
+    );
   }
 }
