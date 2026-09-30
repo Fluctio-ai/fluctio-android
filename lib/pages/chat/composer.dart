@@ -160,7 +160,9 @@ class _ToolButton extends StatelessWidget {
           borderRadius: AppRadius.controlBorder,
           child: Container(
             height: 36,
-            padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 10),
+            // Equal horizontal padding with or without a label — the
+            // bare paperclip shouldn't collapse into a narrow strip.
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               borderRadius: AppRadius.controlBorder,
               border: Border.all(color: theme.colorScheme.outlineVariant),

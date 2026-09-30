@@ -132,8 +132,15 @@ class _Menu extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       onSelected: (action) => _run(context, ref, action),
-      icon: Icon(LucideIcons.ellipsisVertical,
-          size: 18, color: Theme.of(context).colorScheme.outline),
+      // child form instead of icon: the icon variant centers the 18px
+      // glyph inside a 48dp tap-target box with wide gutters on both
+      // sides; the plain child hugs the glyph (same as _SessionMenu).
+      padding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: Icon(LucideIcons.ellipsisVertical,
+            size: 18, color: Theme.of(context).colorScheme.outline),
+      ),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'edit', child: Text(l.chatRename)),
         if (!bookmark.promoted) PopupMenuItem(value: 'promote', child: Text(l.kbPromote)),
