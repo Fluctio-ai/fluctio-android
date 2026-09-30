@@ -65,23 +65,15 @@ class ChatDashboard extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 20),
-        // Asymmetric 2:3 half-row (DESIGN.md §5: no equal-width card rows),
-        // then two full-width cards — wide/narrow offset, tops unaligned.
-        _DashIn(
-          index: 1,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 2, child: _CardsPane(agentId: agent.id)),
-              const SizedBox(width: 12),
-              Expanded(flex: 3, child: _TodosPane(agentId: agent.id)),
-            ],
-          ),
-        ),
+        // One full-width pane per row (user preference) — same rhythm as
+        // the web's stacked mobile dashboard.
+        _DashIn(index: 1, child: _CardsPane(agentId: agent.id)),
         const SizedBox(height: 12),
-        _DashIn(index: 2, child: _RecentPane(agentId: agent.id)),
+        _DashIn(index: 2, child: _TodosPane(agentId: agent.id)),
         const SizedBox(height: 12),
-        _DashIn(index: 3, child: _CronPane(agentId: agent.id)),
+        _DashIn(index: 3, child: _RecentPane(agentId: agent.id)),
+        const SizedBox(height: 12),
+        _DashIn(index: 4, child: _CronPane(agentId: agent.id)),
       ],
     );
   }

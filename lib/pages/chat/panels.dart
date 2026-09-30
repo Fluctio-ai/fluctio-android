@@ -7,8 +7,10 @@ import '../kb/kb_editor_page.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
+import '../../files/agent_files.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
 
@@ -44,6 +46,9 @@ class SessionTile extends ConsumerWidget {
       dense: true,
       selected: selected,
       leading: leading,
+      // Right gutter narrowed — the ⋯ menu hugs the row edge (its own
+      // box adds a few px); left stays at the standard 16.
+      contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
       title: Text(
         session.title.isEmpty ? l.chatNew : session.title,
         maxLines: 1,
@@ -53,7 +58,7 @@ class SessionTile extends ConsumerWidget {
         ('', '') => null,
         ('', _) => Text(time, maxLines: 1),
         (_, '') => Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-        (_, _) => Text('$session.preview · $time', maxLines: 1, overflow: TextOverflow.ellipsis),
+        (_, _) => Text('${session.preview} · $time', maxLines: 1, overflow: TextOverflow.ellipsis),
       },
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -119,7 +124,7 @@ class _SessionMenu extends ConsumerWidget {
       // sides; the plain child hugs the glyph.
       padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         child: Icon(LucideIcons.ellipsisVertical,
             size: 18, color: Theme.of(context).colorScheme.outline),
       ),
@@ -287,4 +292,99 @@ class _TodoSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Agent workspace files (where a turn's attachments land): list +
+/// delete, per GET/DELETE /api/agents/{id}/files.
+Future<void> showFilesSheet(BuildContext context) {
+  return showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => const _FilesSheet(),
+  );
+}
+
+class _FilesSheet extends ConsumerStatefulWidget {
+  const _FilesSheet();
+
+  @override
+  ConsumerState<_FilesSheet> createState() => _FilesSheetState();
+}
+
+class _FilesSheetState extends ConsumerState<_FilesSheet> {
+  Future<List<AgentFile>>? _future;
+  String? _agentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _agentId = ref.read(agentsProvider).selectedId;
+    if (_agentId != null) {
+      _future = ref.read(agentFilesRepoProvider).list(_agentId!);
+    }
+  }
+
+  Future<void> _delete(AgentFile f) async {
+    if (!await confirmDelete(context)) return;
+    try {
+      await ref.read(agentFilesRepoProvider).delete(_agentId!, f.name);
+      if (mounted) {
+        setState(() => _future = ref.read(agentFilesRepoProvider).list(_agentId!));
+      }
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        child: FutureBuilder<List<AgentFile>>(
+          future: _future,
+          builder: (context, snap) => snap.connectionState == ConnectionState.waiting
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: SkeletonList(itemCount: 5),
+                )
+              : snap.hasError
+                  ? ErrorPane(message: l.chatHistoryError)
+                  : (snap.data?.isEmpty ?? true)
+                      ? EmptyState(icon: LucideIcons.folderOpen, message: l.kbEmpty)
+                      : ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (final f in snap.data!)
+                              ListTile(
+                                dense: true,
+                                leading: Icon(LucideIcons.fileText,
+                                    size: 20, color: theme.colorScheme.outline),
+                                title: Text(f.name,
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                subtitle: Text(
+                                    '${_fmtSize(f.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(f.modTimeMs))}',
+                                    maxLines: 1),
+                                trailing: IconButton(
+                                  icon: Icon(LucideIcons.trash2,
+                                      size: 18, color: theme.colorScheme.outline),
+                                  onPressed: () => _delete(f),
+                                ),
+                              ),
+                          ],
+                        ),
+        ),
+      ),
+    );
+  }
+
+  String _fmtSize(int bytes) => bytes < 1024
+      ? '${bytes}B'
+      : bytes < 1024 * 1024
+          ? '${(bytes / 1024).toStringAsFixed(1)}KB'
+          : '${(bytes / 1024 / 1024).toStringAsFixed(1)}MB';
 }

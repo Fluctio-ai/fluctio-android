@@ -355,6 +355,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbArchive => '归档';
 
   @override
+  String get kbEdit => '编辑';
+
+  @override
+  String get chatFiles => '文件';
+
+  @override
   String get kbQuotes => '金句';
 
   @override

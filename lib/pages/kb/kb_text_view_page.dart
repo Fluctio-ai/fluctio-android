@@ -48,7 +48,7 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
         actions: [
           if (widget.onEdit != null)
             IconButton(
-              tooltip: AppLocalizations.of(context)!.chatRename,
+              tooltip: AppLocalizations.of(context)!.kbEdit,
               icon: const Icon(LucideIcons.penLine, size: 20),
               onPressed: _edit,
             ),

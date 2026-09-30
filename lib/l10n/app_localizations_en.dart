@@ -360,6 +360,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbArchive => 'Archive';
 
   @override
+  String get kbEdit => 'Edit';
+
+  @override
+  String get chatFiles => 'Files';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

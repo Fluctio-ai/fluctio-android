@@ -214,6 +214,11 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         ),
         actions: [
           IconButton(
+            tooltip: l.chatFiles,
+            onPressed: () => showFilesSheet(context),
+            icon: const Icon(LucideIcons.folderOpen),
+          ),
+          IconButton(
             tooltip: l.chatTodo,
             onPressed: () => showTodoSheet(context),
             icon: const Icon(LucideIcons.listTodo),

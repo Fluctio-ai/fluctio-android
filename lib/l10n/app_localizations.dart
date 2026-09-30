@@ -788,6 +788,18 @@ abstract class AppLocalizations {
   /// **'归档'**
   String get kbArchive;
 
+  /// No description provided for @kbEdit.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑'**
+  String get kbEdit;
+
+  /// No description provided for @chatFiles.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件'**
+  String get chatFiles;
+
   /// No description provided for @kbQuotes.
   ///
   /// In zh, this message translates to:

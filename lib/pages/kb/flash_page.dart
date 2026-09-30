@@ -61,7 +61,7 @@ class KbFlashPage extends ConsumerWidget {
                               backgroundColor: scheme.primary,
                               foregroundColor: scheme.onPrimary,
                               icon: LucideIcons.penLine,
-                              label: l.chatRename,
+                              label: l.kbEdit,
                             ),
                             SlidableAction(
                               onPressed: (_) => _delete(context, ref, agentId!, s),
@@ -119,7 +119,7 @@ class KbFlashPage extends ConsumerWidget {
     }
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => KbEditorPage(
-        heading: l.chatRename,
+        heading: l.kbEdit,
         hint: l.kbFlashHint,
         initialText: initial,
         onSave: (text, _, _) async {

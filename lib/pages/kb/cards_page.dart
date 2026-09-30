@@ -167,8 +167,10 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                   if (context.mounted) showApiError(context, e);
                                 }
                               },
-                              backgroundColor: theme.colorScheme.tertiary,
-                              foregroundColor: theme.colorScheme.onTertiary,
+                              // Gold (warning) — distinct from the red
+                              // delete block.
+                              backgroundColor: paletteOf(context).warning,
+                              foregroundColor: paletteOf(context).warningForeground,
                               icon: LucideIcons.archive,
                               label: l.kbArchive,
                             ),

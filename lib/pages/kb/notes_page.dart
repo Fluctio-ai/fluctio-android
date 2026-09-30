@@ -59,7 +59,7 @@ class KbNotesPage extends ConsumerWidget {
                               backgroundColor: scheme.primary,
                               foregroundColor: scheme.onPrimary,
                               icon: LucideIcons.penLine,
-                              label: l.chatRename,
+                              label: l.kbEdit,
                             ),
                             SlidableAction(
                               onPressed: (_) => _delete(context, ref, agentId!, n),
@@ -107,7 +107,7 @@ class KbNotesPage extends ConsumerWidget {
     final repo = ref.read(kbRepoProvider);
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => KbEditorPage(
-        heading: l.chatRename,
+        heading: l.kbEdit,
         hint: l.noteBodyHint,
         titleLabel: l.kbTitleOptional,
         initialTitle: n.title,

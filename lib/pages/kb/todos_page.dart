@@ -116,7 +116,7 @@ class KbTodosPage extends ConsumerWidget {
 
     await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => KbEditorPage(
-        heading: existing == null ? l.kbAddTodo : l.chatRename,
+        heading: existing == null ? l.kbAddTodo : l.kbEdit,
         hint: l.kbTodoHint,
         initialText: initial,
         dateLabel: l.kbDueDate,
@@ -223,7 +223,7 @@ class _TodoTile extends ConsumerWidget {
             backgroundColor: scheme.primary,
             foregroundColor: scheme.onPrimary,
             icon: LucideIcons.penLine,
-            label: l.chatRename,
+            label: l.kbEdit,
           ),
           SlidableAction(
             onPressed: (_) => KbTodosPage._deleteTodo(context, ref, agentId, todo),

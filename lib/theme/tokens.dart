@@ -122,6 +122,12 @@ final appPaletteDark = AppPalette(
   chart5: oklch(0.72, 0.13, 180), // teal
 );
 
+/// The active theme's palette — for semantic status colors (success /
+/// warning) the M3 ColorScheme has no slot for.
+AppPalette paletteOf(BuildContext context) => Theme.of(context).brightness == Brightness.dark
+    ? appPaletteDark
+    : appPaletteLight;
+
 /// The app's signature grouped-card surface: tinted secondary container,
 /// hairline border, card radius. One owner instead of per-page copies.
 BoxDecoration surfaceCardDecoration(ColorScheme scheme) => BoxDecoration(

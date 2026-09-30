@@ -8,6 +8,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/tokens.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
 import '../../util/open_url.dart';
@@ -63,14 +64,16 @@ class KbBookmarksPage extends ConsumerWidget {
                               backgroundColor: scheme.primary,
                               foregroundColor: scheme.onPrimary,
                               icon: LucideIcons.penLine,
-                              label: l.chatRename,
+                              label: l.kbEdit,
                             ),
                             if (!b.promoted)
                               SlidableAction(
                                 onPressed: (_) =>
                                     _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
-                                backgroundColor: scheme.tertiary,
-                                foregroundColor: scheme.onTertiary,
+                                // Gold (warning) — distinct from the cyan
+                                // edit block and the red delete block.
+                                backgroundColor: paletteOf(context).warning,
+                                foregroundColor: paletteOf(context).warningForeground,
                                 icon: LucideIcons.trendingUp,
                                 label: l.kbPromote,
                               ),
@@ -175,7 +178,7 @@ class _BookmarkActions {
           // dialog - same surface as notes/flash edits.
           await Navigator.of(context).push<bool>(MaterialPageRoute(
             builder: (_) => KbEditorPage(
-              heading: l.chatRename,
+              heading: l.kbEdit,
               hint: l.kbSummary,
               titleLabel: l.kbTitleOptional,
               initialTitle: bookmark.title,
