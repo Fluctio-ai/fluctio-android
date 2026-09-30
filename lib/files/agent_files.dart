@@ -33,6 +33,21 @@ class AgentFile {
   }
 }
 
+/// Listing result: files plus the backend-resolved scope prefixes for
+/// this chat (loose: ["sessions/<sid>/"], project:
+/// ["projects/<pid>/<sid>/", "projects/<pid>/"]). The SHALLOWEST prefix
+/// (last entry) is the workspace root /workspace/ links resolve against
+/// (web chat-screen parity).
+class AgentFileListing {
+  const AgentFileListing(this.files, this.scopePrefixes);
+
+  final List<AgentFile> files;
+  final List<String> scopePrefixes;
+
+  String get workspaceRoot =>
+      scopePrefixes.isNotEmpty ? scopePrefixes.last : '';
+}
+
 final agentFilesRepoProvider =
     Provider<AgentFilesRepo>((ref) => AgentFilesRepo(ref.watch(apiClientProvider)));
 
@@ -46,7 +61,7 @@ class AgentFilesRepo {
 
   /// [sessionId] scopes the listing to that chat's workspace subtree —
   /// without it the owner sees every file under the agent.
-  Future<List<AgentFile>> list(String agentId, {String? sessionId}) async {
+  Future<AgentFileListing> list(String agentId, {String? sessionId}) async {
     final res = await _dio.get('/api/agents/$agentId/files',
         queryParameters: _query(sessionId));
     final data = res.data is Map ? res.data as Map : const {};
@@ -54,10 +69,13 @@ class AgentFilesRepo {
     final prefixes = (data['scopePrefixes'] is List ? data['scopePrefixes'] as List : const [])
         .whereType<String>()
         .toList();
-    return [
-      for (final f in raw is List ? raw : const [])
-        if (f is Map) AgentFile._fromRow(f.cast<String, dynamic>(), prefixes),
-    ];
+    return AgentFileListing(
+      [
+        for (final f in raw is List ? raw : const [])
+          if (f is Map) AgentFile._fromRow(f.cast<String, dynamic>(), prefixes),
+      ],
+      prefixes,
+    );
   }
 
   Future<void> delete(String agentId, AgentFile f, {String? sessionId}) =>

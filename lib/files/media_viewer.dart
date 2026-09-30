@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_player/video_player.dart';
 
-import '../auth/session_cookie.dart';
 import '../l10n/app_localizations.dart';
 
-/// Minimal audio/video viewer for workspace media files — the cookie
-/// rides the request headers (the files are session-gated), playback is
-/// a compact play/pause + seek strip, no chrome beyond the essentials.
+/// Minimal audio/video viewer. [url] is a LOCAL streaming-proxy URL
+/// (media_proxy.dart) — the gateway is cookie-gated and players can't
+/// attach headers, so the proxy authenticates upstream and streams
+/// (Range passthrough → seeking works, no full download).
 class MediaViewerPage extends StatefulWidget {
-  const MediaViewerPage({super.key, required this.title, required this.url, required this.kind, this.cookie});
+  const MediaViewerPage({super.key, required this.title, required this.url, required this.kind});
 
   final String title;
   final String url;
 
   /// 'video' | 'audio'
   final String kind;
-  final String? cookie;
 
   @override
   State<MediaViewerPage> createState() => _MediaViewerPageState();
@@ -25,31 +24,26 @@ class MediaViewerPage extends StatefulWidget {
 class _MediaViewerPageState extends State<MediaViewerPage> {
   VideoPlayerController? _video;
   AudioPlayer? _audio;
-  bool _failed = false;
-
-  Map<String, String> get _headers =>
-      widget.cookie == null || widget.cookie!.isEmpty
-          ? const {}
-          : {'cookie': sessionCookieHeader(widget.cookie!)};
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     if (widget.kind == 'video') {
-      final c = VideoPlayerController.networkUrl(Uri.parse(widget.url), httpHeaders: _headers);
+      final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
       _video = c;
       c.initialize().then((_) {
         if (mounted) setState(() => c.play());
-      }).catchError((_) {
-        if (mounted) setState(() => _failed = true);
+      }).catchError((e) {
+        if (mounted) setState(() => _error = '$e');
       });
     } else {
       final p = AudioPlayer();
       _audio = p;
-      p.setUrl(widget.url, headers: _headers).then((_) {
+      p.setUrl(widget.url).then((_) {
         if (mounted) setState(() => p.play());
-      }).catchError((_) {
-        if (mounted) setState(() => _failed = true);
+      }).catchError((e) {
+        if (mounted) setState(() => _error = '$e');
       });
     }
   }
@@ -66,7 +60,7 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: _failed
+      body: _error != null
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -77,11 +71,7 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
                         style: theme.textTheme.bodyMedium
                             ?.copyWith(color: theme.colorScheme.error)),
                     const SizedBox(height: 8),
-                    // The full request URL, selectable — media over a
-                    // self-signed gateway fails TLS here (players don't
-                    // share dio's bad-cert allowance); the URL makes that
-                    // diagnosable at a glance.
-                    SelectableText(widget.url,
+                    SelectableText('$_error\n${widget.url}',
                         style: theme.textTheme.labelSmall
                             ?.copyWith(color: theme.colorScheme.outline)),
                   ],

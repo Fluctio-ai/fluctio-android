@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../pages/chat/chat_image.dart';
 import '../pages/chat/image_viewer.dart';
 import '../l10n/app_localizations.dart';
 import '../util/open_url.dart';
+import 'media_proxy.dart';
 import 'media_viewer.dart';
 import '../pages/kb/kb_text_view_page.dart';
 import '../webview/web_container.dart';
@@ -56,23 +58,29 @@ Future<void> openWorkspaceFilePreview(
       return;
     }
     if (videoExts.contains(ext) || audioExts.contains(ext)) {
-      // Native players (video_player / just_audio) — media needs real
-      // streaming, not a WebView; the cookie rides the request headers.
+      // Stream through the local proxy — players can't carry the
+      // session cookie themselves; the proxy authenticates upstream
+      // (Range passthrough, so seeking works without a full download).
       final auth = ref.read(authControllerProvider);
+      MediaProxy.instance.configure(ref.read(apiClientProvider), auth.sid);
+      final url = await MediaProxy.instance.urlFor(agentId, path);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => MediaViewerPage(
           title: name,
-          url: '${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
+          url: url,
           kind: videoExts.contains(ext) ? 'video' : 'audio',
-          cookie: auth.sid,
         ),
       ));
       return;
     }
     if (htmlExts.contains(ext)) {
-      // The WebView container renders html natively (cookie injected) —
-      // running it through the markdown viewer mangles the tags.
+      // The WebView container renders html natively (cookie injected).
+      // Probe first via dio — a 404 inside the WebView is undiagnosable
+      // (raw backend JSON, no URL); the probe funnels failures into the
+      // URL-showing snackbar below.
+      await repo.fetchBytes(agentId, file, sessionId: sessionId);
+      if (!context.mounted) return;
       openWebContainer(context, name, '/api/agents/$agentId/files/${_encodePath(path)}');
       return;
     }
@@ -119,10 +127,11 @@ Future<void> openWorkspaceFilePreview(
   }
 }
 
-/// Routes a tapped chat-message link: gateway file URLs and bare
-/// workspace-looking paths preview natively; everything else goes to the
-/// browser as before.
-void openChatLink(BuildContext context, WidgetRef ref, String href) {
+/// Routes a tapped chat-message link: gateway file URLs preview
+/// natively; workspace-relative links resolve against THIS chat's
+/// workspace root (the shallowest scope prefix, web chat-screen
+/// parity); everything else goes to the browser.
+Future<void> openChatLink(BuildContext context, WidgetRef ref, String href) async {
   final auth = ref.read(authControllerProvider);
   var p = href;
   if (auth.baseUrl.isNotEmpty && p.startsWith(auth.baseUrl)) {
@@ -130,34 +139,50 @@ void openChatLink(BuildContext context, WidgetRef ref, String href) {
   }
   final gatewayFile = RegExp(r'^/api/agents/([^/]+)/files/(.+)$').firstMatch(p);
   if (gatewayFile != null) {
-    // href arrives percent-encoded (CJK filenames); the files API keys
-    // objects by the decoded path — decode once, re-encode per use.
     final decoded = Uri.decodeComponent(gatewayFile[2]!);
-    openWorkspaceFilePreview(context, ref,
+    await openWorkspaceFilePreview(context, ref,
         agentId: gatewayFile[1]!, path: decoded, displayName: decoded.split('/').last);
     return;
   }
-  // Bare workspace path (no scheme, has a file extension) — try the
-  // selected agent's workspace before punting to the browser. Message
-  // breadcrumbs carry the absolute form "/workspace/X" (annotateMessage
-  // WithAttachments), while the files API wants the bare "X" — decode,
-  // then strip the prefix.
-  var bare = Uri.decodeComponent(href);
+  if (href.contains('://')) {
+    openExternalUrl(href);
+    return;
+  }
+  // Workspace-relative: the /workspace/ breadcrumb (or a bare relative
+  // href). Resolve against the chat's workspace root — project chats
+  // root at projects/<pid>/, loose chats at sessions/<sid>/; the root
+  // comes from the listing's scopePrefixes (last = shallowest).
+  var rel = Uri.decodeComponent(href);
   for (final prefix in const ['/workspace/', 'workspace/']) {
-    if (bare.startsWith(prefix)) {
-      bare = bare.substring(prefix.length);
+    if (rel.startsWith(prefix)) {
+      rel = rel.substring(prefix.length);
       break;
     }
   }
-  final agentId = ref.read(agentsProvider).selectedId;
-  // Ends in a file extension — CJK names included (the char class above
-  // the fix only matched ASCII and silently dropped Chinese names to the
-  // browser branch).
-  if (agentId != null &&
-      !href.contains('://') &&
-      RegExp(r'\.[A-Za-z0-9]{1,6}$').hasMatch(bare)) {
-    openWorkspaceFilePreview(context, ref, agentId: agentId, path: bare);
+  final parts = splitSessionKey(ref.read(chatStoreProvider).activeKey);
+  final agentId = parts?.agentId ?? ref.read(agentsProvider).selectedId;
+  if (agentId == null || rel.isEmpty || !RegExp(r'\.[A-Za-z0-9]{1,6}$').hasMatch(rel)) {
+    openExternalUrl(href);
     return;
   }
-  openExternalUrl(href);
+  try {
+    final listing =
+        await ref.read(agentFilesRepoProvider).list(agentId, sessionId: parts?.sessionId);
+    var path = rel;
+    // Already-rooted paths pass through; bare relatives join the root.
+    if (!rel.startsWith('sessions/') && !rel.startsWith('projects/')) {
+      path = listing.workspaceRoot + rel;
+    }
+    if (context.mounted) {
+      await openWorkspaceFilePreview(context, ref,
+          agentId: agentId, path: path, displayName: rel.split('/').last);
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 8),
+        content: SelectableText('link: $href\n$e'),
+      ));
+    }
+  }
 }

@@ -316,7 +316,7 @@ class _FilesSheet extends ConsumerStatefulWidget {
 }
 
 class _FilesSheetState extends ConsumerState<_FilesSheet> {
-  Future<List<AgentFile>>? _future;
+  Future<AgentFileListing>? _future;
   String? _agentId;
 
   /// The open chat's session — files scope to that conversation's
@@ -384,7 +384,7 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
       child: ConstrainedBox(
         constraints:
             BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-        child: FutureBuilder<List<AgentFile>>(
+        child: FutureBuilder<AgentFileListing>(
           future: _future,
           builder: (context, snap) => snap.connectionState == ConnectionState.waiting
               ? const Padding(
@@ -393,12 +393,12 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                 )
               : snap.hasError
                   ? ErrorPane(message: l.chatHistoryError)
-                  : (snap.data?.isEmpty ?? true)
+                  : (snap.data?.files.isEmpty ?? true)
                       ? EmptyState(icon: LucideIcons.folderOpen, message: l.kbEmpty)
                       : ListView(
                           shrinkWrap: true,
                           children: [
-                            for (final f in snap.data!)
+                            for (final f in snap.data!.files)
                               Slidable(
                                 key: ValueKey('wsfile-${f.path}'),
                                 endActionPane: ActionPane(
