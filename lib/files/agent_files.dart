@@ -84,6 +84,10 @@ class AgentFilesRepo {
       _dio.delete('/api/agents/$agentId/files/${f.path}',
           queryParameters: _query(sessionId));
 
+  /// Existence probe (HEAD) for path-candidate resolution.
+  Future<void> head(String agentId, String path, {String? sessionId}) =>
+      _dio.head('/api/agents/$agentId/files/$path', queryParameters: _query(sessionId));
+
   /// Plain-text fetch for previewing text files.
   Future<String> fetchText(String agentId, AgentFile f, {String? sessionId}) async =>
       (await _dio.get('/api/agents/$agentId/files/${f.path}',

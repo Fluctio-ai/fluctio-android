@@ -33,7 +33,14 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
       final c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
       _video = c;
       c.initialize().then((_) {
-        if (mounted) setState(() => c.play());
+        // Block body — play() returns a Future; an arrow closure would
+        // return it and trip setState's assertion (same class of bug as
+        // the files-sheet crash).
+        if (mounted) {
+          setState(() {
+            c.play();
+          });
+        }
       }).catchError((e) {
         if (mounted) setState(() => _error = '$e');
       });
@@ -41,7 +48,11 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
       final p = AudioPlayer();
       _audio = p;
       p.setUrl(widget.url).then((_) {
-        if (mounted) setState(() => p.play());
+        if (mounted) {
+          setState(() {
+            p.play();
+          });
+        }
       }).catchError((e) {
         if (mounted) setState(() => _error = '$e');
       });

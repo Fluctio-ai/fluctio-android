@@ -46,6 +46,11 @@ Future<void> openWorkspaceFilePreview(
     'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
   };
   final repo = ref.read(agentFilesRepoProvider);
+  // Message links are relative to the AI's sandbox mount — which is the
+  // DEEP scope prefix (projects/<pid>/<sid>/), not the project root —
+  // so a shallow-rooted guess can miss. Probe the original path, then
+  // prefix-swap candidates, and use the first that exists.
+  path = await _resolveExisting(repo, agentId, path, sessionId);
   final file = AgentFile(path: path, name: name, size: 0, modTimeMs: 0);
   try {
     if (imgExts.contains(ext)) {
@@ -127,6 +132,36 @@ Future<void> openWorkspaceFilePreview(
   }
 }
 
+/// Probes [path] and prefix-swapped candidates against the chat's scope
+/// prefixes; returns the first that HEADs 200, else the original.
+Future<String> _resolveExisting(
+    AgentFilesRepo repo, String agentId, String path, String? sessionId) async {
+  Future<bool> ok(String p) async {
+    if (p.isEmpty) return false;
+    try {
+      await repo.head(agentId, p, sessionId: sessionId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (await ok(path)) return path;
+  try {
+    final listing = await repo.list(agentId, sessionId: sessionId);
+    final prefixes = listing.scopePrefixes;
+    final deep = prefixes.isNotEmpty ? prefixes.first : '';
+    final shallow = listing.workspaceRoot;
+    final tail = shallow.isNotEmpty && path.startsWith(shallow)
+        ? path.substring(shallow.length)
+        : path;
+    for (final cand in {deep + tail, shallow + tail, deep + path}) {
+      if (cand != path && await ok(cand)) return cand;
+    }
+  } catch (_) {}
+  return path;
+}
+
 /// Routes a tapped chat-message link: gateway file URLs preview
 /// natively; workspace-relative links resolve against THIS chat's
 /// workspace root (the shallowest scope prefix, web chat-screen
@@ -175,7 +210,8 @@ Future<void> openChatLink(BuildContext context, WidgetRef ref, String href) asyn
     }
     if (context.mounted) {
       await openWorkspaceFilePreview(context, ref,
-          agentId: agentId, path: path, displayName: rel.split('/').last);
+          agentId: agentId, path: path, sessionId: parts?.sessionId,
+          displayName: rel.split('/').last);
     }
   } catch (e) {
     if (context.mounted) {
