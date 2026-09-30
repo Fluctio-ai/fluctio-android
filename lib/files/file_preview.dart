@@ -15,6 +15,11 @@ import '../pages/kb/kb_text_view_page.dart';
 import '../webview/web_container.dart';
 import 'agent_files.dart';
 
+/// Re-encodes a decoded path segment-by-segment (keeping "/" separators)
+/// for URLs handed to WebView/NetworkImage, which need legal URIs.
+String _encodePath(String p) =>
+    [for (final s in p.split('/')) Uri.encodeComponent(s)].join('/');
+
 /// Opens one workspace file for preview, routed by extension — the one
 /// shared path behind the files sheet rows and chat-message file links.
 /// [sessionId] is optional: the files sheet scopes to its chat, message
@@ -43,7 +48,7 @@ Future<void> openWorkspaceFilePreview(
       final auth = ref.read(authControllerProvider);
       openImageViewer(
         context,
-        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/$path',
+        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
             baseUrl: auth.baseUrl, cookie: auth.sid),
       );
       return;
@@ -51,7 +56,7 @@ Future<void> openWorkspaceFilePreview(
     if (htmlExts.contains(ext)) {
       // The WebView container renders html natively (cookie injected) —
       // running it through the markdown viewer mangles the tags.
-      openWebContainer(context, name, '/api/agents/$agentId/files/$path');
+      openWebContainer(context, name, '/api/agents/$agentId/files/${_encodePath(path)}');
       return;
     }
     if (ext == 'pdf') {
@@ -94,16 +99,19 @@ void openChatLink(BuildContext context, WidgetRef ref, String href) {
   }
   final gatewayFile = RegExp(r'^/api/agents/([^/]+)/files/(.+)$').firstMatch(p);
   if (gatewayFile != null) {
+    // href arrives percent-encoded (CJK filenames); the files API keys
+    // objects by the decoded path — decode once, re-encode per use.
+    final decoded = Uri.decodeComponent(gatewayFile[2]!);
     openWorkspaceFilePreview(context, ref,
-        agentId: gatewayFile[1]!, path: gatewayFile[2]!, displayName: gatewayFile[2]!.split('/').last);
+        agentId: gatewayFile[1]!, path: decoded, displayName: decoded.split('/').last);
     return;
   }
   // Bare workspace path (no scheme, has a file extension) — try the
   // selected agent's workspace before punting to the browser. Message
   // breadcrumbs carry the absolute form "/workspace/X" (annotateMessage
-  // WithAttachments), while the files API wants the bare "X" — strip
-  // the prefix.
-  var bare = href;
+  // WithAttachments), while the files API wants the bare "X" — decode,
+  // then strip the prefix.
+  var bare = Uri.decodeComponent(href);
   for (final prefix in const ['/workspace/', 'workspace/']) {
     if (bare.startsWith(prefix)) {
       bare = bare.substring(prefix.length);

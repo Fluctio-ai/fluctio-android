@@ -301,27 +301,39 @@ class _AgentHeader extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    // Plain identity strip — agent switching lives in the chat app bar's
-    // title dropdown, so the drawer copy was redundant.
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Row(
-        children: [
-          const AgentAvatar(size: 44),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(agent?.name ?? '',
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(agent?.model.isEmpty == false ? agent!.model : '',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
-              ],
+    final agents = ref.watch(agentsProvider);
+    // Agent switching lives here (user preference) — the chat app bar
+    // shows the session title instead.
+    return PopupMenuButton<String>(
+      initialValue: agent?.id,
+      onSelected: (id) => ref.read(agentsProvider.notifier).select(id),
+      enabled: agents.agents.length > 1,
+      itemBuilder: (_) => [
+        for (final a in agents.agents)
+          PopupMenuItem(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis)),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        child: Row(
+          children: [
+            const AgentAvatar(size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(agent?.name ?? '',
+                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(agent?.model.isEmpty == false ? agent!.model : '',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (agents.agents.length > 1)
+              Icon(LucideIcons.chevronsUpDown, size: 16, color: theme.colorScheme.outline),
+          ],
+        ),
       ),
     );
   }

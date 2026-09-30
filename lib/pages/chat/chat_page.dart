@@ -191,55 +191,29 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     final chatOnly = activeSessionId == null
         ? false
         : (_chatOnlyLocal[activeSessionId] ?? (activeSession?.chatOnly ?? false));
-    final subtitle = activeSessionId == null
-        ? selected.model
+    final titleText = activeSessionId == null
+        ? l.chatNew
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
+    final subText =
+        '${selected.name}${selected.model.isEmpty ? '' : ' · ${selected.model}'}';
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: PopupMenuButton<String>(
-          initialValue: selected.id,
-          onSelected: (id) => ref.read(agentsProvider.notifier).select(id),
-          itemBuilder: (_) => [
-            for (final a in agents.agents)
-              PopupMenuItem(
-                value: a.id,
-                child: Row(
-                  children: [
-                    Expanded(child: Text(a.name, overflow: TextOverflow.ellipsis)),
-                    if (a.model.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 12),
-                        child: Text(a.model,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: theme.colorScheme.outline)),
-                      ),
-                  ],
-                ),
-              ),
+        // The session title leads (user preference); agent switching
+        // lives in the drawer header. Narrow gutters around the title.
+        titleSpacing: 8,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(titleText,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium),
+            Text(subText,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: theme.colorScheme.outline)),
           ],
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(child: Text(selected.name, style: theme.textTheme.titleMedium, overflow: TextOverflow.ellipsis)),
-                    const Icon(LucideIcons.chevronDown),
-                  ],
-                ),
-                Text(
-                  subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
-                ),
-              ],
-            ),
-          ),
         ),
         actions: activeSessionId == null || activeSessionId.isEmpty
             ? null
