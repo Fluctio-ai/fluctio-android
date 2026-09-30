@@ -369,6 +369,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fileNoPreview => 'Preview not supported for this type';
 
   @override
+  String get mediaPlayFailed => 'Playback failed';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

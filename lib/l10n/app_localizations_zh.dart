@@ -364,6 +364,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fileNoPreview => '该类型暂不支持预览';
 
   @override
+  String get mediaPlayFailed => '播放失败';
+
+  @override
   String get kbQuotes => '金句';
 
   @override

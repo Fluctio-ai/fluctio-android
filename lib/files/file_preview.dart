@@ -11,6 +11,7 @@ import '../pages/chat/chat_image.dart';
 import '../pages/chat/image_viewer.dart';
 import '../l10n/app_localizations.dart';
 import '../util/open_url.dart';
+import 'media_viewer.dart';
 import '../pages/kb/kb_text_view_page.dart';
 import '../webview/web_container.dart';
 import 'agent_files.dart';
@@ -36,6 +37,8 @@ Future<void> openWorkspaceFilePreview(
   final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
   const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
   const htmlExts = {'html', 'htm'};
+  const videoExts = {'mp4', 'mov', 'm4v', 'mkv', 'webm'};
+  const audioExts = {'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'};
   const textExts = {
     'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
     'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
@@ -51,6 +54,21 @@ Future<void> openWorkspaceFilePreview(
         chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
             baseUrl: auth.baseUrl, cookie: auth.sid),
       );
+      return;
+    }
+    if (videoExts.contains(ext) || audioExts.contains(ext)) {
+      // Native players (video_player / just_audio) — media needs real
+      // streaming, not a WebView; the cookie rides the request headers.
+      final auth = ref.read(authControllerProvider);
+      if (!context.mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => MediaViewerPage(
+          title: name,
+          url: '${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
+          kind: videoExts.contains(ext) ? 'video' : 'audio',
+          cookie: auth.sid,
+        ),
+      ));
       return;
     }
     if (htmlExts.contains(ext)) {

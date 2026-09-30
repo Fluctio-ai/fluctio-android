@@ -118,6 +118,7 @@
   "kbEdit": "Edit",
   "chatFiles": "Files",
   "fileNoPreview": "Preview not supported for this type",
+  "mediaPlayFailed": "Playback failed",
   "kbQuotes": "Quotes",
   "kbActions": "Actions",
   "kbGenerating": "Generating…",
