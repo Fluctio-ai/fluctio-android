@@ -800,6 +800,12 @@ abstract class AppLocalizations {
   /// **'文件'**
   String get chatFiles;
 
+  /// No description provided for @fileNoPreview.
+  ///
+  /// In zh, this message translates to:
+  /// **'该类型暂不支持预览'**
+  String get fileNoPreview;
+
   /// No description provided for @kbQuotes.
   ///
   /// In zh, this message translates to:

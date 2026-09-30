@@ -117,6 +117,7 @@
   "kbArchive": "Archive",
   "kbEdit": "Edit",
   "chatFiles": "Files",
+  "fileNoPreview": "Preview not supported for this type",
   "kbQuotes": "Quotes",
   "kbActions": "Actions",
   "kbGenerating": "Generating…",

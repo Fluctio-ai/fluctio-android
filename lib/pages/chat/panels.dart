@@ -4,7 +4,12 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../kb/kb_editor_page.dart';
+import '../kb/kb_text_view_page.dart';
 
+import 'chat_image.dart';
+import 'image_viewer.dart';
+
+import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
 import '../../files/agent_files.dart';
@@ -328,13 +333,51 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
   Future<void> _delete(AgentFile f) async {
     if (!await confirmDelete(context)) return;
     try {
-      await ref.read(agentFilesRepoProvider).delete(_agentId!, f.name);
+      await ref.read(agentFilesRepoProvider).delete(_agentId!, f);
       if (mounted) {
         setState(() => _future = ref.read(agentFilesRepoProvider).list(_agentId!));
       }
     } catch (e) {
       if (mounted) showApiError(context, e);
     }
+  }
+
+  /// Tap previews: text files open the markdown viewer, images the
+  /// fullscreen viewer (cookie-carrying provider), anything else gets a
+  /// gentle no-preview notice.
+  Future<void> _open(BuildContext context, AgentFile f) async {
+    final agentId = _agentId;
+    if (agentId == null) return;
+    final ext = f.name.contains('.')
+        ? f.name.split('.').last.toLowerCase()
+        : '';
+    const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
+    const textExts = {
+      'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
+      'html', 'htm', 'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
+      'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
+    };
+    if (imgExts.contains(ext)) {
+      final auth = ref.read(authControllerProvider);
+      openImageViewer(
+        context,
+        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${f.path}',
+            baseUrl: auth.baseUrl, cookie: auth.sid),
+      );
+      return;
+    }
+    if (!textExts.contains(ext)) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.fileNoPreview)));
+      return;
+    }
+    final repo = ref.read(agentFilesRepoProvider);
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => KbTextViewPage(
+        title: f.name,
+        loadContent: () => repo.fetchText(agentId, f),
+      ),
+    ));
   }
 
   @override
@@ -360,19 +403,31 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                           shrinkWrap: true,
                           children: [
                             for (final f in snap.data!)
-                              ListTile(
-                                dense: true,
-                                leading: Icon(LucideIcons.fileText,
-                                    size: 20, color: theme.colorScheme.outline),
-                                title: Text(f.name,
-                                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                                subtitle: Text(
-                                    '${_fmtSize(f.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(f.modTimeMs))}',
-                                    maxLines: 1),
-                                trailing: IconButton(
-                                  icon: Icon(LucideIcons.trash2,
-                                      size: 18, color: theme.colorScheme.outline),
-                                  onPressed: () => _delete(f),
+                              Slidable(
+                                key: ValueKey('wsfile-${f.path}'),
+                                endActionPane: ActionPane(
+                                  motion: const DrawerMotion(),
+                                  extentRatio: 0.25,
+                                  children: [
+                                    SlidableAction(
+                                      onPressed: (_) => _delete(f),
+                                      backgroundColor: theme.colorScheme.error,
+                                      foregroundColor: theme.colorScheme.onError,
+                                      icon: LucideIcons.trash2,
+                                      label: l.chatDelete,
+                                    ),
+                                  ],
+                                ),
+                                child: ListTile(
+                                  dense: true,
+                                  leading: Icon(LucideIcons.fileText,
+                                      size: 20, color: theme.colorScheme.outline),
+                                  title: Text(f.name,
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  subtitle: Text(
+                                      '${_fmtSize(f.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(f.modTimeMs))}',
+                                      maxLines: 1),
+                                  onTap: () => _open(context, f),
                                 ),
                               ),
                           ],

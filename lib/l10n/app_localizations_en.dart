@@ -366,6 +366,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatFiles => 'Files';
 
   @override
+  String get fileNoPreview => 'Preview not supported for this type';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

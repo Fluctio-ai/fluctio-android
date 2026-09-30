@@ -361,6 +361,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatFiles => '文件';
 
   @override
+  String get fileNoPreview => '该类型暂不支持预览';
+
+  @override
   String get kbQuotes => '金句';
 
   @override
