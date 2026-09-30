@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -46,16 +47,35 @@ class KbNotesPage extends ConsumerWidget {
                     itemCount: list.length,
                     itemBuilder: (context, i) {
                       final n = list[i];
-                      return ListTile(
+                      final scheme = theme.colorScheme;
+                      return Slidable(
+                        key: ValueKey('note-${n.id}'),
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: 0.4,
+                          children: [
+                            SlidableAction(
+                              onPressed: (_) => _edit(context, ref, agentId!, n),
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
+                              icon: LucideIcons.penLine,
+                              label: l.chatRename,
+                            ),
+                            SlidableAction(
+                              onPressed: (_) => _delete(context, ref, agentId!, n),
+                              backgroundColor: scheme.error,
+                              foregroundColor: scheme.onError,
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
-                        trailing: IconButton(
-                          icon: Icon(LucideIcons.trash2,
-                              size: 18, color: theme.colorScheme.outline),
-                          onPressed: () => _delete(context, ref, agentId!, n),
-                        ),
                         onTap: () => _view(context, ref, agentId!, n),
+                      ),
                       );
                     },
                   ),
@@ -70,35 +90,41 @@ class KbNotesPage extends ConsumerWidget {
   /// the old alert-box dialog.
   Future<void> _view(BuildContext context, WidgetRef ref, String agentId, KbNote n) async {
     final l = AppLocalizations.of(context)!;
-    final repo = ref.read(kbRepoProvider);
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => KbTextViewPage(
         title: n.title.isEmpty ? l.noteUntitled : n.title,
         loadContent: () async => n.contentMd,
-        onEdit: (current) async {
-          final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-            builder: (_) => KbEditorPage(
-              heading: l.chatRename,
-              hint: l.noteBodyHint,
-              titleLabel: l.kbTitleOptional,
-              initialTitle: n.title,
-              initialText: current,
-              onSave: (text, title, _) async {
-                try {
-                  await repo.saveNote(agentId, id: n.id, title: title.trim(), contentMd: text);
-                  ref.invalidate(kbNotesProvider(agentId));
-                  return true;
-                } catch (e) {
-                  if (context.mounted) showApiError(context, e);
-                  return false;
-                }
-              },
-            ),
-          ));
-          return saved == true;
+        onEdit: (current) => _edit(context, ref, agentId, n, initialText: current),
+      ),
+    ));
+  }
+
+  /// Full-screen edit (shared by the swipe action and the viewer's
+  /// pencil); [initialText] skips nothing here — notes carry content.
+  Future<bool> _edit(BuildContext context, WidgetRef ref, String agentId, KbNote n,
+      {String? initialText}) async {
+    final l = AppLocalizations.of(context)!;
+    final repo = ref.read(kbRepoProvider);
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: l.chatRename,
+        hint: l.noteBodyHint,
+        titleLabel: l.kbTitleOptional,
+        initialTitle: n.title,
+        initialText: initialText ?? n.contentMd,
+        onSave: (text, title, _) async {
+          try {
+            await repo.saveNote(agentId, id: n.id, title: title.trim(), contentMd: text);
+            ref.invalidate(kbNotesProvider(agentId));
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
         },
       ),
     ));
+    return saved == true;
   }
 
   Future<void> _new(BuildContext context, WidgetRef ref, String agentId) async {

@@ -9,6 +9,7 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import 'kb_editor_page.dart';
 import '../../util/open_url.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
@@ -169,39 +170,29 @@ class _BookmarkActions {
     try {
       switch (action) {
         case 'edit':
-          final title = TextEditingController(text: bookmark.title);
-          final summary = TextEditingController(text: bookmark.summary);
-          final saved = await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(l.chatRename),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                      controller: title,
-                      autofocus: true,
-                      decoration: InputDecoration(hintText: l.kbTitleOptional)),
-                  const SizedBox(height: 8),
-                  TextField(
-                      controller: summary,
-                      maxLines: 3,
-                      decoration: InputDecoration(hintText: l.kbSummary)),
-                ],
-              ),
-              actions: [
-                TextButton(
-                    onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-                FilledButton(
-                    onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
-              ],
+          if (!context.mounted) return;
+          // Full-page editor (title + summary) instead of the old
+          // dialog - same surface as notes/flash edits.
+          await Navigator.of(context).push<bool>(MaterialPageRoute(
+            builder: (_) => KbEditorPage(
+              heading: l.chatRename,
+              hint: l.kbSummary,
+              titleLabel: l.kbTitleOptional,
+              initialTitle: bookmark.title,
+              initialText: bookmark.summary,
+              onSave: (summary, title, _) async {
+                try {
+                  await repo.updateBookmark(agentId, bookmark.id,
+                      title: title.trim(), summary: summary.trim());
+                  ref.invalidate(kbBookmarksProvider(agentId));
+                  return true;
+                } catch (e) {
+                  if (context.mounted) showApiError(context, e);
+                  return false;
+                }
+              },
             ),
-          );
-          if (saved == true) {
-            await repo.updateBookmark(agentId, bookmark.id,
-                title: title.text.trim(), summary: summary.text.trim());
-            ref.invalidate(kbBookmarksProvider(agentId));
-          }
+          ));
         case 'promote':
           await ref.read(kbRepoProvider).promoteBookmark(agentId, bookmark.id);
           ref.invalidate(kbBookmarksProvider(agentId));

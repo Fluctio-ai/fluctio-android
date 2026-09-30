@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -48,15 +49,36 @@ class KbFlashPage extends ConsumerWidget {
                     itemCount: flashes.length,
                     itemBuilder: (context, i) {
                       final s = flashes[i];
-                      return ListTile(
-                        title: Text(s.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))),
-                        trailing: IconButton(
-                          icon: Icon(LucideIcons.trash2,
-                              size: 18, color: theme.colorScheme.outline),
-                          onPressed: () => _delete(context, ref, agentId!, s),
+                      final scheme = theme.colorScheme;
+                      return Slidable(
+                        key: ValueKey('flash-${s.id}'),
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: 0.4,
+                          children: [
+                            SlidableAction(
+                              onPressed: (_) => _edit(context, ref, agentId!, s),
+                              backgroundColor: scheme.primary,
+                              foregroundColor: scheme.onPrimary,
+                              icon: LucideIcons.penLine,
+                              label: l.chatRename,
+                            ),
+                            SlidableAction(
+                              onPressed: (_) => _delete(context, ref, agentId!, s),
+                              backgroundColor: scheme.error,
+                              foregroundColor: scheme.onError,
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
+                            ),
+                          ],
                         ),
-                        onTap: () => _view(context, ref, agentId!, s),
+                        child: ListTile(
+                          title: Text(s.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(DateTime.tryParse(s.updatedAt) == null
+                              ? ''
+                              : formatShortDate(DateTime.parse(s.updatedAt))),
+                          onTap: () => _view(context, ref, agentId!, s),
+                        ),
                       );
                     },
                   ),
@@ -77,28 +99,42 @@ class KbFlashPage extends ConsumerWidget {
         title: s.title.isEmpty ? l.kbIdeas : s.title,
         loadContent: () async =>
             (await repo.entries(agentId, s.id)).map((e) => e.content).join('\n'),
-        onEdit: (current) async {
-          final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-            builder: (_) => KbEditorPage(
-              heading: l.chatRename,
-              hint: l.kbFlashHint,
-              initialText: current,
-              onSave: (text, _, _) async {
-                try {
-                  await repo.updateFlash(agentId, s.id, text.trim());
-                  ref.invalidate(kbSourcesProvider(agentId));
-                  return true;
-                } catch (e) {
-                  if (context.mounted) showApiError(context, e);
-                  return false;
-                }
-              },
-            ),
-          ));
-          return saved == true;
+        onEdit: (current) => _edit(context, ref, agentId, s, initialText: current),
+      ),
+    ));
+  }
+
+  /// Full-screen edit; [initialText] skips the entries fetch when the
+  /// caller already holds the content (the viewer).
+  Future<bool> _edit(BuildContext context, WidgetRef ref, String agentId, KbSource s,
+      {String? initialText}) async {
+    final l = AppLocalizations.of(context)!;
+    final repo = ref.read(kbRepoProvider);
+    var initial = initialText ?? '';
+    if (initialText == null) {
+      try {
+        initial = (await repo.entries(agentId, s.id)).map((e) => e.content).join('\n');
+      } catch (_) {}
+      if (!context.mounted) return false;
+    }
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: l.chatRename,
+        hint: l.kbFlashHint,
+        initialText: initial,
+        onSave: (text, _, _) async {
+          try {
+            await repo.updateFlash(agentId, s.id, text.trim());
+            ref.invalidate(kbSourcesProvider(agentId));
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
         },
       ),
     ));
+    return saved == true;
   }
 
   Future<void> _new(BuildContext context, WidgetRef ref, String agentId) async {

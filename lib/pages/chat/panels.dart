@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
+import '../kb/kb_editor_page.dart';
+
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
 import '../../api/api_client.dart';
@@ -160,26 +162,26 @@ class _SessionMenu extends ConsumerWidget {
 
   static Future<void> promptRename(BuildContext context, WidgetRef ref,
       AppLocalizations l, ChatSessionInfo session) async {
-    final controller = TextEditingController(text: session.title);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.chatRename),
-        content: TextField(controller: controller, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.of(context).pop(controller.text), child: Text(l.chatRename)),
-        ],
+    if (!context.mounted) return;
+    // Full-page editor instead of the old dialog — same surface as the
+    // KB edits.
+    await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => KbEditorPage(
+        heading: l.chatRename,
+        hint: l.chatRename,
+        initialText: session.title,
+        onSave: (text, _, _) async {
+          if (text.trim().isEmpty) return false;
+          try {
+            await ref.read(sessionsProvider.notifier).rename(session.id, text.trim());
+            return true;
+          } catch (e) {
+            if (context.mounted) showApiError(context, e);
+            return false;
+          }
+        },
       ),
-    );
-    if (name != null && name.trim().isNotEmpty) {
-      try {
-        await ref.read(sessionsProvider.notifier).rename(session.id, name.trim());
-      } catch (_) {
-        // Rename failures surface as the stale title.
-      }
-    }
+    ));
   }
 }
 

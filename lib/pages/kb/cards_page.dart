@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -9,6 +10,7 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../ui/dialogs.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
 
@@ -92,6 +94,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final stats = _stats;
+    final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     return Scaffold(
       appBar: AppBar(title: Text(l.kbCards)),
       floatingActionButton: FloatingActionButton(
@@ -147,18 +150,58 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                     // Card library — the stats numbers above finally have
                     // the rows behind them (GET /kb/cards?filter=).
                     for (final c in _cards)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(c.question,
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(c.answer,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: c.dueAt == null
-                            ? null
-                            : Text(formatShortDate(c.dueAt!.toLocal()),
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: theme.colorScheme.outline)),
+                      Slidable(
+                        key: ValueKey('card-${c.id}'),
+                        endActionPane: ActionPane(
+                          motion: const DrawerMotion(),
+                          extentRatio: 0.4,
+                          children: [
+                            SlidableAction(
+                              onPressed: (_) async {
+                                try {
+                                  await ref
+                                      .read(kbRepoProvider)
+                                      .archiveCard(agentId!, c.id, true);
+                                  _load();
+                                } catch (e) {
+                                  if (context.mounted) showApiError(context, e);
+                                }
+                              },
+                              backgroundColor: theme.colorScheme.tertiary,
+                              foregroundColor: theme.colorScheme.onTertiary,
+                              icon: LucideIcons.archive,
+                              label: l.kbArchive,
+                            ),
+                            SlidableAction(
+                              onPressed: (_) async {
+                                if (!await confirmDelete(context)) return;
+                                try {
+                                  await ref.read(kbRepoProvider).deleteCard(agentId!, c.id);
+                                  _load();
+                                } catch (e) {
+                                  if (context.mounted) showApiError(context, e);
+                                }
+                              },
+                              backgroundColor: theme.colorScheme.error,
+                              foregroundColor: theme.colorScheme.onError,
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
+                            ),
+                          ],
+                        ),
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(c.question,
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(c.answer,
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: c.dueAt == null
+                              ? null
+                              : Text(formatShortDate(c.dueAt!.toLocal()),
+                                  style: theme.textTheme.labelSmall
+                                      ?.copyWith(color: theme.colorScheme.outline)),
+                        ),
                       ),
                   ],
                 ),

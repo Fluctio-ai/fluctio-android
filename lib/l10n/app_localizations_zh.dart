@@ -352,6 +352,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbSprouts => '新芽';
 
   @override
+  String get kbArchive => '归档';
+
+  @override
   String get kbQuotes => '金句';
 
   @override

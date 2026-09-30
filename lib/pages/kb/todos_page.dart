@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -8,6 +9,7 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../ui/dialogs.dart';
 import '../../util/dates.dart';
 import 'kb_editor_page.dart';
 
@@ -150,6 +152,17 @@ class KbTodosPage extends ConsumerWidget {
     ));
   }
 
+  static Future<void> _deleteTodo(
+      BuildContext context, WidgetRef ref, String agentId, KbSource todo) async {
+    if (!await confirmDelete(context)) return;
+    try {
+      await ref.read(kbRepoProvider).deleteSource(agentId, todo.id);
+      ref.invalidate(kbTodosProvider(agentId));
+      ref.invalidate(kbSourcesProvider(agentId));
+    } catch (e) {
+      if (context.mounted) showApiError(context, e);
+    }
+  }
 }
 
 class _TodoTile extends ConsumerWidget {
@@ -161,9 +174,11 @@ class _TodoTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    final scheme = theme.colorScheme;
     final done = todo.status == 'done';
     final cancelled = todo.status == 'cancelled';
-    return ListTile(
+    final tile = ListTile(
       dense: true,
       leading: InkWell(
         onTap: () => _toggle(ref),
@@ -175,10 +190,10 @@ class _TodoTile extends ConsumerWidget {
                   : LucideIcons.square,
           size: 20,
           color: done
-              ? theme.colorScheme.primary
+              ? scheme.primary
               : cancelled
-                  ? theme.colorScheme.outline
-                  : theme.colorScheme.outline,
+                  ? scheme.outline
+                  : scheme.outline,
         ),
       ),
       title: Text(
@@ -188,18 +203,38 @@ class _TodoTile extends ConsumerWidget {
         style: done
             ? TextStyle(
                 decoration: TextDecoration.lineThrough,
-                decorationColor: theme.colorScheme.outline,
-                color: theme.colorScheme.outline,
+                decorationColor: scheme.outline,
+                color: scheme.outline,
               )
             : null,
       ),
       subtitle: todo.startAt == null
             ? null
             : Text(formatShortDate(todo.startAt!, withTime: true), maxLines: 1),
-      trailing: IconButton(
-        icon: Icon(LucideIcons.penLine, size: 18, color: theme.colorScheme.outline),
-        onPressed: () => KbTodosPage._edit(context, ref, agentId, todo),
+    );
+    return Slidable(
+      key: ValueKey('todo-${todo.id}'),
+      endActionPane: ActionPane(
+        motion: const DrawerMotion(),
+        extentRatio: 0.4,
+        children: [
+          SlidableAction(
+            onPressed: (_) => KbTodosPage._edit(context, ref, agentId, todo),
+            backgroundColor: scheme.primary,
+            foregroundColor: scheme.onPrimary,
+            icon: LucideIcons.penLine,
+            label: l.chatRename,
+          ),
+          SlidableAction(
+            onPressed: (_) => KbTodosPage._deleteTodo(context, ref, agentId, todo),
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+            icon: LucideIcons.trash2,
+            label: l.chatDelete,
+          ),
+        ],
       ),
+      child: tile,
     );
   }
 
@@ -213,6 +248,4 @@ class _TodoTile extends ConsumerWidget {
       ref.invalidate(kbSourcesProvider(agentId));
     }).catchError((_) {});
   }
-
-
 }

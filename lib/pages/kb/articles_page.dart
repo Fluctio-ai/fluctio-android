@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
-import '../../util/dates.dart';
 import '../../kb/kb_repo.dart';
+import '../../util/dates.dart';
+import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
@@ -102,7 +105,33 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                               itemCount: articles.length,
                               itemBuilder: (context, i) {
                                 final s = articles[i];
-                                return ListTile(
+                                final scheme = theme.colorScheme;
+                                return Slidable(
+                                  key: ValueKey('art-${s.id}'),
+                                  endActionPane: ActionPane(
+                                    motion: const DrawerMotion(),
+                                    extentRatio: 0.25,
+                                    children: [
+                                      SlidableAction(
+                                        onPressed: (_) async {
+                                          if (!await confirmDelete(context)) return;
+                                          try {
+                                            await ref
+                                                .read(kbRepoProvider)
+                                                .deleteSource(agentId!, s.id);
+                                            ref.invalidate(kbSourcesProvider(agentId));
+                                          } catch (e) {
+                                            if (context.mounted) showApiError(context, e);
+                                          }
+                                        },
+                                        backgroundColor: scheme.error,
+                                        foregroundColor: scheme.onError,
+                                        icon: LucideIcons.trash2,
+                                        label: l.chatDelete,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ListTile(
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
@@ -111,6 +140,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   ),
                                   onTap: () => context.push(
                                       '/kb/articles/${Uri.encodeComponent(s.id)}?title=${Uri.encodeComponent(s.title)}'),
+                                ),
                                 );
                               },
                             ),

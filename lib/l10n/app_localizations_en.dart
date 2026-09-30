@@ -357,6 +357,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbSprouts => 'Sprouts';
 
   @override
+  String get kbArchive => 'Archive';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

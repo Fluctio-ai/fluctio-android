@@ -782,6 +782,12 @@ abstract class AppLocalizations {
   /// **'新芽'**
   String get kbSprouts;
 
+  /// No description provided for @kbArchive.
+  ///
+  /// In zh, this message translates to:
+  /// **'归档'**
+  String get kbArchive;
+
   /// No description provided for @kbQuotes.
   ///
   /// In zh, this message translates to:

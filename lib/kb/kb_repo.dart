@@ -179,6 +179,9 @@ class KbRepo {
       ? _dio.post('/api/agents/$agentId/kb/cards/$cardId/archive')
       : _dio.post('/api/agents/$agentId/kb/cards/$cardId/restore');
 
+  Future<void> deleteCard(String agentId, String cardId) =>
+      _dio.delete('/api/agents/$agentId/kb/cards/$cardId');
+
   // ---- notes (ticket 06) ----
 
   Future<List<KbNote>> notes(String agentId) async => parseRows(
