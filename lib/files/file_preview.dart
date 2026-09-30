@@ -99,13 +99,22 @@ void openChatLink(BuildContext context, WidgetRef ref, String href) {
     return;
   }
   // Bare workspace path (no scheme, has a file extension) — try the
-  // selected agent's workspace before punting to the browser.
+  // selected agent's workspace before punting to the browser. Message
+  // breadcrumbs carry the absolute form "/workspace/X" (annotateMessage
+  // WithAttachments), while the files API wants the bare "X" — strip
+  // the prefix.
+  var bare = href;
+  for (final prefix in const ['/workspace/', 'workspace/']) {
+    if (bare.startsWith(prefix)) {
+      bare = bare.substring(prefix.length);
+      break;
+    }
+  }
   final agentId = ref.read(agentsProvider).selectedId;
   if (agentId != null &&
       !href.contains('://') &&
-      RegExp(r'\.?[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,6}$').hasMatch(href)) {
-    openWorkspaceFilePreview(context, ref,
-        agentId: agentId, path: href.startsWith('/') ? href.substring(1) : href);
+      RegExp(r'\.?[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,6}$').hasMatch(bare)) {
+    openWorkspaceFilePreview(context, ref, agentId: agentId, path: bare);
     return;
   }
   openExternalUrl(href);
