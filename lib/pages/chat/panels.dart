@@ -52,7 +52,7 @@ class SessionTile extends ConsumerWidget {
         children: [
           if (session.chatOnly)
             Padding(
-              padding: const EdgeInsets.only(right: 4),
+              padding: const EdgeInsets.only(right: 2),
               child: Tooltip(
                 message: l.chatOnlyMode,
                 child: Icon(LucideIcons.messageCircle,
@@ -80,6 +80,9 @@ class _SessionMenu extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       onSelected: (action) => _run(context, ref, action),
+      // Tight padding keeps the ⋯ hugging the row's right edge — the
+      // default 8px inset eats title width.
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       icon: Icon(LucideIcons.ellipsisVertical, size: 18, color: Theme.of(context).colorScheme.outline),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),

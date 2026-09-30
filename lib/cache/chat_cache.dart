@@ -77,8 +77,12 @@ class ChatCache {
       for (final r in rows)
         CachedSession(
           sessionId: r['session_id'] as String,
-          title: r['title'] as String,
-          preview: r['preview'] as String,
+          // Rows written before the chat-history fix may hold stale
+          // "Instance of …" strings — blank them so tiles fall back to
+          // their placeholders instead of object toStrings.
+          title: (r['title'] as String).startsWith('Instance of') ? '' : r['title'] as String,
+          preview:
+              (r['preview'] as String).startsWith('Instance of') ? '' : r['preview'] as String,
           updatedAt: r['updated_at'] as int,
           chatOnly: (r['chat_only'] as int) == 1,
         ),

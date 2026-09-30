@@ -60,11 +60,17 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
             ? const SkeletonProse()
             : snap.hasError
                 ? ErrorPane(message: AppLocalizations.of(context)!.chatHistoryError)
-                : MarkdownBody(
-                    data: snap.data ?? '',
-                    extensionSet: md.ExtensionSet.gitHubWeb,
-                    builders: markdownBuilders,
-                    styleSheet: markdownStyle(context),
+                : SingleChildScrollView(
+                    // MarkdownBody is non-scrolling on its own — without
+                    // this wrapper long content overflows (yellow-black
+                    // stripes) and can't be scrolled.
+                    padding: const EdgeInsets.all(16),
+                    child: MarkdownBody(
+                      data: snap.data ?? '',
+                      extensionSet: md.ExtensionSet.gitHubWeb,
+                      builders: markdownBuilders,
+                      styleSheet: markdownStyle(context),
+                    ),
                   ),
       ),
     );

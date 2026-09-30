@@ -47,12 +47,20 @@ class KbBookmarksPage extends ConsumerWidget {
                     itemBuilder: (context, i) {
                       final b = list[i];
                       return ListTile(
-                        leading: b.promoted
-                            ? Icon(LucideIcons.checkCircle2,
-                                size: 20, color: theme.colorScheme.primary)
-                            : const Icon(LucideIcons.bookmark, size: 20),
-                        title: Text(b.title.isEmpty ? b.url : b.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        title: Row(
+                          children: [
+                            if (b.promoted)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 4),
+                                child: Icon(LucideIcons.checkCircle2,
+                                    size: 14, color: theme.colorScheme.primary),
+                              ),
+                            Expanded(
+                              child: Text(b.title.isEmpty ? b.url : b.title,
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ),
                         subtitle: Text(
                           b.summary.isEmpty ? _host(b.url) : b.summary,
                           maxLines: 1,

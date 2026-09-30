@@ -143,6 +143,15 @@ class KbRepo {
 
   // ---- cards (ticket 06) ----
 
+  /// Card library (non-queue): first page by filter.
+  Future<List<KbCard>> cardList(String agentId,
+          {String filter = 'active', int limit = 100}) async =>
+      parseRows(
+          (await _dio.get('/api/agents/$agentId/kb/cards',
+                  queryParameters: {'filter': filter, 'limit': limit}))
+              .data,
+          fromJson: KbCard.fromJson);
+
   /// Review queue: most-overdue first.
   Future<List<KbCard>> cardQueue(String agentId, {int limit = 50}) async => parseRows(
       (await _dio.get('/api/agents/$agentId/kb/cards',

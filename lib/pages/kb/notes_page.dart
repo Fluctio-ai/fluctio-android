@@ -9,7 +9,6 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
-import '../../webview/web_container.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
 
@@ -48,26 +47,13 @@ class KbNotesPage extends ConsumerWidget {
                     itemBuilder: (context, i) {
                       final n = list[i];
                       return ListTile(
-                        leading: const Icon(LucideIcons.notebookPen, size: 20),
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: l.noteWhiteboard,
-                              icon: Icon(LucideIcons.penTool,
-                                  size: 18, color: theme.colorScheme.primary),
-                              onPressed: () => openWebContainer(context, l.noteWhiteboard,
-                                  WebRoutes.noteEditor(agentId!)),
-                            ),
-                            IconButton(
-                              icon: Icon(LucideIcons.trash2,
-                                  size: 18, color: theme.colorScheme.outline),
-                              onPressed: () => _delete(context, ref, agentId!, n),
-                            ),
-                          ],
+                        trailing: IconButton(
+                          icon: Icon(LucideIcons.trash2,
+                              size: 18, color: theme.colorScheme.outline),
+                          onPressed: () => _delete(context, ref, agentId!, n),
                         ),
                         onTap: () => _view(context, ref, agentId!, n),
                       );

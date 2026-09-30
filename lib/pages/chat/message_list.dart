@@ -209,17 +209,20 @@ class _UserBubble extends ConsumerWidget {
       child: Align(
         alignment: Alignment.centerRight,
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
           constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
           decoration: BoxDecoration(
             // Web: primary/10 tint with primary text (light theme = our
-            // primaryContainer accent + onPrimaryContainer).
+            // primaryContainer accent + onPrimaryContainer). Corners:
+            // rounded-2xl with the sender-side corner pulled in
+            // (rounded-br-md) — the user sits right, the assistant left,
+            // so the tails face who spoke.
             color: scheme.primaryContainer,
             borderRadius: const BorderRadius.only(
-              topLeft: AppRadius.nested,
-              topRight: AppRadius.card,
-              bottomLeft: AppRadius.card,
-              bottomRight: AppRadius.card,
+              topLeft: AppRadius.fullscreen,
+              topRight: AppRadius.fullscreen,
+              bottomLeft: AppRadius.fullscreen,
+              bottomRight: AppRadius.control,
             ),
             border: entry.failed ? Border.all(color: scheme.error) : null,
           ),
@@ -294,17 +297,18 @@ class _AssistantBubble extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Web agent bubble: bg-muted rounded-2xl with one tight corner
-          // (chat-screen.tsx renderRegularBubble). Accidentally flattened
-          // in 35273ff's layout pass — restored per the web contract.
+          // Web agent bubble: bg-muted rounded-2xl with the sender-side
+          // corner pulled in (chat-screen.tsx renderRegularBubble,
+          // rounded-bl-md). Accidentally flattened in 35273ff's layout
+          // pass — restored per the web contract.
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
               color: theme.colorScheme.secondaryContainer,
               borderRadius: const BorderRadius.only(
-                topLeft: AppRadius.nested,
+                topLeft: AppRadius.fullscreen,
                 topRight: AppRadius.fullscreen,
-                bottomLeft: AppRadius.fullscreen,
+                bottomLeft: AppRadius.control,
                 bottomRight: AppRadius.fullscreen,
               ),
               border: Border.all(color: theme.colorScheme.outlineVariant),
@@ -360,6 +364,14 @@ MarkdownStyleSheet markdownStyle(BuildContext context) {
   final lineHeight = zhScope ? 1.7 : 1.5;
   return MarkdownStyleSheet.fromTheme(theme).copyWith(
     p: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
+    // Compact heading ladder close to the body size — fromTheme's
+    // display-scale defaults made h1 tower over an otherwise 15px body.
+    h1: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 1.4),
+    h2: theme.textTheme.titleMedium?.copyWith(fontSize: 18, fontWeight: FontWeight.w600, height: 1.4),
+    h3: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, height: 1.45),
+    h4: theme.textTheme.bodyLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.w600, height: lineHeight),
+    h5: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600, height: lineHeight),
+    h6: theme.textTheme.bodySmall?.copyWith(fontSize: 13, fontWeight: FontWeight.w500, height: lineHeight),
     listBullet: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
     blockquote: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
     code: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 13),

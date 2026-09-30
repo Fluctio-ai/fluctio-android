@@ -10,6 +10,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../theme/tokens.dart';
+import '../../util/dates.dart';
 
 /// Cards dashboard: stats header, start-review CTA over the due queue,
 /// manual card creation.
@@ -23,6 +24,7 @@ class KbCardsPage extends ConsumerStatefulWidget {
 class _KbCardsPageState extends ConsumerState<KbCardsPage> {
   KbCardStats? _stats;
   int _queueLength = 0;
+  List<KbCard> _cards = const [];
   String? _error;
 
   @override
@@ -35,14 +37,17 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return;
     try {
-      final (stats, queue) = await (
-        ref.read(kbRepoProvider).cardStats(agentId),
-        ref.read(kbRepoProvider).cardQueue(agentId),
+      final repo = ref.read(kbRepoProvider);
+      final (stats, queue, cards) = await (
+        repo.cardStats(agentId),
+        repo.cardQueue(agentId),
+        repo.cardList(agentId),
       ).wait;
       if (!mounted) return;
       setState(() {
         _stats = stats;
         _queueLength = queue.length;
+        _cards = cards;
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
@@ -138,6 +143,22 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                 ?.copyWith(color: theme.colorScheme.outline),
                           ),
                         ),
+                      ),
+                    // Card library — the stats numbers above finally have
+                    // the rows behind them (GET /kb/cards?filter=).
+                    for (final c in _cards)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(c.question,
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(c.answer,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: c.dueAt == null
+                            ? null
+                            : Text(formatShortDate(c.dueAt!.toLocal()),
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: theme.colorScheme.outline)),
                       ),
                   ],
                 ),
