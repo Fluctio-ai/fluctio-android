@@ -33,12 +33,10 @@ class LocalWebServer {
   String? _cookie;
   String? _root;
   bool _ready = false;
-  bool _dark = false;
 
-  void configure(Dio dio, String? cookie, {bool dark = false}) {
+  void configure(Dio dio, String? cookie) {
     _dio = dio;
     _cookie = cookie;
-    _dark = dark;
   }
 
   Future<int> ensureStarted() async {
@@ -177,20 +175,8 @@ class LocalWebServer {
     Future<bool> send(File f) async {
       if (!await f.exists()) return false;
       res.statusCode = HttpStatus.ok;
-      res.headers.set(HttpHeaders.cacheControlHeader, 'max-age=3600');
-      if (f.path.endsWith('.html') && _dark) {
-        // Dark at BOOT: theme-dependent JS (the wiki graph paints a
-        // canvas from CSS variables at init) can't be repainted by the
-        // post-load class injection — patch the class onto <html> in
-        // the served shell itself.
-        final html = await f.readAsString();
-        final patched = html.replaceFirst('<html', '<html class="dark"', 1);
-        res.headers.set(HttpHeaders.contentTypeHeader, 'text/html; charset=utf-8');
-        res.add(utf8.encode(patched));
-        await res.close();
-        return true;
-      }
       res.headers.set(HttpHeaders.contentTypeHeader, _mime(f.path));
+      res.headers.set(HttpHeaders.cacheControlHeader, 'max-age=3600');
       await res.addStream(f.openRead());
       await res.close();
       return true;
