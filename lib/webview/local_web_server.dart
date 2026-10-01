@@ -174,6 +174,7 @@ class LocalWebServer {
 
     Future<bool> send(File f) async {
       if (!await f.exists()) return false;
+      debugPrint('[webui] static ${req.uri.path} -> 200');
       res.statusCode = HttpStatus.ok;
       res.headers.set(HttpHeaders.contentTypeHeader, _mime(f.path));
       res.headers.set(HttpHeaders.cacheControlHeader, 'max-age=3600');
@@ -206,6 +207,7 @@ class LocalWebServer {
     final looksLikePage = !path.contains('.') || path.endsWith('.html');
     if (looksLikePage && await send(File('$root/index.html'))) return;
 
+    debugPrint('[webui] static ${req.uri.path} -> 404');
     res.statusCode = HttpStatus.notFound;
     await res.close();
   }
