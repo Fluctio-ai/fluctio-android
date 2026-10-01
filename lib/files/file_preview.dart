@@ -51,15 +51,15 @@ Future<void> openWorkspaceFilePreview(
   // so a shallow-rooted guess can miss. Probe the original path, then
   // prefix-swap candidates, and use the first that exists.
   path = await _resolveExisting(repo, agentId, path, sessionId);
-  final file = AgentFile(path: path, name: name, size: 0, modTimeMs: 0);
+  String gatewayUrl(String path) =>
+      '${ref.read(authControllerProvider).baseUrl}/api/agents/$agentId/files/${_encodePath(path)}';
   try {
     if (imgExts.contains(ext)) {
       final auth = ref.read(authControllerProvider);
       if (!context.mounted) return;
       openImageViewer(
         context,
-        chatImageProvider('${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
-            baseUrl: auth.baseUrl, cookie: auth.sid),
+        chatImageProvider(gatewayUrl(path), baseUrl: auth.baseUrl, cookie: auth.sid),
       );
       return;
     }
@@ -85,14 +85,14 @@ Future<void> openWorkspaceFilePreview(
       // Probe first via dio — a 404 inside the WebView is undiagnosable
       // (raw backend JSON, no URL); the probe funnels failures into the
       // URL-showing snackbar below.
-      await repo.fetchBytes(agentId, file, sessionId: sessionId);
+      await repo.fetchBytes(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
-      openWebContainer(context, name, '/api/agents/$agentId/files/${_encodePath(path)}');
+      openWebContainer(context, name, gatewayUrl(path));
       return;
     }
     if (ext == 'pdf') {
       // Native pdfium rendering (pdfrx) — WebView can't embed pdfs.
-      final bytes = await repo.fetchBytes(agentId, file, sessionId: sessionId);
+      final bytes = await repo.fetchBytes(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => Scaffold(
@@ -103,7 +103,7 @@ Future<void> openWorkspaceFilePreview(
       return;
     }
     if (textExts.contains(ext)) {
-      final text = await repo.fetchText(agentId, file, sessionId: sessionId);
+      final text = await repo.fetchText(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => KbTextViewPage(

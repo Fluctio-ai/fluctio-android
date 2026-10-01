@@ -293,10 +293,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOnlyChip => 'Chat only';
 
   @override
-  String get chatOnlyNeedsMessage =>
-      'Send a message first to create the session';
-
-  @override
   String get kbEmpty => 'Nothing here yet';
 
   @override

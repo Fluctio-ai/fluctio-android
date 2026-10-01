@@ -89,15 +89,15 @@ class AgentFilesRepo {
       _dio.head('/api/agents/$agentId/files/$path', queryParameters: _query(sessionId));
 
   /// Plain-text fetch for previewing text files.
-  Future<String> fetchText(String agentId, AgentFile f, {String? sessionId}) async =>
-      (await _dio.get('/api/agents/$agentId/files/${f.path}',
+  Future<String> fetchText(String agentId, String path, {String? sessionId}) async =>
+      (await _dio.get('/api/agents/$agentId/files/$path',
               queryParameters: _query(sessionId),
               options: Options(responseType: ResponseType.plain)))
           .data as String;
 
   /// Binary fetch for previewing pdf files.
-  Future<List<int>> fetchBytes(String agentId, AgentFile f, {String? sessionId}) async =>
-      (await _dio.get('/api/agents/$agentId/files/${f.path}',
+  Future<List<int>> fetchBytes(String agentId, String path, {String? sessionId}) async =>
+      (await _dio.get('/api/agents/$agentId/files/$path',
               queryParameters: _query(sessionId),
               options: Options(responseType: ResponseType.bytes)))
           .data as List<int>;

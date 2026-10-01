@@ -289,9 +289,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatOnlyChip => '仅对话';
 
   @override
-  String get chatOnlyNeedsMessage => '先发送一条消息创建会话后即可切换';
-
-  @override
   String get kbEmpty => '暂无内容';
 
   @override
