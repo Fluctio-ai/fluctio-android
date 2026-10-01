@@ -46,6 +46,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   // Resolved in build() — Theme.of is illegal in initState and flaky in
   // async callbacks; the injection callback reads this field.
   bool _dark = false;
+  bool _themePreseeded = false;
   double _progress = 0;
 
   Future<void> _load() async {
@@ -86,6 +87,16 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
             // meaningful deltas.
             final v = p / 100.0;
             if (v - _progress >= 0.1 || v >= 1.0) setState(() => _progress = v);
+            // One early localStorage write, racing the web app's mount:
+            // its ThemeProvider defaults to dark and reads the key once
+            // on mount — winning this race removes the dark flash (and
+            // the corrective reload) for light-mode users. Best-effort;
+            // the onPageFinished injection still settles it either way.
+            if (!_themePreseeded && p > 0) {
+              _themePreseeded = true;
+              _controller?.runJavaScript(
+                  "localStorage.setItem('fluctio-theme','${_dark ? 'dark' : 'light'}');");
+            }
           },
           onPageFinished: (_) {
             setState(() => _stackIndex = 1);
