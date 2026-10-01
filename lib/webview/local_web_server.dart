@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
@@ -111,13 +113,26 @@ class LocalWebServer {
       await req.response.close();
       return;
     }
-    final upstream = await dio.get<ResponseBody>(
+    final builder = await req.fold<BytesBuilder>(BytesBuilder(), (b, d) => b..add(d));
+    final body = builder.takeBytes();
+    final ct = req.headers.value(HttpHeaders.contentTypeHeader);
+    final upstream = await dio.request<ResponseBody>(
       req.uri.toString(),
+      // Uint8List rides as RAW bytes — a plain List<int> makes dio
+      // json-encode it into an array, which the Go handlers reject
+      // ("cannot unmarshal array").
+      data: body.isEmpty ? null : Uint8List.fromList(body),
       options: Options(
+        method: req.method,
         responseType: ResponseType.stream,
+        // Pass every status through untouched — dio's default throws
+        // on 4xx/5xx, which surfaced as proxy 500s and endless client
+        // retries (the skeleton-refresh loop).
+        validateStatus: (_) => true,
         headers: {
           if (_cookie != null && _cookie!.isNotEmpty)
             'cookie': 'fluctio_session=$_cookie',
+          if (ct != null) HttpHeaders.contentTypeHeader: ct,
         },
       ),
     );
@@ -127,6 +142,7 @@ class LocalWebServer {
     if (v != null) res.headers.set(HttpHeaders.contentTypeHeader, v);
     await res.addStream(upstream.data!.stream.cast<List<int>>());
     await res.close();
+    debugPrint('[webui] ${req.method} ${req.uri.path} -> ${res.statusCode}');
   }
 
   Future<void> _serveFile(HttpRequest req) async {
@@ -167,6 +183,21 @@ class LocalWebServer {
 
     if (await send(File('$root/$path'))) return;
     if (!path.endsWith('.html') && await send(File('$root/$path/index.html'))) return;
+
+    // Dynamic-[id] rewrite: the export materialized only `default`,
+    // but URLs carry the real agent id. Shells/chunks are identical —
+    // map any agent id onto the default snapshot (the URL keeps the
+    // real id, so the router renders the right page and data comes
+    // from /api). RSC payload files (.txt) are NOT rewritten: stale
+    // default data would poison the router; a miss makes the client
+    // fall back to /api fetches.
+    final segs = path.split('/');
+    final isRsc = path.endsWith('.txt');
+    if (!isRsc && segs.length > 2 && segs[0] == 'agents' && segs[1] != 'default') {
+      segs[1] = 'default';
+      if (await send(File('$root/${segs.join('/')}'))) return;
+      if (!path.endsWith('.html') && await send(File('$root/${segs.join('/')}/index.html'))) return;
+    }
 
     // SPA fallback — page navigations only (no extension, or .html):
     // a JS/RSC/txt miss must 404, otherwise the router parses HTML as

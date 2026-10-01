@@ -79,7 +79,22 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
             final v = p / 100.0;
             if (v - _progress >= 0.1 || v >= 1.0) setState(() => _progress = v);
           },
-          onPageFinished: (_) => setState(() => _stackIndex = 1),
+          onPageFinished: (_) {
+            setState(() => _stackIndex = 1);
+            // Hide the web app's own sidebar (trigger + container): the
+            // app already owns navigation (drawer/tabs), a second rail
+            // inside the container is noise. Re-injected per navigation.
+            _controller?.runJavaScript('''
+(function(){
+  var s=document.createElement('style');
+  s.id='fluctio-hide-sidebar';
+  s.textContent='[data-sidebar="trigger"]{display:none!important}'
+    +'[data-slot="sidebar-container"]{display:none!important}'
+    +'[data-slot="sidebar-inset"]{margin:0!important;min-width:0!important}';
+  if(!document.getElementById('fluctio-hide-sidebar')) document.head.appendChild(s);
+})();
+''');
+          },
           onWebResourceError: (e) {
             if (e.isForMainFrame == true && _stackIndex != 1) {
               setState(() => _stackIndex = 2);
