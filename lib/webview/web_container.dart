@@ -56,8 +56,9 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
     // self-signed TLS, /api proxied with the session cookie. Absent
     // snapshot falls back to the live site with cookie injection.
     var target = '${auth.baseUrl}${widget.path}';
+    final dark = Theme.of(context).brightness == Brightness.dark;
     if (await _hasBundledWebUi()) {
-      LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid);
+      LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid, dark: dark);
       target = await LocalWebServer.instance.urlFor(widget.path);
     } else {
       // Inject the session cookie for the gateway host (token spike result:
