@@ -94,10 +94,23 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
             // prefers-color-scheme, so sync it here. Also hides the web
             // app's own sidebar (trigger + container) — the app already
             // owns navigation (drawer/tabs). Re-injected per navigation.
-            final dark = _dark;
+            // The web app's ThemeProvider (and the graph engine behind
+            // it) reads localStorage['fluctio-theme'] ONCE on mount —
+            // the class alone can't steer React-driven colors. Write
+            // the app's mode into that key; when it changed, reload
+            // once so the provider re-mounts with the right mode
+            // (local loads are instant). Afterwards keep the class and
+            // sidebar css in sync per navigation.
+            final mode = _dark ? 'dark' : 'light';
             _controller?.runJavaScript('''
 (function(){
-  document.documentElement.classList.${dark ? 'add' : 'remove'}('dark');
+  var mode = '$mode';
+  if (localStorage.getItem('fluctio-theme') !== mode) {
+    localStorage.setItem('fluctio-theme', mode);
+    location.reload();
+    return;
+  }
+  document.documentElement.classList.toggle('dark', mode === 'dark');
   var s=document.createElement('style');
   s.id='fluctio-hide-sidebar';
   s.textContent='[data-sidebar="trigger"]{display:none!important}'
