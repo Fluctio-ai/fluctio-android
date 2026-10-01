@@ -42,6 +42,7 @@ class WebContainerPage extends ConsumerStatefulWidget {
 class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   WebViewController? _controller;
   int _stackIndex = 0; // 0 = loading, 1 = content, 2 = error
+  bool _local = false;
   double _progress = 0;
 
   Future<void> _load() async {
@@ -60,6 +61,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
     if (await _hasBundledWebUi()) {
       LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid, dark: dark);
       target = await LocalWebServer.instance.urlFor(widget.path);
+      _local = true;
     } else {
       // Inject the session cookie for the gateway host (token spike result:
       // cookie injection — the web pages authenticate exactly like a
@@ -156,20 +158,24 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       body: IndexedStack(
         index: _stackIndex,
         children: [
-          // 0: loading
-          Center(
-            child: SizedBox(
-              width: 180,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(value: _progress == 0 ? null : _progress),
-                  const SizedBox(height: 8),
-                  Text(l.webLoading, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
-          ),
+          // 0: loading — blank in local mode (assets answer in
+          // milliseconds; a spinner flash is pure noise). Online keeps
+          // the progress view.
+          _local
+              ? const SizedBox.expand()
+              : Center(
+                  child: SizedBox(
+                    width: 180,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+                        const SizedBox(height: 8),
+                        Text(l.webLoading, style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ),
           // 1: content
           _controller == null
               ? const SizedBox.shrink()
