@@ -5,6 +5,7 @@ import 'auth/auth_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_mode.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +25,8 @@ class FluctioApp extends ConsumerWidget {
       title: 'fluctio',
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      // Follow the system theme; a manual toggle arrives with the
-      // settings ticket.
-      themeMode: ThemeMode.system,
+      // Manual theme setting (drawer toggle) — falls back to system.
+      themeMode: ref.watch(themeModeProvider),
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: ref.watch(routerProvider),

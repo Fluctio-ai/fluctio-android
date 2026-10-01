@@ -368,6 +368,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mediaPlayFailed => 'Playback failed';
 
   @override
+  String get themeTitle => 'Appearance';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
   String get kbQuotes => 'Quotes';
 
   @override

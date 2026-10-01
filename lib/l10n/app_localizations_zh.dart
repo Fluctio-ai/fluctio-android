@@ -364,6 +364,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mediaPlayFailed => '播放失败';
 
   @override
+  String get themeTitle => '外观';
+
+  @override
+  String get themeSystem => '跟随系统';
+
+  @override
+  String get themeLight => '浅色';
+
+  @override
+  String get themeDark => '深色';
+
+  @override
   String get kbQuotes => '金句';
 
   @override

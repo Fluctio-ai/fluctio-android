@@ -10,6 +10,8 @@ import '../update/update_service.dart';
 import 'agents/agent_settings_page.dart';
 import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/theme_mode.dart';
+import 'chat/chat_image.dart';
 import '../theme/tokens.dart';
 
 /// Me tab per the prototype: profile header + grouped settings. Absorbs
@@ -104,6 +106,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
               ],
             ),
+          ),
+          _groupTitle(context, l.themeTitle),
+          _card(
+            context,
+            [
+              Consumer(builder: (context, ref, _) {
+                final mode = ref.watch(themeModeProvider);
+                return _item(
+                  context,
+                  icon: LucideIcons.palette,
+                  label: l.themeTitle,
+                  trailing: SegmentedButton<ThemeMode>(
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(value: ThemeMode.system, tooltip: l.themeSystem, icon: const Icon(LucideIcons.monitor, size: 16)),
+                      ButtonSegment(value: ThemeMode.light, tooltip: l.themeLight, icon: const Icon(LucideIcons.sun, size: 16)),
+                      ButtonSegment(value: ThemeMode.dark, tooltip: l.themeDark, icon: const Icon(LucideIcons.moon, size: 16)),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
+                  ),
+                );
+              }),
+            ],
           ),
           _groupTitle(context, l.meAgents),
           _card(
@@ -286,12 +316,24 @@ class _UserAvatar extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final label = auth.userLabel;
     final initial = (label == null || label.isEmpty) ? '?' : label.characters.first.toUpperCase();
-    return CircleAvatar(
+    Widget fallback = CircleAvatar(
       radius: 30,
       backgroundColor: scheme.primaryContainer,
       child: Text(
         initial,
         style: theme.textTheme.titleMedium?.copyWith(color: scheme.onPrimaryContainer),
+      ),
+    );
+    if (auth.sid == null || auth.sid!.isEmpty) return fallback;
+    // GET /api/me/avatar — cookie-gated, same loading path as chat images.
+    return ClipOval(
+      child: Image(
+        image: chatImageProvider('${auth.baseUrl}/api/me/avatar',
+            baseUrl: auth.baseUrl, cookie: auth.sid),
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
       ),
     );
   }

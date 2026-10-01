@@ -57,15 +57,27 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
     // self-signed TLS, /api proxied with the session cookie. Absent
     // snapshot falls back to the live site with cookie injection.
     var target = '${auth.baseUrl}${widget.path}';
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final cookieManager = WebViewCookieManager();
     if (await _hasBundledWebUi()) {
       LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid);
       target = await LocalWebServer.instance.urlFor(widget.path);
       _local = true;
+      // Theme via cookie + document-start script: the class lands on
+      // <html> BEFORE any page JS runs (graph canvases read theme
+      // colors at init — a post-load injection can't repaint them and
+      // boot-time HTML patching breaks hydration). The cookie makes the
+      // registered script dynamic per open.
+      await cookieManager.setCookie(WebViewCookie(
+        name: 'fluctio_theme',
+        value: dark ? 'dark' : 'light',
+        domain: '127.0.0.1',
+        path: '/',
+      ));
     } else {
       // Inject the session cookie for the gateway host (token spike result:
       // cookie injection — the web pages authenticate exactly like a
       // browser; URL params and localStorage are not needed).
-      final cookieManager = WebViewCookieManager();
       if (auth.sid != null && auth.sid!.isNotEmpty) {
         await cookieManager.setCookie(sessionWebViewCookie(auth.sid!, base));
       }
@@ -75,6 +87,15 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       ..setBackgroundColor(Colors.transparent)
       ..setNavigationDelegate(
         NavigationDelegate(
+          // Earliest injection point (this plugin exposes no document-
+          // start scripts): still before hydration/component init, so
+          // theme-dependent canvases (graph) read the right mode.
+          onPageStarted: (url) {
+            if (url.startsWith('http://127.0.0.1')) {
+              _controller?.runJavaScript(
+                  "document.documentElement.classList.${dark ? 'add' : 'remove'}('dark');");
+            }
+          },
           onProgress: (p) {
             // Progress fires dozens of times per load; only rebuild on
             // meaningful deltas.
