@@ -43,6 +43,9 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   WebViewController? _controller;
   int _stackIndex = 0; // 0 = loading, 1 = content, 2 = error
   bool _local = false;
+  // Resolved in build() — Theme.of is illegal in initState and flaky in
+  // async callbacks; the injection callback reads this field.
+  bool _dark = false;
   double _progress = 0;
 
   Future<void> _load() async {
@@ -57,7 +60,6 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
     // self-signed TLS, /api proxied with the session cookie. Absent
     // snapshot falls back to the live site with cookie injection.
     var target = '${auth.baseUrl}${widget.path}';
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final cookieManager = WebViewCookieManager();
     if (await _hasBundledWebUi()) {
       LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid);
@@ -92,7 +94,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
             // prefers-color-scheme, so sync it here. Also hides the web
             // app's own sidebar (trigger + container) — the app already
             // owns navigation (drawer/tabs). Re-injected per navigation.
-            final dark = Theme.of(context).brightness == Brightness.dark;
+            final dark = _dark;
             _controller?.runJavaScript('''
 (function(){
   document.documentElement.classList.${dark ? 'add' : 'remove'}('dark');
@@ -141,6 +143,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    _dark = theme.brightness == Brightness.dark;
     // No app-bar back button: the embedded web pages carry their own
     // back affordance, so an automatic leading arrow doubled it up. The
     // system gesture/back key walks the web history first, then pops
