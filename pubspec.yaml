@@ -28,6 +28,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  archive: ^4.3.0
+  path_provider: ^2.1.0
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -79,6 +81,11 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   generate: true
+
+  # Route A bundled webui (wiki/workflows shells; synced by
+  # tool/sync_webui.py from fastclaw's next export).
+  assets:
+    - assets/webui.zip
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

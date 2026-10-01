@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../auth/session_cookie.dart';
 import '../l10n/app_localizations.dart';
+import 'local_web_server.dart';
 
 /// Web-app routes the native app embeds in the fallback container — the
 /// WebView-fallback contract in one place (a web-side rename breaks here,
@@ -48,12 +51,22 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       setState(() => _stackIndex = 2);
       return;
     }
-    // Inject the session cookie for the gateway host (token spike result:
-    // cookie injection — the web pages authenticate exactly like a
-    // browser; URL params and localStorage are not needed).
-    final cookieManager = WebViewCookieManager();
-    if (auth.sid != null && auth.sid!.isNotEmpty) {
-      await cookieManager.setCookie(sessionWebViewCookie(auth.sid!, base));
+    // Route A (bundled webui): serve the next-export snapshot from
+    // assets through the local loopback server — instant loads, no
+    // self-signed TLS, /api proxied with the session cookie. Absent
+    // snapshot falls back to the live site with cookie injection.
+    var target = '${auth.baseUrl}${widget.path}';
+    if (await _hasBundledWebUi()) {
+      LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid);
+      target = await LocalWebServer.instance.urlFor(widget.path);
+    } else {
+      // Inject the session cookie for the gateway host (token spike result:
+      // cookie injection — the web pages authenticate exactly like a
+      // browser; URL params and localStorage are not needed).
+      final cookieManager = WebViewCookieManager();
+      if (auth.sid != null && auth.sid!.isNotEmpty) {
+        await cookieManager.setCookie(sessionWebViewCookie(auth.sid!, base));
+      }
     }
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -74,7 +87,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('${auth.baseUrl}${widget.path}'));
+      ..loadRequest(Uri.parse(target));
     // NOTE: self-signed LAN servers are a documented limitation of the
     // WebView container (the platform view enforces its own certificate
     // checks; no hook to bypass without a custom trust manager).
@@ -88,6 +101,15 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<bool> _hasBundledWebUi() async {
+    try {
+      await rootBundle.load('assets/webui.zip');
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
