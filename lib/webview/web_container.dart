@@ -81,11 +81,15 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
           },
           onPageFinished: (_) {
             setState(() => _stackIndex = 1);
-            // Hide the web app's own sidebar (trigger + container): the
-            // app already owns navigation (drawer/tabs), a second rail
-            // inside the container is noise. Re-injected per navigation.
+            // Match the app's theme (ThemeMode.system): the web app
+            // drives dark mode via a `.dark` class on <html>, not
+            // prefers-color-scheme, so sync it here. Also hides the web
+            // app's own sidebar (trigger + container) — the app already
+            // owns navigation (drawer/tabs). Re-injected per navigation.
+            final dark = Theme.of(context).brightness == Brightness.dark;
             _controller?.runJavaScript('''
 (function(){
+  document.documentElement.classList.${dark ? 'add' : 'remove'}('dark');
   var s=document.createElement('style');
   s.id='fluctio-hide-sidebar';
   s.textContent='[data-sidebar="trigger"]{display:none!important}'
