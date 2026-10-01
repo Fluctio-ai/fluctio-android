@@ -110,12 +110,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
         }
       },
       child: Scaffold(
-      appBar: widget.showTitle
-          ? AppBar(
-              automaticallyImplyLeading: false,
-              title: Text(widget.title),
-            )
-          : null,
+      appBar: widget.showTitle ? AppBar(title: Text(widget.title)) : null,
       body: IndexedStack(
         index: _stackIndex,
         children: [
