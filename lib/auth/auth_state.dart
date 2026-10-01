@@ -38,7 +38,7 @@ class AuthState {
   String? get userLabel {
     final u = user;
     if (u == null) return null;
-    final v = u['displayName'] ?? u['display_name'] ?? u['login'] ?? u['name'];
+    final v = u['displayName'] ?? u['display_name'] ?? u['username'] ?? u['login'] ?? u['name'];
     return v is String && v.isNotEmpty ? v : null;
   }
 }

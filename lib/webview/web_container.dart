@@ -63,17 +63,6 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       LocalWebServer.instance.configure(ref.read(apiClientProvider), auth.sid);
       target = await LocalWebServer.instance.urlFor(widget.path);
       _local = true;
-      // Theme via cookie + document-start script: the class lands on
-      // <html> BEFORE any page JS runs (graph canvases read theme
-      // colors at init — a post-load injection can't repaint them and
-      // boot-time HTML patching breaks hydration). The cookie makes the
-      // registered script dynamic per open.
-      await cookieManager.setCookie(WebViewCookie(
-        name: 'fluctio_theme',
-        value: dark ? 'dark' : 'light',
-        domain: '127.0.0.1',
-        path: '/',
-      ));
     } else {
       // Inject the session cookie for the gateway host (token spike result:
       // cookie injection — the web pages authenticate exactly like a
