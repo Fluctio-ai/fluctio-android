@@ -76,15 +76,9 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       ..setBackgroundColor(Colors.transparent)
       ..setNavigationDelegate(
         NavigationDelegate(
-          // Earliest injection point (this plugin exposes no document-
-          // start scripts): still before hydration/component init, so
-          // theme-dependent canvases (graph) read the right mode.
-          onPageStarted: (url) {
-            if (url.startsWith('http://127.0.0.1')) {
-              _controller?.runJavaScript(
-                  "document.documentElement.classList.${dark ? 'add' : 'remove'}('dark');");
-            }
-          },
+          // NOTE: no JS from onPageStarted — runJavaScript there races
+          // the navigation and wedges the load (onPageFinished never
+          // fired). Theme injection lives in onPageFinished.
           onProgress: (p) {
             // Progress fires dozens of times per load; only rebuild on
             // meaningful deltas.
