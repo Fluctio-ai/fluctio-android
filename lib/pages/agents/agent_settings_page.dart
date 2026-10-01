@@ -394,9 +394,12 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   }
 
   Widget _dropdown(List<String> options, String current, ValueChanged<String> onChanged) {
-    final valid = options.contains(current) || current.isEmpty;
+    // Empty/unlisted current values must fall back to a real option —
+    // an initialValue not present in items trips the DropdownButton
+    // assertion (seen with fresh agents whose context fields are "").
+    final selected = options.contains(current) && current.isNotEmpty ? current : options.first;
     return DropdownButtonFormField<String>(
-      initialValue: valid ? current : options.first,
+      initialValue: selected,
       decoration: const InputDecoration(isDense: true),
       items: [
         for (final o in options)
