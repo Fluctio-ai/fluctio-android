@@ -963,9 +963,10 @@ class TodoGanttView extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
+                    // No line cap — the wide content columns hold the
+                    // whole server title (~50 bytes) without ellipsis;
+                    // long ones just wrap.
                     t.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall?.copyWith(
                       height: 1.35,
                       decoration: cancelled ? TextDecoration.lineThrough : null,
