@@ -35,6 +35,14 @@ class MessageList extends ConsumerStatefulWidget {
 
 class _MessageListState extends ConsumerState<MessageList> {
   final Set<String> _animated = {};
+  final ScrollController _scroll = ScrollController();
+  bool _awayFromBottom = false;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,17 +55,26 @@ class _MessageListState extends ConsumerState<MessageList> {
     }
     final notifier = ref.read(chatStoreProvider.notifier);
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        if (n.depth == 0 && n.metrics.pixels > n.metrics.maxScrollExtent - 400) {
-          notifier.loadMore();
-        }
-        return false;
-      },
-      child: ListView.builder(
-        reverse: true,
-        // Web transcript rhythm: space-y-3 (12px) between turns.
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+    return Stack(
+      children: [
+        NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (n.depth == 0 && n.metrics.pixels > n.metrics.maxScrollExtent - 400) {
+              notifier.loadMore();
+            }
+            // Reverse list: offset 0 is the newest message; past ~2
+            // screens up the jump-to-latest pill appears (ticket 14).
+            if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+              final away = n.metrics.pixels > 600;
+              if (away != _awayFromBottom) setState(() => _awayFromBottom = away);
+            }
+            return false;
+          },
+          child: ListView.builder(
+            reverse: true,
+            controller: _scroll,
+            // Web transcript rhythm: space-y-3 (12px) between turns.
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         itemCount: widget.state.entries.length + (widget.state.loadMoreRunning ? 1 : 0),
         itemBuilder: (context, i) {
           if (widget.state.loadMoreRunning && i == widget.state.entries.length) {
@@ -93,7 +110,36 @@ class _MessageListState extends ConsumerState<MessageList> {
             ),
           );
         },
-      ),
+          ),
+        ),
+        // Jump-to-latest pill (ticket 14) — reverse list, so "latest"
+        // is offset 0.
+        Positioned(
+          right: 12,
+          bottom: 8,
+          child: IgnorePointer(
+            ignoring: !_awayFromBottom,
+            child: AnimatedScale(
+              scale: _awayFromBottom ? 1 : 0,
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOutCubic,
+              child: AnimatedOpacity(
+                opacity: _awayFromBottom ? 1 : 0,
+                duration: const Duration(milliseconds: 160),
+                child: _JumpToLatest(
+                  onTap: () {
+                    if (_scroll.hasClients) {
+                      _scroll.animateTo(0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOutCubic);
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -131,6 +177,31 @@ class _MessageListState extends ConsumerState<MessageList> {
                 },
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Circular outline pill with a down-arrow — the jump-to-latest
+/// affordance pinned at the transcript's bottom-right.
+class _JumpToLatest extends StatelessWidget {
+  const _JumpToLatest({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: scheme.surface,
+      shape: CircleBorder(side: BorderSide(color: scheme.outlineVariant)),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.all(10),
+          child: Icon(LucideIcons.arrowDown, size: 20),
         ),
       ),
     );
@@ -241,7 +312,7 @@ class _UserBubble extends ConsumerWidget {
                           baseUrl: auth.baseUrl,
                           cookie: auth.sid,
                           size: 84,
-                          onTap: () => _openImage(context, url, auth.baseUrl, auth.sid),
+                          onTap: () => _openImage(context, ref, url),
                         ),
                     ],
                   ),
@@ -410,7 +481,7 @@ class _MarkdownImage extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
-        onTap: () => _openImage(context, url, auth.baseUrl, auth.sid),
+        onTap: () => _openImage(context, ref, url),
         child: ClipRRect(
           borderRadius: AppRadius.controlBorder,
           child: Image(
@@ -676,8 +747,23 @@ class _MermaidCodeBuilder extends MarkdownElementBuilder {
   }
 }
 
-void _openImage(BuildContext context, String url, String baseUrl, String? cookie) {
-  openImageViewer(context, chatImageProvider(url, baseUrl: baseUrl, cookie: cookie));
+/// Opens [url] inside the conversation's image lightbox: every image of
+/// the active transcript via [UiEntryGalleryImages.galleryImages], so
+/// horizontal swipes page through them (ticket 13); a URL not found in
+/// the inventory opens alone (agent files etc.).
+void _openImage(BuildContext context, WidgetRef ref, String url) {
+  final auth = ref.read(authControllerProvider);
+  final entries = ref.read(chatStoreProvider).active?.entries ?? const <UiEntry>[];
+  final urls = [for (final e in entries) ...e.galleryImages];
+  final index = urls.indexOf(url);
+  openImageViewer(
+    context,
+    [
+      for (final u in (index >= 0 ? urls : [url]))
+        chatImageProvider(u, baseUrl: auth.baseUrl, cookie: auth.sid),
+    ],
+    initialIndex: index >= 0 ? index : 0,
+  );
 }
 
 

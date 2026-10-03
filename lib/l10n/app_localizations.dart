@@ -566,6 +566,72 @@ abstract class AppLocalizations {
   /// **'日记'**
   String get kbDiary;
 
+  /// No description provided for @kbViewList.
+  ///
+  /// In zh, this message translates to:
+  /// **'列表'**
+  String get kbViewList;
+
+  /// No description provided for @kbViewCalendar.
+  ///
+  /// In zh, this message translates to:
+  /// **'日历'**
+  String get kbViewCalendar;
+
+  /// No description provided for @kbViewGantt.
+  ///
+  /// In zh, this message translates to:
+  /// **'甘特'**
+  String get kbViewGantt;
+
+  /// No description provided for @kbViewMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'月'**
+  String get kbViewMonth;
+
+  /// No description provided for @kbViewWeek.
+  ///
+  /// In zh, this message translates to:
+  /// **'周'**
+  String get kbViewWeek;
+
+  /// No description provided for @kbViewDay.
+  ///
+  /// In zh, this message translates to:
+  /// **'日'**
+  String get kbViewDay;
+
+  /// No description provided for @kbScopeMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月'**
+  String get kbScopeMonth;
+
+  /// No description provided for @kbScopeWeek.
+  ///
+  /// In zh, this message translates to:
+  /// **'本周'**
+  String get kbScopeWeek;
+
+  /// No description provided for @kbScopeDay.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天'**
+  String get kbScopeDay;
+
+  /// No description provided for @kbNoTodos.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无待办'**
+  String get kbNoTodos;
+
+  /// No description provided for @kbGanttCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 项'**
+  String kbGanttCount(int n);
+
   /// No description provided for @kbBookmarks.
   ///
   /// In zh, this message translates to:
@@ -691,6 +757,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'日期'**
   String get kbDueDate;
+
+  /// No description provided for @kbStartDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'开始时间'**
+  String get kbStartDate;
+
+  /// No description provided for @kbEndDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束时间'**
+  String get kbEndDate;
 
   /// No description provided for @kbAddFlash.
   ///
@@ -865,6 +943,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'答案（背面）'**
   String get cardAnswer;
+
+  /// No description provided for @cardSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源'**
+  String get cardSource;
 
   /// No description provided for @cardDue.
   ///

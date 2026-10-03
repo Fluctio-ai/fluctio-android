@@ -248,6 +248,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbDiary => 'Diary';
 
   @override
+  String get kbViewList => 'List';
+
+  @override
+  String get kbViewCalendar => 'Calendar';
+
+  @override
+  String get kbViewGantt => 'Gantt';
+
+  @override
+  String get kbViewMonth => 'Month';
+
+  @override
+  String get kbViewWeek => 'Week';
+
+  @override
+  String get kbViewDay => 'Day';
+
+  @override
+  String get kbScopeMonth => 'This month';
+
+  @override
+  String get kbScopeWeek => 'This week';
+
+  @override
+  String get kbScopeDay => 'Today';
+
+  @override
+  String get kbNoTodos => 'No todos';
+
+  @override
+  String kbGanttCount(int n) {
+    return '$n items';
+  }
+
+  @override
   String get kbBookmarks => 'Bookmarks';
 
   @override
@@ -309,6 +344,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kbDueDate => 'Date';
+
+  @override
+  String get kbStartDate => 'Start';
+
+  @override
+  String get kbEndDate => 'End';
 
   @override
   String get kbAddFlash => 'Capture a flash';
@@ -396,6 +437,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cardAnswer => 'Answer (back)';
+
+  @override
+  String get cardSource => 'Source';
 
   @override
   String get cardDue => 'Due';

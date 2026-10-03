@@ -45,3 +45,13 @@ String formatTimeOfDay(DateTime d, {String locale = 'en_US'}) =>
 /// Day divider label (MMMEd, e.g. 9月29日周一).
 String formatDayLabel(DateTime d, {String locale = 'en_US'}) =>
     _named(locale, 'MMMEd').format(d);
+
+/// Calendar month title (yMMMM, e.g. 2026年10月).
+String formatMonthTitle(DateTime d, {String locale = 'en_US'}) =>
+    _named(locale, 'yMMMM').format(d);
+
+/// Monday-first short weekday labels (一 二 三…/Mon Tue Wed…) —
+/// 2024-01-01 is a Monday, so the week is enumerated from it (the web
+/// calendar header does the same trick).
+List<String> weekdayShortLabels(String locale) => List.generate(
+    7, (i) => _named(locale, 'E').format(DateTime(2024, 1, 1 + i)));

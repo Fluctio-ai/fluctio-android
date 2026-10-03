@@ -13,6 +13,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/chevron_list_tile.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
 import '../chat/message_list.dart';
@@ -194,8 +195,8 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                             ),
                           ],
                         ),
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
+                        child: ChevronListTile(
+                          padding: EdgeInsets.zero,
                           dense: true,
                           title: Text(c.question,
                               maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -279,6 +280,12 @@ class _CardViewPage extends StatelessWidget {
           section(l.cardQuestion, card.question),
           const SizedBox(height: 20),
           section(l.cardAnswer, card.answer),
+          // Origin excerpt — the passage this card was distilled from
+          // (manual cards have none).
+          if (card.sourceExcerpt.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            section(l.cardSource, card.sourceExcerpt),
+          ],
           const SizedBox(height: 24),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 12),

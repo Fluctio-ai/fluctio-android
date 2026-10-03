@@ -677,3 +677,24 @@ class ChatEngine {
     return out;
   }
 }
+
+/// Images an entry contributes to the conversation lightbox: user
+/// attachments first, then markdown inline images (both `![]()` and
+/// `<img src>` forms, matching what the markdown renderer accepts), in
+/// order. One definition beside the entries themselves, so a future
+/// image-bearing entry type edits one place.
+extension UiEntryGalleryImages on UiEntry {
+  List<String> get galleryImages => switch (this) {
+        UserEntry u => [...u.imageUrls, ..._mdImageSrcs(u.text)],
+        AssistantEntry a => _mdImageSrcs(a.text),
+        _ => const [],
+      };
+}
+
+List<String> _mdImageSrcs(String text) => [
+      for (final m in _mdImageRe.allMatches(text)) m.group(1)!,
+      for (final m in _imgTagRe.allMatches(text)) m.group(1)!,
+    ];
+
+final RegExp _mdImageRe = RegExp(r'!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)');
+final RegExp _imgTagRe = RegExp(r'<img[^>]*\ssrc="([^"]+)"', caseSensitive: false);

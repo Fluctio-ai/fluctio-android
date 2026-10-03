@@ -2,9 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../todo/todo_reminders.dart';
 import 'kb_models.dart';
 
-final kbRepoProvider = Provider<KbRepo>((ref) => KbRepo(ref.watch(apiClientProvider)));
+final kbRepoProvider = Provider<KbRepo>((ref) => KbRepo(
+    ref.watch(apiClientProvider),
+    // Alarm consistency invariant lives in the data layer: every todo
+    // write re-syncs the reminders, so no call site can forget it.
+    () => ref.read(todoReminderServiceProvider).sync()));
 
 final kbSourcesProvider =
     FutureProvider.autoDispose.family<List<KbSource>, String>((ref, agentId) async {
@@ -29,8 +34,14 @@ final kbNotesProvider =
 /// Typed wrappers over the KB surface (docs/api/API.md §7). Save paths
 /// return a duplicate marker when the server deduped the write.
 class KbRepo {
-  KbRepo(this._dio);
+  KbRepo(this._dio, [this._onTodoWrite]);
   final Dio _dio;
+
+  /// Fired after any write that may change the todo set (the reminder
+  /// service re-syncs its alarms). `deleteSource` is shared with
+  /// articles/flash — a delete there costs one idempotent resync.
+  final void Function()? _onTodoWrite;
+  void _todoWritten() => _onTodoWrite?.call();
 
   Future<List<KbSource>> sources(String agentId) async => parseRows(
       (await _dio.get('/api/agents/$agentId/kb/sources')).data,
@@ -46,6 +57,12 @@ class KbRepo {
       (await _dio.get('/api/agents/$agentId/kb/sources/$sourceId/entries')).data,
       fromJson: KbEntry.fromJson);
 
+  /// Full text of a KB source — its entry chunks in order, one per line
+  /// (the join the web flash/todo editors do). Shared by the todo/flash
+  /// tiles and editors so the rule lives in one place.
+  Future<String> fullText(String agentId, String sourceId) async =>
+      (await entries(agentId, sourceId)).map((e) => e.content).join('\n');
+
   Future<List<KbSearchResult>> search(String agentId, String query, {int limit = 12}) async =>
       parseRows(
           (await _dio.post('/api/agents/$agentId/kb/search',
@@ -53,8 +70,10 @@ class KbRepo {
               .data,
           fromJson: KbSearchResult.fromJson);
 
-  Future<void> deleteSource(String agentId, String sourceId) =>
-      _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
+  Future<void> deleteSource(String agentId, String sourceId) async {
+    await _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
+    _todoWritten();
+  }
 
   // ---- flash ----
 
@@ -83,6 +102,7 @@ class KbRepo {
       if (startAt != null) 'start_at': startAt.toIso8601String(),
       if (endAt != null) 'end_at': endAt.toIso8601String(),
     });
+    _todoWritten();
     return res.data is Map && res.data['deduped'] == true;
   }
 
@@ -93,17 +113,19 @@ class KbRepo {
     String? status,
     DateTime? startAt,
     DateTime? endAt,
-  }) =>
-      // The backend PATCH drops every empty/non-present field
-      // (handlers_kb.go: only non-empty fields land) — clearing a date or
-      // a bookmark summary is a server-side capability the client cannot
-      // synthesize, so the repo simply omits fields it doesn't set.
-      _dio.patch('/api/agents/$agentId/kb/todos/$sourceId', data: {
-        if (content != null && content.isNotEmpty) 'content': content,
-        if (status != null && status.isNotEmpty) 'status': status,
-        if (startAt != null) 'start_at': startAt.toIso8601String(),
-        if (endAt != null) 'end_at': endAt.toIso8601String(),
-      });
+  }) async {
+    // The backend PATCH drops every empty/non-present field
+    // (handlers_kb.go: only non-empty fields land) — clearing a date or
+    // a bookmark summary is a server-side capability the client cannot
+    // synthesize, so the repo simply omits fields it doesn't set.
+    await _dio.patch('/api/agents/$agentId/kb/todos/$sourceId', data: {
+      if (content != null && content.isNotEmpty) 'content': content,
+      if (status != null && status.isNotEmpty) 'status': status,
+      if (startAt != null) 'start_at': startAt.toIso8601String(),
+      if (endAt != null) 'end_at': endAt.toIso8601String(),
+    });
+    _todoWritten();
+  }
 
   // ---- bookmarks ----
 

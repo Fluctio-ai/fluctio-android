@@ -27,6 +27,7 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
   int _remembered = 0;
   String? _error;
   bool _loading = true;
+  double _swipeDx = 0;
 
   @override
   void initState() {
@@ -74,6 +75,17 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
     });
   }
 
+  /// Left = forgot, right = remembered — grades on either a decisive
+  /// travel (>60px) or a fling; weak drags spring back ungraded.
+  void _onSwipeEnd(DragEndDetails d) {
+    final dx = _swipeDx;
+    final vx = d.velocity.pixelsPerSecond.dx;
+    setState(() => _swipeDx = 0);
+    if (dx.abs() <= 60 && vx.abs() <= 600) return;
+    final right = vx.abs() > 600 ? vx > 0 : dx > 0;
+    _grade(right ? 'remembered' : 'forgot');
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -108,40 +120,85 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: InkWell(
-              onTap: () => setState(() => _revealed = !_revealed),
-              borderRadius: AppRadius.cardBorder,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: surfaceCardDecoration(theme.colorScheme),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      card.question,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+            // Horizontal grade swipes once revealed (ticket 13):
+            // left = forgot, right = remembered; the fuzzy grade stays
+            // a button. Threshold on travel + velocity keeps taps
+            // (flip) and small nudges safe.
+            child: GestureDetector(
+              onHorizontalDragUpdate:
+                  _revealed ? (d) => setState(() => _swipeDx += d.delta.dx) : null,
+              onHorizontalDragEnd: _revealed ? _onSwipeEnd : null,
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: _swipeDx),
+                duration: _swipeDx == 0
+                    ? const Duration(milliseconds: 180)
+                    : Duration.zero,
+                curve: Curves.easeOutCubic,
+                builder: (context, dx, child) =>
+                    Transform.translate(offset: Offset(dx, 0), child: child),
+                child: InkWell(
+                  onTap: () => setState(() => _revealed = !_revealed),
+                  borderRadius: AppRadius.cardBorder,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: surfaceCardDecoration(theme.colorScheme),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          card.question,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+                        ),
+                        if (_revealed) ...[
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Divider(),
+                          ),
+                          Text(
+                            card.answer,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                                height: 1.6, color: theme.colorScheme.primary),
+                          ),
+                          // Origin excerpt once revealed — "where did this
+                          // card come from" aids recall; manual cards have
+                          // none.
+                          if (card.sourceExcerpt.isNotEmpty) ...[
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(LucideIcons.quote,
+                                    size: 12, color: theme.colorScheme.outline),
+                                const SizedBox(width: 4),
+                                Text(
+                                  l.cardSource,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.outline,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              card.sourceExcerpt,
+                              textAlign: TextAlign.center,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(height: 1.5, color: theme.colorScheme.outline),
+                            ),
+                          ],
+                        ] else
+                          Padding(
+                            padding: const EdgeInsets.only(top: 24),
+                            child: Text(l.cardTapToReveal,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: theme.colorScheme.outline)),
+                          ),
+                      ],
                     ),
-                    if (_revealed) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        child: Divider(),
-                      ),
-                      Text(
-                        card.answer,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                            height: 1.6, color: theme.colorScheme.primary),
-                      ),
-                    ] else
-                      Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Text(l.cardTapToReveal,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: theme.colorScheme.outline)),
-                      ),
-                  ],
+                  ),
                 ),
               ),
             ),

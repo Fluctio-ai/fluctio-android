@@ -19,6 +19,8 @@ class KbEditorPage extends StatefulWidget {
     this.initialTitle = '',
     this.dateLabel,
     this.initialDate,
+    this.endDateLabel,
+    this.initialEndDate,
     required this.onSave,
   });
 
@@ -31,12 +33,20 @@ class KbEditorPage extends StatefulWidget {
   final String? titleLabel;
   final String initialTitle;
 
-  /// Optional due-date row (todos). Null hides the picker.
+  /// Optional start-date row (todos). Null hides the picker.
   final String? dateLabel;
   final DateTime? initialDate;
 
+  /// Optional end-date row (todo spans, web's 开始/结束时间 pair). Null
+  /// hides the picker.
+  final String? endDateLabel;
+  final DateTime? initialEndDate;
+
   /// Returns true when the save succeeded (the page then pops true).
-  final Future<bool> Function(String text, String title, DateTime? date) onSave;
+  /// [endDate] arrives only for todo editors that configured the end
+  /// row; other callers ignore it.
+  final Future<bool> Function(
+      String text, String title, DateTime? date, DateTime? endDate) onSave;
 
   @override
   State<KbEditorPage> createState() => _KbEditorPageState();
@@ -46,6 +56,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
   late final TextEditingController _text = TextEditingController(text: widget.initialText);
   late final TextEditingController _title = TextEditingController(text: widget.initialTitle);
   DateTime? _date;
+  DateTime? _endDate;
   var _dirty = false;
   var _saving = false;
 
@@ -53,6 +64,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
   void initState() {
     super.initState();
     _date = widget.initialDate;
+    _endDate = widget.initialEndDate;
   }
 
   @override
@@ -65,10 +77,74 @@ class _KbEditorPageState extends State<KbEditorPage> {
   Future<void> _save() async {
     if (_saving || _text.text.trim().isEmpty) return;
     setState(() => _saving = true);
-    final ok = await widget.onSave(_text.text, _title.text, _date);
+    final ok = await widget.onSave(_text.text, _title.text, _date, _endDate);
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) Navigator.of(context).pop(true);
+  }
+
+  /// Web-parity datetime picking (web uses datetime-local inputs):
+  /// date first, then the time-of-day; cancelling the time keeps
+  /// midnight.
+  Future<void> _pickDate(bool isEnd) async {
+    final current = isEnd ? _endDate : _date;
+    final d = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (d == null || !mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current ?? DateTime(d.year, d.month, d.day, 9)),
+    );
+    if (!mounted) return;
+    setState(() {
+      final picked = DateTime(d.year, d.month, d.day, t?.hour ?? 0, t?.minute ?? 0);
+      if (isEnd) {
+        _endDate = picked;
+      } else {
+        _date = picked;
+      }
+      _dirty = true;
+    });
+  }
+
+  /// One start/end datetime row: pick button + clear button when set.
+  Widget _dateRow(bool isEnd) {
+    final value = isEnd ? _endDate : _date;
+    final label = isEnd ? widget.endDateLabel! : widget.dateLabel!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextButton.icon(
+              onPressed: () => _pickDate(isEnd),
+              icon: const Icon(LucideIcons.calendar, size: 16),
+              label: Text(value == null
+                  ? label
+                  : '$label · ${formatShortDate(value, withTime: true)}'),
+            ),
+          ),
+          if (value != null)
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: '清除',
+              onPressed: () => setState(() {
+                if (isEnd) {
+                  _endDate = null;
+                } else {
+                  _date = null;
+                }
+                _dirty = true;
+              }),
+              icon: const Icon(LucideIcons.x, size: 16),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -122,30 +198,8 @@ class _KbEditorPageState extends State<KbEditorPage> {
                     decoration: InputDecoration(labelText: widget.titleLabel),
                   ),
                 ),
-              if (widget.dateLabel != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-                  child: TextButton.icon(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _date ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setState(() {
-                          _date = picked;
-                          _dirty = true;
-                        });
-                      }
-                    },
-                    icon: const Icon(LucideIcons.calendar, size: 16),
-                    label: Text(_date == null
-                        ? widget.dateLabel!
-                        : '${widget.dateLabel} · ${formatShortDate(_date!)}'),
-                  ),
-                ),
+              if (widget.dateLabel != null) _dateRow(false),
+              if (widget.endDateLabel != null) _dateRow(true),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),

@@ -59,7 +59,7 @@ Future<void> openWorkspaceFilePreview(
       if (!context.mounted) return;
       openImageViewer(
         context,
-        chatImageProvider(gatewayUrl(path), baseUrl: auth.baseUrl, cookie: auth.sid),
+        [chatImageProvider(gatewayUrl(path), baseUrl: auth.baseUrl, cookie: auth.sid)],
       );
       return;
     }

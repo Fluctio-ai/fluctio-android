@@ -178,7 +178,7 @@ class _SessionMenu extends ConsumerWidget {
         heading: l.chatRename,
         hint: l.chatRename,
         initialText: session.title,
-        onSave: (text, _, _) async {
+        onSave: (text, _, _, _) async {
           if (text.trim().isEmpty) return false;
           try {
             await ref.read(sessionsProvider.notifier).rename(session.id, text.trim());

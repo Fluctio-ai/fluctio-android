@@ -8,6 +8,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
@@ -70,7 +71,7 @@ class KbNotesPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: ListTile(
+                        child: ChevronListTile(
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
@@ -112,7 +113,7 @@ class KbNotesPage extends ConsumerWidget {
         titleLabel: l.kbTitleOptional,
         initialTitle: n.title,
         initialText: initialText ?? n.contentMd,
-        onSave: (text, title, _) async {
+        onSave: (text, title, _, _) async {
           try {
             await repo.saveNote(agentId, id: n.id, title: title.trim(), contentMd: text);
             ref.invalidate(kbNotesProvider(agentId));
@@ -135,7 +136,7 @@ class KbNotesPage extends ConsumerWidget {
         heading: l.noteNew,
         hint: l.noteBodyHint,
         titleLabel: l.kbTitleOptional,
-        onSave: (text, title, _) async {
+        onSave: (text, title, _, _) async {
           try {
             await repo.saveNote(agentId, title: title.trim(), contentMd: text);
             ref.invalidate(kbNotesProvider(agentId));

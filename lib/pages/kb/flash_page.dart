@@ -8,6 +8,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../util/dates.dart';
@@ -72,7 +73,7 @@ class KbFlashPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: ListTile(
+                        child: ChevronListTile(
                           title: Text(s.title, maxLines: 2, overflow: TextOverflow.ellipsis),
                           subtitle: Text(DateTime.tryParse(s.updatedAt) == null
                               ? ''
@@ -97,8 +98,7 @@ class KbFlashPage extends ConsumerWidget {
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => KbTextViewPage(
         title: s.title.isEmpty ? l.kbIdeas : s.title,
-        loadContent: () async =>
-            (await repo.entries(agentId, s.id)).map((e) => e.content).join('\n'),
+        loadContent: () => repo.fullText(agentId, s.id),
         onEdit: (current) => _edit(context, ref, agentId, s, initialText: current),
       ),
     ));
@@ -113,7 +113,7 @@ class KbFlashPage extends ConsumerWidget {
     var initial = initialText ?? '';
     if (initialText == null) {
       try {
-        initial = (await repo.entries(agentId, s.id)).map((e) => e.content).join('\n');
+        initial = await repo.fullText(agentId, s.id);
       } catch (_) {}
       if (!context.mounted) return false;
     }
@@ -122,7 +122,7 @@ class KbFlashPage extends ConsumerWidget {
         heading: l.kbEdit,
         hint: l.kbFlashHint,
         initialText: initial,
-        onSave: (text, _, _) async {
+        onSave: (text, _, _, _) async {
           try {
             await repo.updateFlash(agentId, s.id, text.trim());
             ref.invalidate(kbSourcesProvider(agentId));
@@ -144,7 +144,7 @@ class KbFlashPage extends ConsumerWidget {
       builder: (_) => KbEditorPage(
         heading: l.kbAddFlash,
         hint: l.kbFlashHint,
-        onSave: (text, _, _) async {
+        onSave: (text, _, _, _) async {
           try {
             final deduped = await repo.saveFlash(agentId, text.trim());
             if (deduped && context.mounted) {

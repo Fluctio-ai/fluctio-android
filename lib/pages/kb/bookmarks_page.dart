@@ -9,6 +9,7 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
+import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
 import '../../util/open_url.dart';
@@ -87,7 +88,7 @@ class KbBookmarksPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                        child: ListTile(
+                        child: ChevronListTile(
                           title: Row(
                             children: [
                               if (b.promoted)
@@ -183,7 +184,7 @@ class _BookmarkActions {
               titleLabel: l.kbTitleOptional,
               initialTitle: bookmark.title,
               initialText: bookmark.summary,
-              onSave: (summary, title, _) async {
+              onSave: (summary, title, _, _) async {
                 try {
                   await repo.updateBookmark(agentId, bookmark.id,
                       title: title.trim(), summary: summary.trim());

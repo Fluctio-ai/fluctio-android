@@ -53,7 +53,7 @@ class Composer extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,

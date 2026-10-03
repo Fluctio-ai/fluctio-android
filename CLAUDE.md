@@ -1,6 +1,6 @@
 # fluctio-android
 
-fluctio (FastClaw) 的 Android 客户端（Flutter）。后端参考仓：`D:\backup\Desktop\fastclaw`（用绝对路径 Read/Grep 查证，不修改）。
+fluctio (FastClaw) 的 Android 客户端（Flutter）。后端参考仓：`D:\codes\fluctio`（用绝对路径 Read/Grep 查证，不修改）。
 
 ## 纪律
 

@@ -40,6 +40,13 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: colors.background,
+      appBarTheme: const AppBarTheme(
+        // Tight top-bar rhythm — the M3 defaults (leadingWidth 56,
+        // titleSpacing 16) leave wide gutters between menu/back icon
+        // and title on a phone.
+        titleSpacing: 8,
+        leadingWidth: 48,
+      ),
       splashFactory: InkSparkle.splashFactory,
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder)),

@@ -198,10 +198,17 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         '${selected.name}${selected.model.isEmpty ? '' : ' · ${selected.model}'}';
     return Scaffold(
       drawer: const AppDrawer(),
+      // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
+      // per user feedback): the default ~20px left-edge zone is hard to
+      // hit and sits inside gesture-nav's system-back strip. A 55%-wide
+      // start zone lets a right thumb drag from the middle — clear of
+      // both system back edges. The arena still awards vertical-dominant
+      // scrolls to the transcript.
+      drawerEdgeDragWidth: MediaQuery.sizeOf(context).width * 0.55,
       appBar: AppBar(
         // The session title leads (user preference); agent switching
-        // lives in the drawer header. Narrow gutters around the title.
-        titleSpacing: 8,
+        // lives in the drawer header. Title gutters come from the
+        // global AppBarTheme.
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -220,11 +227,13 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
             : [
                 IconButton(
                   tooltip: l.chatFiles,
+                  visualDensity: VisualDensity.compact,
                   onPressed: () => showFilesSheet(context),
                   icon: const Icon(LucideIcons.folderOpen),
                 ),
                 IconButton(
                   tooltip: l.chatTodo,
+                  visualDensity: VisualDensity.compact,
                   onPressed: () => showTodoSheet(context),
                   icon: const Icon(LucideIcons.listTodo),
                 ),

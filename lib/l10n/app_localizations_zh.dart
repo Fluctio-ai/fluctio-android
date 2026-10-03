@@ -244,6 +244,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbDiary => '日记';
 
   @override
+  String get kbViewList => '列表';
+
+  @override
+  String get kbViewCalendar => '日历';
+
+  @override
+  String get kbViewGantt => '甘特';
+
+  @override
+  String get kbViewMonth => '月';
+
+  @override
+  String get kbViewWeek => '周';
+
+  @override
+  String get kbViewDay => '日';
+
+  @override
+  String get kbScopeMonth => '本月';
+
+  @override
+  String get kbScopeWeek => '本周';
+
+  @override
+  String get kbScopeDay => '今天';
+
+  @override
+  String get kbNoTodos => '暂无待办';
+
+  @override
+  String kbGanttCount(int n) {
+    return '$n 项';
+  }
+
+  @override
   String get kbBookmarks => '书签';
 
   @override
@@ -305,6 +340,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get kbDueDate => '日期';
+
+  @override
+  String get kbStartDate => '开始时间';
+
+  @override
+  String get kbEndDate => '结束时间';
 
   @override
   String get kbAddFlash => '记一笔';
@@ -392,6 +433,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cardAnswer => '答案（背面）';
+
+  @override
+  String get cardSource => '来源';
 
   @override
   String get cardDue => '待复习';

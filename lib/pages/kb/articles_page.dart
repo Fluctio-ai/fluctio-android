@@ -12,6 +12,7 @@ import '../../kb/kb_repo.dart';
 import '../../util/dates.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 
@@ -86,7 +87,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
           ),
           Expanded(
             child: _results != null || _searching
-                ? _searchResults(context, theme)
+                ? _searchResults(context)
                 : (sources == null
                     ? const SizedBox.shrink()
                     : sources.when(
@@ -131,7 +132,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                       ),
                                     ],
                                   ),
-                                  child: ListTile(
+                                  child: ChevronListTile(
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
@@ -153,7 +154,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
     );
   }
 
-  Widget _searchResults(BuildContext context, ThemeData theme) {
+  Widget _searchResults(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     if (_searching && _results == null) {
       return const SkeletonListView(itemCount: 4);
@@ -166,7 +167,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
       itemCount: results.length,
       itemBuilder: (context, i) {
         final r = results[i];
-        return ListTile(
+        return ChevronListTile(
           title: Text(r.sourceTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(r.snippet, maxLines: 2, overflow: TextOverflow.ellipsis),
           onTap: () => context.push(

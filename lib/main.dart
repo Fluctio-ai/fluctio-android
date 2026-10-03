@@ -6,6 +6,7 @@ import 'l10n/app_localizations.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_mode.dart';
+import 'todo/todo_reminders.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +22,8 @@ class FluctioApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Root-lifetime wiring: todo reminder alarms live as long as the app.
+    ref.watch(todoReminderServiceProvider);
     return MaterialApp.router(
       title: 'fluctio',
       theme: AppTheme.light(),

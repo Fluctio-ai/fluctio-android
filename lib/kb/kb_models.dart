@@ -124,6 +124,8 @@ class KbCard {
     this.reviewCount = 0,
     this.lapseCount = 0,
     this.sourceType = '',
+    this.sourceRef = '',
+    this.sourceExcerpt = '',
   });
 
   final String id;
@@ -133,7 +135,16 @@ class KbCard {
   final DateTime? dueAt;
   final int reviewCount;
   final int lapseCount;
+
+  /// Origin (docs/api/API.md §7): manual cards carry sourceType
+  /// "manual"; generated ones reference their KB source. [sourceRef]
+  /// is parsed for wire parity — no view displays it yet.
   final String sourceType;
+  final String sourceRef;
+
+  /// The passage the card was generated from — the memory aid shown in
+  /// the detail and review views.
+  final String sourceExcerpt;
 
   factory KbCard.fromJson(Map<String, dynamic> j) => KbCard(
         id: j['id'] as String? ?? '',
@@ -144,6 +155,8 @@ class KbCard {
         reviewCount: (j['review_count'] as num?)?.toInt() ?? 0,
         lapseCount: (j['lapse_count'] as num?)?.toInt() ?? 0,
         sourceType: j['source_type'] as String? ?? '',
+        sourceRef: j['source_ref'] as String? ?? '',
+        sourceExcerpt: j['source_excerpt'] as String? ?? '',
       );
 }
 
