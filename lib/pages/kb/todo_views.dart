@@ -1103,24 +1103,30 @@ class TodoGanttView extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Hour ruler: every hour labeled — one fixed-width
-                    // slot per column keeps labels aligned with the
-                    // bar geometry (3h intervals were too coarse to
-                    // read).
-                    Row(
-                      children: [
-                        for (var h = 0; h < 24; h++)
-                          Container(
-                            width: granularity.perColumn,
-                            padding: const EdgeInsets.only(top: 4, bottom: 4, left: 2),
-                            decoration: BoxDecoration(
-                                border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
-                            child: Text('$h',
-                                maxLines: 1,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(fontSize: 9, color: scheme.outline)),
-                          ),
-                      ],
+                    // Hour ruler: every hour labeled. Cell width comes
+                    // from the card's actual inner width (the border
+                    // stroke eats 2px of the SizedBox), keeping labels
+                    // aligned exactly with the bar geometry — a fixed
+                    // 24×perColumn row would overflow by that stroke.
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final cell = constraints.maxWidth / 24;
+                        return Row(
+                          children: [
+                            for (var h = 0; h < 24; h++)
+                              Container(
+                                width: cell,
+                                padding: const EdgeInsets.only(top: 4, bottom: 4, left: 2),
+                                decoration: BoxDecoration(
+                                    border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
+                                child: Text('$h',
+                                    maxLines: 1,
+                                    style: theme.textTheme.labelSmall
+                                        ?.copyWith(fontSize: 9, color: scheme.outline)),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                     for (final t in rows) _hourRow(context, t),
                   ],
