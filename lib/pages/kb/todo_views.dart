@@ -986,21 +986,23 @@ class TodoGanttView extends StatelessWidget {
             const SizedBox(height: 6),
             // Proportional span bar: same ruler as the header, so
             // overlaps across rows still read at a glance; a clipped
-            // edge gets a solid border side (the span continues beyond
-            // the window).
+            // edge gets a solid cap (the span continues beyond the
+            // window). Fill is primary at a low alpha — the light
+            // theme's primaryContainer is near-white and would vanish
+            // on the pale track.
             LayoutBuilder(
               builder: (context, constraints) {
                 final w = constraints.maxWidth;
                 final left = w * startFrac;
-                final width = (w * (endFrac - startFrac)).clamp(3.0, w - left);
+                final width = (w * (endFrac - startFrac)).clamp(4.0, w - left);
                 return SizedBox(
-                  height: 10,
+                  height: 12,
                   child: Stack(
                     children: [
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(5),
+                            borderRadius: BorderRadius.circular(6),
                             color: scheme.secondaryContainer.withValues(alpha: 0.35),
                           ),
                         ),
@@ -1012,7 +1014,7 @@ class TodoGanttView extends StatelessWidget {
                           bottom: 0,
                           width: 1.5,
                           child: DecoratedBox(
-                            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.6)),
+                            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.7)),
                           ),
                         ),
                       Positioned(
@@ -1022,15 +1024,15 @@ class TodoGanttView extends StatelessWidget {
                         bottom: 1,
                         // Uniform border color only — a BorderRadius
                         // with per-side colors asserts. Clip endcaps
-                        // are 2px overlays instead of thick border
+                        // are solid overlays instead of thick border
                         // sides.
                         child: Stack(
                           children: [
                             DecoratedBox(
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(4),
-                                color: scheme.primaryContainer.withValues(alpha: cancelled ? 0.55 : 1),
-                                border: Border.all(color: scheme.primary.withValues(alpha: 0.35)),
+                                borderRadius: BorderRadius.circular(5),
+                                color: scheme.primary.withValues(alpha: cancelled ? 0.12 : 0.2),
+                                border: Border.all(color: scheme.primary.withValues(alpha: cancelled ? 0.2 : 0.45)),
                               ),
                             ),
                             if (clipStart)
@@ -1038,10 +1040,10 @@ class TodoGanttView extends StatelessWidget {
                                 left: 0,
                                 top: 0,
                                 bottom: 0,
-                                width: 2,
+                                width: 2.5,
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(4)),
+                                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
                                     color: scheme.primary,
                                   ),
                                 ),
@@ -1051,10 +1053,10 @@ class TodoGanttView extends StatelessWidget {
                                 right: 0,
                                 top: 0,
                                 bottom: 0,
-                                width: 2,
+                                width: 2.5,
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+                                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
                                     color: scheme.primary,
                                   ),
                                 ),
