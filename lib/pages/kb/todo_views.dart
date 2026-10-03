@@ -50,8 +50,8 @@ extension TodoGranularityPeriods on TodoGranularity {
 
   /// Gantt content-width budget per day/hour column.
   double get perColumn => switch (this) {
-        TodoGranularity.month => 26.0,
-        TodoGranularity.week => 55.0,
+        TodoGranularity.month => 40.0,
+        TodoGranularity.week => 64.0,
         TodoGranularity.day => 40.0,
       };
 }
@@ -130,6 +130,20 @@ Widget _overdueDot(BuildContext context, {double size = 6}) => Container(
       height: size,
       decoration: BoxDecoration(color: paletteOf(context).destructive, shape: BoxShape.circle),
     );
+
+/// Status color of a span bar (progress-bar look): the whole start→due
+/// strip fills with the lifecycle color — blue in progress, green done,
+/// muted gray pending, faded+struck cancelled. Shared by the calendar
+/// track bars and the gantt rows.
+Color _barColor(BuildContext context, String status) {
+  final scheme = Theme.of(context).colorScheme;
+  return switch (status) {
+    'in_progress' => paletteOf(context).info,
+    'done' => paletteOf(context).success,
+    'cancelled' => scheme.outline.withValues(alpha: 0.3),
+    _ => scheme.outline.withValues(alpha: 0.5), // pending
+  };
+}
 
 /// A todo's date coverage: "M/d – M/d" when start and due fall on
 /// different days, else the single timestamp (web todoSpanText).
@@ -657,18 +671,10 @@ class TodoCalendarView extends StatelessWidget {
   /// Status-tinted track bar; a multi-day span keeps one row via
   /// [roundStart]/[roundEnd] flattening at week edges.
   Widget _bar(BuildContext context, _CalSeg seg) {
-    final scheme = Theme.of(context).colorScheme;
-    final status = seg.todo.status;
-    final Color color = switch (status) {
-      'in_progress' => paletteOf(context).info.withValues(alpha: 0.5),
-      'done' => paletteOf(context).success.withValues(alpha: 0.5),
-      'cancelled' => scheme.outline.withValues(alpha: 0.3),
-      _ => scheme.outline.withValues(alpha: 0.45), // pending
-    };
     return Container(
       height: 6,
       decoration: BoxDecoration(
-        color: color,
+        color: _barColor(context, seg.todo.status),
         borderRadius: BorderRadius.horizontal(
           left: seg.roundStart ? const Radius.circular(3) : Radius.zero,
           right: seg.roundEnd ? const Radius.circular(3) : Radius.zero,
@@ -984,26 +990,39 @@ class TodoGanttView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            // Proportional span bar: same ruler as the header, so
-            // overlaps across rows still read at a glance; a clipped
-            // edge gets a solid cap (the span continues beyond the
-            // window). Fill is primary at a low alpha — the light
-            // theme's primaryContainer is near-white and would vanish
-            // on the pale track.
+            // Progress-bar span: the whole start→due strip fills with
+            // the status color over the pale track, so length AND
+            // lifecycle read at a glance; clipped ends go square (the
+            // span continues beyond the window).
             LayoutBuilder(
               builder: (context, constraints) {
                 final w = constraints.maxWidth;
                 final left = w * startFrac;
                 final width = (w * (endFrac - startFrac)).clamp(4.0, w - left);
                 return SizedBox(
-                  height: 12,
+                  height: 14,
                   child: Stack(
                     children: [
                       Positioned.fill(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(7),
                             color: scheme.secondaryContainer.withValues(alpha: 0.35),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: left,
+                        width: width,
+                        top: 1,
+                        bottom: 1,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.horizontal(
+                              left: clipStart ? Radius.zero : const Radius.circular(6),
+                              right: clipEnd ? Radius.zero : const Radius.circular(6),
+                            ),
+                            color: _barColor(context, t.status),
                           ),
                         ),
                       ),
@@ -1014,56 +1033,10 @@ class TodoGanttView extends StatelessWidget {
                           bottom: 0,
                           width: 1.5,
                           child: DecoratedBox(
-                            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.7)),
+                            decoration:
+                                BoxDecoration(color: scheme.onSurface.withValues(alpha: 0.55)),
                           ),
                         ),
-                      Positioned(
-                        left: left,
-                        width: width,
-                        top: 1,
-                        bottom: 1,
-                        // Uniform border color only — a BorderRadius
-                        // with per-side colors asserts. Clip endcaps
-                        // are solid overlays instead of thick border
-                        // sides.
-                        child: Stack(
-                          children: [
-                            DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5),
-                                color: scheme.primary.withValues(alpha: cancelled ? 0.12 : 0.2),
-                                border: Border.all(color: scheme.primary.withValues(alpha: cancelled ? 0.2 : 0.45)),
-                              ),
-                            ),
-                            if (clipStart)
-                              Positioned(
-                                left: 0,
-                                top: 0,
-                                bottom: 0,
-                                width: 2.5,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
-                                    color: scheme.primary,
-                                  ),
-                                ),
-                              ),
-                            if (clipEnd)
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                bottom: 0,
-                                width: 2.5,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
-                                    color: scheme.primary,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 );
