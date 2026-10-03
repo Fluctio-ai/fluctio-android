@@ -50,6 +50,10 @@ String formatDayLabel(DateTime d, {String locale = 'en_US'}) =>
 String formatMonthTitle(DateTime d, {String locale = 'en_US'}) =>
     _named(locale, 'yMMMM').format(d);
 
+/// Full calendar date label (yMMMMEEEEd, e.g. 2026年10月2日星期五).
+String formatFullDate(DateTime d, {String locale = 'en_US'}) =>
+    _named(locale, 'yMMMMEEEEd').format(d);
+
 /// Monday-first short weekday labels (一 二 三…/Mon Tue Wed…) —
 /// 2024-01-01 is a Monday, so the week is enumerated from it (the web
 /// calendar header does the same trick).

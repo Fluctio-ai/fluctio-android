@@ -292,6 +292,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbWiki => 'Wiki';
 
   @override
+  String get diaryOverview => 'Overview';
+
+  @override
+  String get diaryThemes => 'What you talked about';
+
+  @override
+  String get diaryNoThemes => 'No themes to summarize';
+
+  @override
+  String get diaryBlindspots => 'Points you may have missed';
+
+  @override
+  String get diaryArchives => 'Archived today';
+
+  @override
+  String get diaryGenerate => 'Generate';
+
+  @override
+  String get diaryGenerating => 'Generating…';
+
+  @override
+  String get diaryNoDiary => 'No diary for this date yet';
+
+  @override
+  String get diaryNoDiaryMonth => 'No diary this month yet';
+
+  @override
+  String get diaryHeatHint => 'Darker means more content that day';
+
+  @override
+  String get diaryPrevMonth => 'Previous month';
+
+  @override
+  String get diaryNextMonth => 'Next month';
+
+  @override
+  String diaryListMeta(Object date, int themes, int blindspots) {
+    return '$date · $themes themes · $blindspots blindspots';
+  }
+
+  @override
   String get meAgents => 'Agents';
 
   @override

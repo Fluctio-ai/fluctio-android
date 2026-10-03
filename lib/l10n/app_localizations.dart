@@ -650,6 +650,84 @@ abstract class AppLocalizations {
   /// **'维基'**
   String get kbWiki;
 
+  /// No description provided for @diaryOverview.
+  ///
+  /// In zh, this message translates to:
+  /// **'今日概要'**
+  String get diaryOverview;
+
+  /// No description provided for @diaryThemes.
+  ///
+  /// In zh, this message translates to:
+  /// **'今天聊了什么'**
+  String get diaryThemes;
+
+  /// No description provided for @diaryNoThemes.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有可归纳的主题'**
+  String get diaryNoThemes;
+
+  /// No description provided for @diaryBlindspots.
+  ///
+  /// In zh, this message translates to:
+  /// **'你可能忽略的重点'**
+  String get diaryBlindspots;
+
+  /// No description provided for @diaryArchives.
+  ///
+  /// In zh, this message translates to:
+  /// **'今日归档'**
+  String get diaryArchives;
+
+  /// No description provided for @diaryGenerate.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成'**
+  String get diaryGenerate;
+
+  /// No description provided for @diaryGenerating.
+  ///
+  /// In zh, this message translates to:
+  /// **'生成中…'**
+  String get diaryGenerating;
+
+  /// No description provided for @diaryNoDiary.
+  ///
+  /// In zh, this message translates to:
+  /// **'该日期还没有日记'**
+  String get diaryNoDiary;
+
+  /// No description provided for @diaryNoDiaryMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'本月还没有日记'**
+  String get diaryNoDiaryMonth;
+
+  /// No description provided for @diaryHeatHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'颜色越深，当天内容越多'**
+  String get diaryHeatHint;
+
+  /// No description provided for @diaryPrevMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'上一月'**
+  String get diaryPrevMonth;
+
+  /// No description provided for @diaryNextMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'下一月'**
+  String get diaryNextMonth;
+
+  /// No description provided for @diaryListMeta.
+  ///
+  /// In zh, this message translates to:
+  /// **'{date} · {themes} 主题 · {blindspots} 盲区'**
+  String diaryListMeta(Object date, int themes, int blindspots);
+
   /// No description provided for @meAgents.
   ///
   /// In zh, this message translates to:

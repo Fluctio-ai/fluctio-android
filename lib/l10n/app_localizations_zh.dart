@@ -288,6 +288,47 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbWiki => '维基';
 
   @override
+  String get diaryOverview => '今日概要';
+
+  @override
+  String get diaryThemes => '今天聊了什么';
+
+  @override
+  String get diaryNoThemes => '没有可归纳的主题';
+
+  @override
+  String get diaryBlindspots => '你可能忽略的重点';
+
+  @override
+  String get diaryArchives => '今日归档';
+
+  @override
+  String get diaryGenerate => '生成';
+
+  @override
+  String get diaryGenerating => '生成中…';
+
+  @override
+  String get diaryNoDiary => '该日期还没有日记';
+
+  @override
+  String get diaryNoDiaryMonth => '本月还没有日记';
+
+  @override
+  String get diaryHeatHint => '颜色越深，当天内容越多';
+
+  @override
+  String get diaryPrevMonth => '上一月';
+
+  @override
+  String get diaryNextMonth => '下一月';
+
+  @override
+  String diaryListMeta(Object date, int themes, int blindspots) {
+    return '$date · $themes 主题 · $blindspots 盲区';
+  }
+
+  @override
   String get meAgents => '智能体';
 
   @override

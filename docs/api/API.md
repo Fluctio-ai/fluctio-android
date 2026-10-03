@@ -200,7 +200,11 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 ## 8. Wiki / Diary / Workflow
 
 - Wiki：`/api/agents/{id}/wiki/` — `stats`、`pages`、`pages/{id}`、`graph`、`generate`、`reindex-embed`、`progress`、`autogen-status`、`DELETE pages/{id}`
-- Diary：`/api/agents/{id}/diary`、`diary/{date}`、`diary/generate`
+- Diary（internal/setup/handlers_diary.go、internal/store/diary.go）：
+  - `GET /api/agents/{id}/diary?from=&to=` → `DailyDiary[]`（[from,to] 闭区间，YYYY-MM-DD、UTC+8，新→旧；缺省=近 30 天）
+  - `GET /api/agents/{id}/diary/{date}` → `DailyDiary`；无记录 404；该 (agent,date) 手动生成进行中 → `200 {agentId,date,generating:true}`
+  - `POST /api/agents/{id}/diary/generate` `{date?}`（缺省=昨天 UTC+8）→ `202 {status:"started",date}`；同 (agent,date) 已在生成 → `409 {status:"already_running"}`。异步：LLM 生成完 upsert 落库，客户端轮询 GET（生成中态或 generatedAt 前进判定完成）
+  - `DailyDiary`：`{agentId, date, overview, themes:[{title,summary,points[],topics?,session?,segments?:[{session,start,end}]}], blindspots:[{point,reason}], archives:[string], model, generatedAt}`；themes/blindspots 均空 = 当日无对话内容（生成过但空）；segments 为 #seq-N 会话引用
 - Workflow：`/api/agents/{agentID}/workflows` 全套 CRUD + `run`、`run/stream`、`runs`（list/get/del/批量删）、`runs/{runID}/resume(/stream)`（M6 表单交互）、`schedules` CRUD
 - Workflow 运行流事件：NodeStart/NodeComplete/Done（形状待补，M4 时补）
 

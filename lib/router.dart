@@ -10,6 +10,7 @@ import 'pages/kb/articles_page.dart';
 import 'pages/kb/bookmarks_page.dart';
 import 'pages/kb/card_review_page.dart';
 import 'pages/kb/cards_page.dart';
+import 'pages/kb/diary_page.dart';
 import 'pages/kb/flash_page.dart';
 import 'pages/kb/notes_page.dart';
 import 'pages/kb/todos_page.dart';
@@ -72,6 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: 'review', builder: (_, _) => const KbCardReviewPage()),
         ]),
         GoRoute(path: 'notes', builder: (_, _) => const KbNotesPage()),
+        GoRoute(path: 'diary', builder: (_, _) => const KbDiaryPage()),
       ]),
       GoRoute(path: '/wiki', builder: (_, _) => const WikiPage()),
       GoRoute(path: '/workflow', builder: (_, _) => const WorkflowPage()),

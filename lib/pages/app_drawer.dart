@@ -422,7 +422,8 @@ class _ActionTile extends StatelessWidget {
 class _KbGrid extends StatelessWidget {
   const _KbGrid({required this.onTapNamed});
 
-  /// route name: 'articles' / 'notes' / … ; 'diary' signals coming soon.
+  /// route name: 'articles' / 'notes' / … ; empty string signals coming
+  /// soon.
   final void Function(BuildContext context, String route) onTapNamed;
 
   @override
@@ -434,7 +435,7 @@ class _KbGrid extends StatelessWidget {
       (l.kbNotes, LucideIcons.stickyNote, '/kb/notes'),
       (l.kbIdeas, LucideIcons.lightbulb, '/kb/flash'),
       (l.kbTodos, LucideIcons.squareCheckBig, '/kb/todos'),
-      (l.kbDiary, LucideIcons.calendarDays, ''),
+      (l.kbDiary, LucideIcons.calendarDays, '/kb/diary'),
       (l.kbBookmarks, LucideIcons.bookmark, '/kb/bookmarks'),
       (l.kbCards, LucideIcons.layers, '/kb/cards'),
       (l.kbWiki, LucideIcons.bookMarked, '/wiki'),
