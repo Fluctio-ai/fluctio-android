@@ -1103,21 +1103,22 @@ class TodoGanttView extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Hour ruler: label every 3 hours (8 slots).
+                    // Hour ruler: every hour labeled — one fixed-width
+                    // slot per column keeps labels aligned with the
+                    // bar geometry (3h intervals were too coarse to
+                    // read).
                     Row(
                       children: [
-                        for (var h = 0; h < 24; h += 3)
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              decoration: BoxDecoration(
-                                  border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
-                              child: Text('$h',
-                                  textAlign: TextAlign.left,
-                                  maxLines: 1,
-                                  style: theme.textTheme.labelSmall
-                                      ?.copyWith(fontSize: 9, color: scheme.outline)),
-                            ),
+                        for (var h = 0; h < 24; h++)
+                          Container(
+                            width: granularity.perColumn,
+                            padding: const EdgeInsets.only(top: 4, bottom: 4, left: 2),
+                            decoration: BoxDecoration(
+                                border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
+                            child: Text('$h',
+                                maxLines: 1,
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(fontSize: 9, color: scheme.outline)),
                           ),
                       ],
                     ),
