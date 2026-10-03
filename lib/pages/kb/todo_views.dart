@@ -52,7 +52,7 @@ extension TodoGranularityPeriods on TodoGranularity {
   double get perColumn => switch (this) {
         TodoGranularity.month => 40.0,
         TodoGranularity.week => 64.0,
-        TodoGranularity.day => 40.0,
+        TodoGranularity.day => 32.0,
       };
 }
 
