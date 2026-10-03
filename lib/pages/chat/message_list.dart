@@ -25,9 +25,14 @@ import 'image_viewer.dart';
 /// bubbles. Entries animate in with the 160ms rise+fade entrance from
 /// the design tokens (reduced-motion → pure fade).
 class MessageList extends ConsumerStatefulWidget {
-  const MessageList({super.key, required this.state});
+  const MessageList({super.key, required this.state, this.jumpSeq});
 
   final ChatUiState state;
+
+  /// #seq-N anchor (diary deep links): pull older history until covered,
+  /// then scroll the target entry into view. Consumed once per element
+  /// (the list is keyed by session, so a session switch restarts it).
+  final int? jumpSeq;
 
   @override
   ConsumerState<MessageList> createState() => _MessageListState();
@@ -37,6 +42,86 @@ class _MessageListState extends ConsumerState<MessageList> {
   final Set<String> _animated = {};
   final ScrollController _scroll = ScrollController();
   bool _awayFromBottom = false;
+
+  // ---- seq deep-link jump state ----
+  int? _pendingSeq;
+  int? _targetI; // reverse-list index of the anchor entry
+  BuildContext? _anchor;
+  int? _builtMinI, _builtMaxI; // reverse-index range the itemBuilder covered
+
+  @override
+  void initState() {
+    super.initState();
+    final seq = widget.jumpSeq;
+    if (seq != null && seq > 0) {
+      _pendingSeq = seq;
+      _runSeqJump();
+    }
+  }
+
+  /// Deep-link landing (#seq-N). Three phases: cover (page older history
+  /// until an entry with seq >= target loads), coarse-jump the reverse
+  /// list by an estimated entry height, then let the itemBuilder anchor
+  /// registration snap exactly via [Scrollable.ensureVisible]. Bail-out
+  /// everywhere is quiet — the coarse position (or the newest end) is
+  /// still a sane landing.
+  Future<void> _runSeqJump() async {
+    final seq = _pendingSeq!;
+    // Phase 1 — cover. loadMore is engine-guarded against re-entry.
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    while (mounted && DateTime.now().isBefore(deadline)) {
+      final s = widget.state;
+      if (!s.historyLoading) {
+        if (s.entries.any((e) => (e.seq ?? -1) >= seq) || !s.historyHasMore) break;
+        ref.read(chatStoreProvider.notifier).loadMore();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+    }
+    if (!mounted || _pendingSeq == null || !_scroll.hasClients) return;
+    // Phase 2 — coarse jump. Reverse list: offset grows toward the older
+    // end, so the anchor sits (len-1-idx) average-heights from the
+    // newest end. Estimation misses are corrected in phase 3.
+    final s = widget.state;
+    final idx = s.entries.indexWhere((e) => (e.seq ?? -1) >= seq);
+    if (idx < 0) {
+      _pendingSeq = null; // uncovered (offline cache / seq past the end)
+      return;
+    }
+    _targetI = s.entries.length - 1 - idx;
+    _builtMinI = _builtMaxI = null;
+    _scroll.jumpTo((((s.entries.length - 1 - idx) * 240.0))
+        .clamp(0.0, _scroll.position.maxScrollExtent));
+    // Phase 3 — snap. The anchor registers when the target item builds;
+    // otherwise step one viewport toward the target based on where the
+    // built range actually landed, a few attempts, then settle.
+    for (var attempt = 0; attempt < 3 && mounted && _anchor == null; attempt++) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      if (_anchor != null || !mounted || !_scroll.hasClients) break;
+      final minI = _builtMinI, maxI = _builtMaxI, targetI = _targetI;
+      if (minI == null || maxI == null || targetI == null) continue;
+      if (targetI > maxI) {
+        _scroll.jumpTo((_scroll.offset + 700).clamp(0.0, _scroll.position.maxScrollExtent));
+      } else if (targetI < minI) {
+        _scroll.jumpTo((_scroll.offset - 700).clamp(0.0, _scroll.position.maxScrollExtent));
+      } else {
+        break;
+      }
+    }
+  }
+
+  /// Called from itemBuilder: the target entry rendered — snap it into
+  /// view once this frame settles (alignment 0.25 keeps a bit of leading
+  /// context visible above the anchor).
+  void _registerAnchor(BuildContext ctx) {
+    _anchor = ctx;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final anchor = _anchor;
+      if (anchor != null && anchor.mounted) {
+        Scrollable.ensureVisible(anchor,
+            duration: const Duration(milliseconds: 200), alignment: 0.25);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -90,6 +175,11 @@ class _MessageListState extends ConsumerState<MessageList> {
             );
           }
           final entry = widget.state.entries[widget.state.entries.length - 1 - i];
+          _builtMinI = _builtMinI == null ? i : _builtMinI! < i ? _builtMinI : i;
+          _builtMaxI = _builtMaxI == null ? i : _builtMaxI! > i ? _builtMaxI : i;
+          if (_pendingSeq != null && i == _targetI && _anchor == null) {
+            _registerAnchor(context);
+          }
           final showRegenerate =
               entry is AssistantEntry && i == 0 && !widget.state.turnActive;
           return _EntryIn(

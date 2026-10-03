@@ -15,8 +15,14 @@ enum NoticeKind { serverError, stopped, compaction, turnAborted, historyError, o
 enum NoticeTone { info, warn, error }
 
 sealed class UiEntry {
-  const UiEntry({required this.key});
+  const UiEntry({required this.key, this.seq});
   final String key;
+
+  /// Server sequence anchor — drives #seq-N deep links (diary segment
+  /// chips → the exact message). History entries carry the wire seq;
+  /// local-only entries (notices, pending sends, cached replays) are
+  /// null.
+  final int? seq;
 }
 
 class UserEntry extends UiEntry {
@@ -27,6 +33,7 @@ class UserEntry extends UiEntry {
     this.pendingSteer = false,
     this.failed = false,
     this.ts = 0,
+    super.seq,
   });
 
   final String text;
@@ -52,11 +59,13 @@ class UserEntry extends UiEntry {
         pendingSteer: pendingSteer ?? this.pendingSteer,
         failed: failed ?? this.failed,
         ts: ts ?? this.ts,
+        seq: seq,
       );
 }
 
 class AssistantEntry extends UiEntry {
-  const AssistantEntry({required super.key, required this.text, this.streaming = false, this.ts = 0});
+  const AssistantEntry(
+      {required super.key, required this.text, this.streaming = false, this.ts = 0, super.seq});
 
   final String text;
   final bool streaming;
@@ -67,6 +76,7 @@ class AssistantEntry extends UiEntry {
         text: text ?? this.text,
         streaming: streaming ?? this.streaming,
         ts: ts ?? this.ts,
+        seq: seq,
       );
 }
 
@@ -77,6 +87,7 @@ class ToolEntry extends UiEntry {
     this.arguments = '',
     this.result,
     this.expanded = false,
+    super.seq,
   });
 
   final String name;
@@ -90,6 +101,7 @@ class ToolEntry extends UiEntry {
         arguments: arguments ?? this.arguments,
         result: result ?? this.result,
         expanded: expanded ?? this.expanded,
+        seq: seq,
       );
 }
 
@@ -433,10 +445,10 @@ class ChatEngine {
     switch (m.role) {
       case 'user':
         if (m.content.isEmpty && m.imageUrls.isEmpty) return;
-        batch.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls, ts: m.timestamp));
+        batch.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls, ts: m.timestamp, seq: m.seq));
       case 'assistant':
         if (m.content.isNotEmpty) {
-          batch.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.timestamp));
+          batch.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.timestamp, seq: m.seq));
         }
         for (final tc in m.toolCalls) {
           batch.add(ToolEntry(key: 'tc-${tc.id}', name: tc.name, arguments: tc.arguments));

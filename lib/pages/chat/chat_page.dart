@@ -23,7 +23,15 @@ import 'panels.dart';
 /// [chatStoreProvider]; this page only owns input-ephemeral state (text
 /// field, pending images).
 class ChatPage extends ConsumerStatefulWidget {
-  const ChatPage({super.key});
+  const ChatPage({super.key, this.openSid = '', this.jumpSeq});
+
+  /// Session to open on entry (the /c/:sid route parameter; '' = keep
+  /// whatever the store holds). Consumed once — later rebuilds of the
+  /// same element don't re-open.
+  final String openSid;
+
+  /// #seq-N anchor handed to the transcript (diary deep links).
+  final int? jumpSeq;
 
   @override
   ConsumerState<ChatPage> createState() => _ChatPageState();
@@ -32,6 +40,7 @@ class ChatPage extends ConsumerStatefulWidget {
 class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver {
   final _input = TextEditingController();
   final List<String> _pendingImages = [];
+  bool _routeSessionOpened = false;
 
   @override
   void initState() {
@@ -153,6 +162,17 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     if (!agents.loaded) {
       return Scaffold(appBar: AppBar(title: Text(l.navChat)), body: const SkeletonListView());
     }
+    // /c/:sid entry (deep links, session list): open the routed session
+    // once agents are resolvable. Post-frame — openSession writes store
+    // state synchronously and this frame is still mid-build.
+    if (!_routeSessionOpened && widget.openSid.isNotEmpty && agents.selectedId != null) {
+      _routeSessionOpened = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(chatStoreProvider.notifier).openSession(agents.selectedId!, widget.openSid);
+        }
+      });
+    }
     if (agents.agents.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text(l.navChat)),
@@ -257,7 +277,9 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                       // Keyed by session: entrance-animation bookkeeping lives
                       // in MessageList's state and must reset on switch.
                       : MessageList(
-                          key: ValueKey(ref.watch(chatStoreProvider).activeKey), state: active),
+                          key: ValueKey(ref.watch(chatStoreProvider).activeKey),
+                          state: active,
+                          jumpSeq: widget.jumpSeq),
                 ),
                 _SlashPalette(
                   matches: matchSlashCommands(_input.text),

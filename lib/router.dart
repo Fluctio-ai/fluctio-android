@@ -50,7 +50,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/setup', builder: (_, _) => const SetupPage()),
       GoRoute(path: '/', builder: (_, _) => const ChatPage()),
-      GoRoute(path: '/c/:sid', builder: (_, _) => const ChatPage()),
+      // ?seq=N deep-links into the transcript (diary segment chips).
+      GoRoute(
+        path: '/c/:sid',
+        builder: (_, state) => ChatPage(
+          openSid: state.pathParameters['sid'] ?? '',
+          jumpSeq: int.tryParse(state.uri.queryParameters['seq'] ?? ''),
+        ),
+      ),
       // Full conversation list — the drawer's "see all chats" target
       // (web /agents/<id>/chats).
       GoRoute(path: '/chats', builder: (_, _) => const SessionListPage()),
