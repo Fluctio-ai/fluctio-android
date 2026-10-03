@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
+import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/load_states.dart';
@@ -177,6 +180,61 @@ Widget _dayCreateButton(AppLocalizations l, ValueChanged<DateTime> onCreateAt, D
       ),
     );
 
+/// Title text that recovers the full content when the server truncated
+/// the row title (~50 bytes + '…', deriveTitle): fetches the source's
+/// entries once and shows the first non-empty line (web todoFirstLine)
+/// — the same recovery the list view's _TodoTile does. Used by the
+/// gantt rows and [TodoLine]; the calendar's tiny chips keep the
+/// truncated title.
+class TodoFullTitle extends ConsumerStatefulWidget {
+  const TodoFullTitle({super.key, required this.todo, this.style});
+
+  final KbSource todo;
+  final TextStyle? style;
+
+  @override
+  ConsumerState<TodoFullTitle> createState() => _TodoFullTitleState();
+}
+
+class _TodoFullTitleState extends ConsumerState<TodoFullTitle> {
+  String? _full;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.todo.title.endsWith('…')) _load();
+  }
+
+  @override
+  void didUpdateWidget(TodoFullTitle old) {
+    super.didUpdateWidget(old);
+    // Row elements are reused positionally — a different todo at the
+    // same spot must not keep the old title's fetched text.
+    if (old.todo.id != widget.todo.id) {
+      _full = null;
+      if (widget.todo.title.endsWith('…')) _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return;
+    try {
+      final text = await ref.read(kbRepoProvider).fullText(agentId, widget.todo.id);
+      final line = text
+          .split('\n')
+          .map((l) => l.replaceFirst(RegExp('^#{1,6}\\s*'), '').trim())
+          .firstWhere((l) => l.isNotEmpty, orElse: () => '');
+      if (line.isNotEmpty && mounted) setState(() => _full = line);
+    } catch (_) {
+      // Offline/failure: the truncated title stays.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(_full ?? widget.todo.title, style: widget.style);
+}
+
 /// Prev / period-title / next / today — the shared calendar + gantt
 /// header (web MonthNav) with the granularity pill; arrows step by the
 /// active granularity.
@@ -326,10 +384,8 @@ class TodoLine extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                todo.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: TodoFullTitle(
+                todo: todo,
                 style: TextStyle(
                   decoration: struck ? TextDecoration.lineThrough : null,
                   color: cancelled ? theme.colorScheme.outline : null,
@@ -962,11 +1018,12 @@ class TodoGanttView extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    // No line cap — the wide content columns hold the
-                    // whole server title (~50 bytes) without ellipsis;
-                    // long ones just wrap.
-                    t.title,
+                  // Full title: recovers the server-truncated row title
+                  // (…-terminated) from the source's entries; no line
+                  // cap — the wide content columns hold it, long ones
+                  // just wrap.
+                  child: TodoFullTitle(
+                    todo: t,
                     style: theme.textTheme.bodySmall?.copyWith(
                       height: 1.35,
                       decoration: cancelled ? TextDecoration.lineThrough : null,
