@@ -788,6 +788,9 @@ void _openDaySheet(
   void Function(KbSource) onOpen,
   ValueChanged<DateTime> onCreateAt,
 ) {
+  // Schedule order like the day views; the calendar cell's own chip
+  // track layout stays as built (user feedback).
+  final ordered = [...segs]..sort((a, b) => _compareByStart(a.todo, b.todo));
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -811,7 +814,7 @@ void _openDaySheet(
                 : ListView(
                     shrinkWrap: true,
                     children: [
-                      for (final seg in segs)
+                      for (final seg in ordered)
                         TodoLine(
                           todo: seg.todo,
                           onOpen: () {
@@ -1235,9 +1238,8 @@ class TodoGanttView extends StatelessWidget {
 }
 
 /// Todos overlapping a calendar day ([_spanOf] owns the conventions),
-/// in start-time order (start, then end; an end-only todo sorts by its
-/// deadline) — the day views read as a schedule, and the server's
-/// updated_at order made the rows jump around (user feedback).
+/// in start-time order — the day views read as a schedule, and the
+/// server's updated_at order made the rows jump around (user feedback).
 List<KbSource> _todosOn(List<KbSource> items, DateTime day) {
   final k = _dayKey(day);
   final todos = items
@@ -1246,12 +1248,26 @@ List<KbSource> _todosOn(List<KbSource> items, DateTime day) {
         return span != null && k.compareTo(span.s) >= 0 && k.compareTo(span.e) <= 0;
       })
       .toList();
-  DateTime sortKey(KbSource t) => t.startAt ?? t.endAt!;
-  todos.sort((a, b) {
-    final c = sortKey(a).compareTo(sortKey(b));
-    return c != 0 ? c : (a.endAt ?? sortKey(a)).compareTo(b.endAt ?? sortKey(b));
-  });
+  todos.sort(_compareByStart);
   return todos;
+}
+
+/// Schedule order shared by the day views and the calendar day sheet
+/// (user rule): timed starts first (by start, then end), end-only
+/// deadlines after them (by end), fully undated last.
+int _compareByStart(KbSource a, KbSource b) {
+  final sa = a.startAt, sb = b.startAt;
+  if (sa != null && sb != null) {
+    final c = sa.compareTo(sb);
+    return c != 0 ? c : (a.endAt ?? sa).compareTo(b.endAt ?? sb);
+  }
+  if (sa != null) return -1;
+  if (sb != null) return 1;
+  final ea = a.endAt, eb = b.endAt;
+  if (ea == null && eb == null) return 0;
+  if (ea == null) return 1;
+  if (eb == null) return -1;
+  return ea.compareTo(eb);
 }
 
 List<KbSource> _undated(List<KbSource> items) =>
