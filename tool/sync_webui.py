@@ -12,7 +12,7 @@ import os
 import sys
 import zipfile
 
-SRC = r'D:\backup\Desktop\fastclaw\web\out'
+SRC = r'D:\codes\fluctio\web\out'
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DST = os.path.join(ROOT, 'assets', 'webui.zip')
 
