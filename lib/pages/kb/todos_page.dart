@@ -212,27 +212,36 @@ Future<void> _edit(BuildContext context, WidgetRef ref, String agentId,
         heading: existing == null ? l.kbAddTodo : l.kbEdit,
         hint: l.kbTodoHint,
         initialText: initial,
+        initialStatus: existing == null || existing.status.isEmpty
+            ? 'pending'
+            : existing.status,
+        statusOptions: [
+          ('pending', l.todoStatusPending),
+          ('in_progress', l.todoStatusInProgress),
+          ('done', l.todoStatusDone),
+          ('cancelled', l.todoStatusCancelled),
+        ],
         dateLabel: l.kbStartDate,
         initialDate: existing?.startAt?.toLocal() ?? initialDate,
         endDateLabel: l.kbEndDate,
         initialEndDate: existing?.endAt?.toLocal(),
-        onSave: (text, _, date, endDate) async {
+        onSave: (text, _, date, endDate, {status}) async {
           final content = text.trim();
           if (content.isEmpty) return false;
+          final nextStatus = status ?? 'pending';
           try {
             if (existing == null) {
               final deduped =
-                  await repo.saveTodo(agentId, content, startAt: date, endAt: endDate);
+                  await repo.saveTodo(agentId, content, status: nextStatus, startAt: date, endAt: endDate);
               if (deduped && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.kbDeduped)));
               }
             } else {
-              final done = existing.status == 'done';
               await repo.updateTodo(
                 agentId,
                 existing.id,
                 content: content,
-                status: done ? 'done' : existing.status.isEmpty ? 'pending' : existing.status,
+                status: nextStatus,
                 startAt: date,
                 endAt: endDate,
               );

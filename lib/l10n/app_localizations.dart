@@ -830,6 +830,30 @@ abstract class AppLocalizations {
   /// **'待办内容'**
   String get kbTodoHint;
 
+  /// No description provided for @todoStatusPending.
+  ///
+  /// In zh, this message translates to:
+  /// **'待执行'**
+  String get todoStatusPending;
+
+  /// No description provided for @todoStatusInProgress.
+  ///
+  /// In zh, this message translates to:
+  /// **'执行中'**
+  String get todoStatusInProgress;
+
+  /// No description provided for @todoStatusDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已完成'**
+  String get todoStatusDone;
+
+  /// No description provided for @todoStatusCancelled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已取消'**
+  String get todoStatusCancelled;
+
   /// No description provided for @kbDueDate.
   ///
   /// In zh, this message translates to:

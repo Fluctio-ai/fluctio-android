@@ -129,7 +129,7 @@ class KbFlashPage extends ConsumerWidget {
         heading: l.kbEdit,
         hint: l.kbFlashHint,
         initialText: initial,
-        onSave: (text, _, _, _) async {
+        onSave: (text, _, _, _, {status}) async {
           try {
             await repo.updateFlash(agentId, s.id, text.trim());
             ref.invalidate(kbSourcesProvider(agentId));
@@ -151,7 +151,7 @@ class KbFlashPage extends ConsumerWidget {
       builder: (_) => KbEditorPage(
         heading: l.kbAddFlash,
         hint: l.kbFlashHint,
-        onSave: (text, _, _, _) async {
+        onSave: (text, _, _, _, {status}) async {
           try {
             final deduped = await repo.saveFlash(agentId, text.trim());
             if (deduped && context.mounted) {

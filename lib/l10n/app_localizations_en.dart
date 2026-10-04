@@ -384,6 +384,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbTodoHint => 'Todo content';
 
   @override
+  String get todoStatusPending => 'Pending';
+
+  @override
+  String get todoStatusInProgress => 'In progress';
+
+  @override
+  String get todoStatusDone => 'Done';
+
+  @override
+  String get todoStatusCancelled => 'Cancelled';
+
+  @override
   String get kbDueDate => 'Date';
 
   @override

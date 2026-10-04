@@ -120,7 +120,7 @@ class KbNotesPage extends ConsumerWidget {
         titleLabel: l.kbTitleOptional,
         initialTitle: n.title,
         initialText: initialText ?? n.contentMd,
-        onSave: (text, title, _, _) async {
+        onSave: (text, title, _, _, {status}) async {
           try {
             await repo.saveNote(agentId, id: n.id, title: title.trim(), contentMd: text);
             ref.invalidate(kbNotesProvider(agentId));
@@ -143,7 +143,7 @@ class KbNotesPage extends ConsumerWidget {
         heading: l.noteNew,
         hint: l.noteBodyHint,
         titleLabel: l.kbTitleOptional,
-        onSave: (text, title, _, _) async {
+        onSave: (text, title, _, _, {status}) async {
           try {
             await repo.saveNote(agentId, title: title.trim(), contentMd: text);
             ref.invalidate(kbNotesProvider(agentId));

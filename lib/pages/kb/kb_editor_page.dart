@@ -17,6 +17,8 @@ class KbEditorPage extends StatefulWidget {
     this.initialText = '',
     this.titleLabel,
     this.initialTitle = '',
+    this.initialStatus = '',
+    this.statusOptions = const [],
     this.dateLabel,
     this.initialDate,
     this.endDateLabel,
@@ -33,6 +35,12 @@ class KbEditorPage extends StatefulWidget {
   final String? titleLabel;
   final String initialTitle;
 
+  /// Optional status segment row (todos): the current status id plus
+  /// the selectable (id, label) pairs. An empty initialStatus hides the
+  /// row — note/flash editors never see it.
+  final String initialStatus;
+  final List<(String, String)> statusOptions;
+
   /// Optional start-date row (todos). Null hides the picker.
   final String? dateLabel;
   final DateTime? initialDate;
@@ -44,9 +52,10 @@ class KbEditorPage extends StatefulWidget {
 
   /// Returns true when the save succeeded (the page then pops true).
   /// [endDate] arrives only for todo editors that configured the end
-  /// row; other callers ignore it.
-  final Future<bool> Function(
-      String text, String title, DateTime? date, DateTime? endDate) onSave;
+  /// row; other callers ignore it. [status] likewise arrives only for
+  /// todo editors that configured the status row.
+  final Future<bool> Function(String text, String title, DateTime? date,
+      DateTime? endDate, {String? status}) onSave;
 
   @override
   State<KbEditorPage> createState() => _KbEditorPageState();
@@ -55,6 +64,7 @@ class KbEditorPage extends StatefulWidget {
 class _KbEditorPageState extends State<KbEditorPage> {
   late final TextEditingController _text = TextEditingController(text: widget.initialText);
   late final TextEditingController _title = TextEditingController(text: widget.initialTitle);
+  late String _status = widget.initialStatus;
   DateTime? _date;
   DateTime? _endDate;
   var _dirty = false;
@@ -77,7 +87,8 @@ class _KbEditorPageState extends State<KbEditorPage> {
   Future<void> _save() async {
     if (_saving || _text.text.trim().isEmpty) return;
     setState(() => _saving = true);
-    final ok = await widget.onSave(_text.text, _title.text, _date, _endDate);
+    final ok = await widget.onSave(_text.text, _title.text, _date, _endDate,
+        status: _status.isEmpty ? null : _status);
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) Navigator.of(context).pop(true);
@@ -109,6 +120,30 @@ class _KbEditorPageState extends State<KbEditorPage> {
       }
       _dirty = true;
     });
+  }
+
+  /// The status segment row (todos): the same SegmentedButton idiom as
+  /// the page's view switcher; a pick marks the page dirty like any
+  /// other edit.
+  Widget _statusRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SegmentedButton<String>(
+        segments: [
+          for (final (id, label) in widget.statusOptions)
+            ButtonSegment(
+                value: id,
+                label: Text(label,
+                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ],
+        selected: {_status},
+        showSelectedIcon: false,
+        onSelectionChanged: (s) => setState(() {
+          _status = s.first;
+          _dirty = true;
+        }),
+      ),
+    );
   }
 
   /// One start/end datetime row: pick button + clear button when set.
@@ -198,6 +233,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
                     decoration: InputDecoration(labelText: widget.titleLabel),
                   ),
                 ),
+              if (widget.statusOptions.isNotEmpty) _statusRow(),
               if (widget.dateLabel != null) _dateRow(false),
               if (widget.endDateLabel != null) _dateRow(true),
               Expanded(

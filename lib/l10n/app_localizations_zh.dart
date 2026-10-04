@@ -380,6 +380,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbTodoHint => '待办内容';
 
   @override
+  String get todoStatusPending => '待执行';
+
+  @override
+  String get todoStatusInProgress => '执行中';
+
+  @override
+  String get todoStatusDone => '已完成';
+
+  @override
+  String get todoStatusCancelled => '已取消';
+
+  @override
   String get kbDueDate => '日期';
 
   @override

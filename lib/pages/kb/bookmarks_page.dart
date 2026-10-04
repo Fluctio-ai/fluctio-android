@@ -173,7 +173,7 @@ class _BookmarkActions {
               titleLabel: l.kbTitleOptional,
               initialTitle: bookmark.title,
               initialText: bookmark.summary,
-              onSave: (summary, title, _, _) async {
+              onSave: (summary, title, _, _, {status}) async {
                 try {
                   await repo.updateBookmark(agentId, bookmark.id,
                       title: title.trim(), summary: summary.trim());
