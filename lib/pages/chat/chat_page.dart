@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:image_picker/image_picker.dart';
@@ -41,6 +42,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
   final _input = TextEditingController();
   final List<String> _pendingImages = [];
   bool _routeSessionOpened = false;
+  DateTime? _lastBackAt;
 
   @override
   void initState() {
@@ -216,107 +218,153 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
     final subText =
         '${selected.name}${selected.model.isEmpty ? '' : ' · ${selected.model}'}';
-    return Scaffold(
-      drawer: const AppDrawer(),
-      // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
-      // per user feedback): the default ~20px left-edge zone is hard to
-      // hit and sits inside gesture-nav's system-back strip. A 55%-wide
-      // start zone lets a right thumb drag from the middle — clear of
-      // both system back edges. The arena still awards vertical-dominant
-      // scrolls to the transcript.
-      drawerEdgeDragWidth: MediaQuery.sizeOf(context).width * 0.55,
-      appBar: AppBar(
-        // The session title leads (user preference); agent switching
-        // lives in the drawer header. Title gutters come from the
-        // global AppBarTheme.
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(titleText,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium),
-            Text(subText,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: theme.colorScheme.outline)),
-          ],
+    return PopScope(
+      // Double-back-to-exit on the root: one stray tap shouldn't kill
+      // the transcript mid-session. A drawer open consumes back first
+      // (Navigator local history), so this only sees the bare root.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackAt != null && now.difference(_lastBackAt!) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackAt = now;
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l.exitAgain), duration: const Duration(seconds: 2)));
+      },
+      child: Scaffold(
+        drawer: const AppDrawer(),
+        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
+        // per user feedback): the default ~20px left-edge zone is hard to
+        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
+        // start zone lets a right thumb drag from the middle — clear of
+        // both system back edges. The arena still awards vertical-dominant
+        // scrolls to the transcript.
+        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+        appBar: AppBar(
+          // The session title leads (user preference); agent switching
+          // lives in the drawer header. Title gutters come from the
+          // global AppBarTheme.
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(titleText,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium),
+              Text(subText,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            ],
+          ),
+          actions: activeSessionId == null || activeSessionId.isEmpty
+              ? null
+              : [
+                  IconButton(
+                    tooltip: l.chatFiles,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => showFilesSheet(context),
+                    icon: const Icon(LucideIcons.folderOpen),
+                  ),
+                  IconButton(
+                    tooltip: l.chatTodo,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => showTodoSheet(context),
+                    icon: const Icon(LucideIcons.listTodo),
+                  ),
+                ],
         ),
-        actions: activeSessionId == null || activeSessionId.isEmpty
-            ? null
-            : [
-                IconButton(
-                  tooltip: l.chatFiles,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => showFilesSheet(context),
-                  icon: const Icon(LucideIcons.folderOpen),
-                ),
-                IconButton(
-                  tooltip: l.chatTodo,
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => showTodoSheet(context),
-                  icon: const Icon(LucideIcons.listTodo),
-                ),
-              ],
-      ),
-      body: active == null
-          ? const SkeletonListView(itemCount: 4)
-          : Column(
-              children: [
-                if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
-                Expanded(
-                  // Fresh conversation: the dashboard IS the empty state
-                  // (web ChatDashboard); typing hides it, any entry
-                  // swaps back to the transcript.
-                  child: _input.text.isEmpty &&
-                          _pendingImages.isEmpty &&
-                          !active.turnActive &&
-                          !active.historyLoading &&
-                          active.entries.isEmpty
-                      ? const ChatDashboard()
-                      // Keyed by session: entrance-animation bookkeeping lives
-                      // in MessageList's state and must reset on switch.
-                      : MessageList(
-                          key: ValueKey(ref.watch(chatStoreProvider).activeKey),
-                          state: active,
-                          jumpSeq: widget.jumpSeq),
-                ),
-                _SlashPalette(
-                  matches: matchSlashCommands(_input.text),
-                  enabled: !active.turnActive || _input.text.trim().isNotEmpty,
-                  onPick: (cmd) {
-                    _input.clear();
-                    setState(() {});
-                    ref.read(chatStoreProvider.notifier).send(cmd.invoke);
-                  },
-                ),
-                if (active.turnActive && active.awaitingFirstDelta)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-                    child: Row(
+        body: active == null
+            ? const SkeletonListView(itemCount: 4)
+            : Column(
+                children: [
+                  if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
+                  Expanded(
+                    // Soft fade where the surface meets the composer:
+                    // content dissolves into the background instead of
+                    // hitting the card's hard top edge (user feedback).
+                    // A fixed-height background-gradient strip rather
+                    // than a full-viewport ShaderMask — same look, no
+                    // saveLayer on the streaming hot path.
+                    child: Stack(
                       children: [
-                        const TypingDots(),
-                        const SizedBox(width: 8),
-                        Text(l.chatThinking,
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: theme.colorScheme.outline)),
+                        Positioned.fill(
+                          child: _input.text.isEmpty &&
+                                  _pendingImages.isEmpty &&
+                                  !active.turnActive &&
+                                  !active.historyLoading &&
+                                  active.entries.isEmpty
+                              ? const ChatDashboard()
+                              // Keyed by session: entrance-animation bookkeeping lives
+                              // in MessageList's state and must reset on switch.
+                              : MessageList(
+                                  key: ValueKey(ref.watch(chatStoreProvider).activeKey),
+                                  state: active,
+                                  jumpSeq: widget.jumpSeq),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          height: 14,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    theme.scaffoldBackgroundColor.withValues(alpha: 0),
+                                    theme.scaffoldBackgroundColor,
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                Composer(
-                  controller: _input,
-                  state: active,
-                  pendingImages: _pendingImages,
-                  chatOnly: chatOnly,
-                  onToggleChatOnly: (on) => _toggleChatOnly(context, on),
-                  onChanged: () => setState(() {}),
-                  onPickImages: _pickImages,
-                  onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
-                  onSend: _send,
-                  onSteer: _steer,
-                  onStop: () => ref.read(chatStoreProvider.notifier).stop(),
-                ),
-              ],
+                  _SlashPalette(
+                    matches: matchSlashCommands(_input.text),
+                    enabled: !active.turnActive || _input.text.trim().isNotEmpty,
+                    onPick: (cmd) {
+                      _input.clear();
+                      setState(() {});
+                      ref.read(chatStoreProvider.notifier).send(cmd.invoke);
+                    },
+                  ),
+                  if (active.turnActive && active.awaitingFirstDelta)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: Row(
+                        children: [
+                          const TypingDots(),
+                          const SizedBox(width: 8),
+                          Text(l.chatThinking,
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: theme.colorScheme.outline)),
+                        ],
+                      ),
+                    ),
+                  Composer(
+                    controller: _input,
+                    state: active,
+                    pendingImages: _pendingImages,
+                    chatOnly: chatOnly,
+                    onToggleChatOnly: (on) => _toggleChatOnly(context, on),
+                    onChanged: () => setState(() {}),
+                    onPickImages: _pickImages,
+                    onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
+                    onSend: _send,
+                    onSteer: _steer,
+                    onStop: () => ref.read(chatStoreProvider.notifier).stop(),
+                  ),
+                ],
+              ),
             ),
     );
   }

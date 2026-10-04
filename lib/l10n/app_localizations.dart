@@ -1142,6 +1142,12 @@ abstract class AppLocalizations {
   /// **'放弃未保存的修改？'**
   String get noteDiscard;
 
+  /// No description provided for @exitAgain.
+  ///
+  /// In zh, this message translates to:
+  /// **'再按一次返回退出'**
+  String get exitAgain;
+
   /// No description provided for @noteBodyHint.
   ///
   /// In zh, this message translates to:

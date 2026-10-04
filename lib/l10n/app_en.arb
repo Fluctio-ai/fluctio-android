@@ -178,6 +178,7 @@
   "noteUntitled": "Untitled note",
   "noteNew": "New note",
   "noteDiscard": "Discard unsaved changes?",
+  "exitAgain": "Press back again to exit",
   "noteBodyHint": "Body (Markdown)",
   "noteAttachments": "Attachments (read-only)",
   "tabProfile": "Profile",

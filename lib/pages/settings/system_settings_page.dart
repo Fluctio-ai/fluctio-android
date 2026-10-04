@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/form_editor_page.dart';
 import '../../ui/load_states.dart';
 import '../../settings/json_form.dart';
 import '../../settings/settings_repo.dart';
@@ -191,47 +192,33 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
 
   Future<void> _edit(Map<String, dynamic>? existing) async {
     final l = AppLocalizations.of(context)!;
-    final name = TextEditingController(text: '${existing?['name'] ?? ''}');
-    final apiBase = TextEditingController(text: '${existing?['apiBase'] ?? ''}');
-    final apiKey = TextEditingController();
-    final model = TextEditingController(text: '${existing?['model'] ?? ''}');
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null ? l.settingsAdd : l.chatRename),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: name, decoration: const InputDecoration(hintText: 'name')),
-            const SizedBox(height: 8),
-            TextField(controller: apiBase, decoration: const InputDecoration(hintText: 'apiBase')),
-            const SizedBox(height: 8),
-            TextField(controller: apiKey, decoration: const InputDecoration(hintText: 'apiKey')),
-            const SizedBox(height: 8),
-            TextField(controller: model, decoration: const InputDecoration(hintText: 'model')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
+    // Full-page editor — four fields never fit an AlertDialog; apiKey
+    // is masked with an eye toggle (the dialog showed it in clear).
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => FormEditorPage<bool>(
+        heading: existing == null ? l.settingsAdd : l.chatRename,
+        fields: [
+          EditorField(label: 'name', initial: '${existing?['name'] ?? ''}', autofocus: existing == null),
+          EditorField(label: 'apiBase', initial: '${existing?['apiBase'] ?? ''}', keyboardType: TextInputType.url),
+          EditorField(label: 'apiKey', obscure: true),
+          EditorField(label: 'model', initial: '${existing?['model'] ?? ''}'),
         ],
+        canSave: (v) => v[0].trim().isNotEmpty,
+        onSave: (v) async {
+          await ref.read(settingsRepoProvider).saveProvider(
+                id: existing == null ? null : '${existing['id']}',
+                body: {
+                  'name': v[0].trim(),
+                  if (v[1].trim().isNotEmpty) 'apiBase': v[1].trim(),
+                  if (v[2].trim().isNotEmpty) 'apiKey': v[2].trim(),
+                  if (v[3].trim().isNotEmpty) 'model': v[3].trim(),
+                },
+              );
+          return true;
+        },
       ),
-    );
-    if (saved != true || name.text.trim().isEmpty) return;
-    try {
-      await ref.read(settingsRepoProvider).saveProvider(
-            id: existing == null ? null : '${existing['id']}',
-            body: {
-              'name': name.text.trim(),
-              if (apiBase.text.trim().isNotEmpty) 'apiBase': apiBase.text.trim(),
-              if (apiKey.text.trim().isNotEmpty) 'apiKey': apiKey.text.trim(),
-              if (model.text.trim().isNotEmpty) 'model': model.text.trim(),
-            },
-          );
-      _load();
-    } catch (e) {
-      if (mounted) showApiError(context, e);
-    }
+    ));
+    if (saved == true) _load();
   }
 
   @override

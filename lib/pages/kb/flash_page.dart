@@ -1,3 +1,4 @@
+import '../app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -28,6 +29,9 @@ class KbFlashPage extends ConsumerWidget {
     final sources = agentId == null ? null : ref.watch(kbSourcesProvider(agentId));
 
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbIdeas)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _new(context, ref, agentId),

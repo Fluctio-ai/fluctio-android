@@ -1,3 +1,4 @@
+import '../app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -73,6 +74,9 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
     });
 
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbDiary)),
       body: diaries.when(
         loading: () => const SkeletonListView(itemCount: 6),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
+import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
@@ -70,6 +71,9 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
         : ref.watch(kbSourcesProvider(agentId));
 
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbArticles)),
       body: Column(
         children: [

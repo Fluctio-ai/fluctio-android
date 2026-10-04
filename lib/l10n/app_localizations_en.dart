@@ -544,6 +544,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noteDiscard => 'Discard unsaved changes?';
 
   @override
+  String get exitAgain => 'Press back again to exit';
+
+  @override
   String get noteBodyHint => 'Body (Markdown)';
 
   @override

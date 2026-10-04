@@ -7,6 +7,7 @@ import '../chat/chat_controller.dart';
 import '../chat/chat_repo.dart';
 import '../chat/models.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/form_editor_page.dart';
 import '../ui/load_states.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
@@ -19,6 +20,14 @@ import 'chat/panels.dart';
 /// bottom tab bar.
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
+
+  /// The drawer gesture zone every surface shares (ticket 13): 55% of
+  /// the screen width — wide enough for a right thumb dragging from
+  /// mid-screen, clear of the system back edges. Every Scaffold that
+  /// mounts this drawer sizes its edge drag with this, so the zone
+  /// never drifts between pages.
+  static double edgeDragWidth(BuildContext context) =>
+      MediaQuery.sizeOf(context).width * 0.55;
 
   @override
   ConsumerState<AppDrawer> createState() => _AppDrawerState();
@@ -259,37 +268,19 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
     String initialDescription = '',
   }) {
     final l = AppLocalizations.of(context)!;
-    final name = TextEditingController(text: initialName);
-    final description = TextEditingController(text: initialDescription);
-    return showDialog<(String, String)>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              autofocus: true,
-              decoration: InputDecoration(labelText: l.projectNameLabel),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: description,
-              maxLines: 3,
-              decoration: InputDecoration(labelText: l.projectDescriptionLabel),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l.cancel)),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop((name.text, description.text)),
-            child: Text(l.confirm),
-          ),
+    // Full-page editor — same surface as the KB edits; the pop result
+    // keeps the caller contract (null = cancelled).
+    return Navigator.of(context).push<(String, String)>(MaterialPageRoute(
+      builder: (_) => FormEditorPage<(String, String)>(
+        heading: title,
+        fields: [
+          EditorField(label: l.projectNameLabel, initial: initialName, autofocus: true),
+          EditorField(label: l.projectDescriptionLabel, initial: initialDescription, maxLines: 5),
         ],
+        canSave: (v) => v[0].trim().isNotEmpty,
+        onSave: (v) async => (v[0].trim(), v[1].trim()),
       ),
-    );
+    ));
   }
 }
 

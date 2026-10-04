@@ -60,7 +60,11 @@ amber 当数据色(amber 只属于 warning——chart 色环特意绕开它)。
 - **zh 作用域铁律**:正文行高 **1.7**(`height: 1.7`);中文**去一切负字距**
   (letter-spacing 归零,CJK 全宽字形不允许 tracking-tight)。
 - **字号阶梯(sp,触屏密度)**:display 28 / headline 22 / title 17 /
-  body 15 / secondary 13 / caption 12。聊天回复用 body 15、行高 1.7。
+  body 15 / secondary 13 / caption 12,全部经 `AppTheme._textTheme` 映射到
+  Material 角色,页面上禁止手写阶梯外字号。例外:① 数据注记 10
+  (`AppType.chart`),仅限图表/日历格内部的刻度与 chip 标题,不用于可读文本;
+  ② 聊天 markdown 文档标题档 22/18/16/15/14/13(阶梯内的文档插值,靠字重递降)。
+  聊天回复用 body 15、行高 1.7。
 - **Mono 数字**:代码、时间戳、会话计数、token 用量、任何会并排对比的数字,
   用 mono(JetBrains Mono 系)。正文里的散文数字不用。
 - **阅读宽度**:聊天消息正文最大可读列宽(~65ch);平板/横屏居中收束,
@@ -91,6 +95,13 @@ amber 当数据色(amber 只属于 warning——chart 色环特意绕开它)。
 ## 5. Layout Principles
 
 - **手机一律单列**;平板/横屏才允许双列(列表 + 详情)。
+- **抽屉随处可达**:所有内容列表页(文章/笔记/灵感/待办/日记/书签/卡片)
+  与 Wiki 壳都挂 `AppDrawer`,手势区 55% 屏宽(`drawerEdgeDragWidth`),
+  与对话页一致;二级页 AppBar 仍是返回箭头。编辑器类 WebView
+  (工作流)不挂——左缘拖拽属于画布。
+- **编辑即全屏**:添加/编辑表单走 `FormEditorPage`/`KbEditorPage`
+  (键盘有容身之处、dirty 返回守卫、AppBar 保存),弹窗只留给
+  确认类(删除/登出/放弃修改)。
 - **底部 5 tab**(对话/知识库/Wiki/工作流/设置),tab 图标 + 短标签;
   活动 tab 用 Surge Cyan,其余 neutral。
 - **触控目标 ≥ 44dp**,含行内 chip 与图标按钮。

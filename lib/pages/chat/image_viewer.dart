@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 
+import '../../theme/tokens.dart';
+
 /// Fullscreen lightbox for chat images (bubble thumbnails and markdown
 /// inline images route here): pinch zoom, horizontal swipe across every
 /// image of the conversation, and drag-down dismiss while at base
@@ -101,7 +103,7 @@ class _ImageViewerPageState extends State<ImageViewerPage> {
                       child: Text(
                         '${_index + 1} / ${widget.providers.length}',
                         style: const TextStyle(
-                            color: Colors.white70, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                            color: Colors.white70, fontSize: AppType.caption, fontFeatures: [FontFeature.tabularFigures()]),
                       ),
                     ),
                   ),

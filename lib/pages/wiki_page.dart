@@ -15,6 +15,6 @@ class WikiPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId ?? ''));
-    return WebContainerPage(title: l.navWiki, path: WebRoutes.wiki(agentId));
+    return WebContainerPage(title: l.navWiki, path: WebRoutes.wiki(agentId), showDrawer: true);
   }
 }

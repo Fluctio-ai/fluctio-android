@@ -228,7 +228,7 @@ class _TagEditorState extends State<_TagEditor> {
               children: [
                 for (final tag in widget.tags.take(8))
                   Chip(
-                    label: Text(tag, style: const TextStyle(fontSize: 11)),
+                    label: Text(tag, style: const TextStyle(fontSize: AppType.caption)),
                     visualDensity: VisualDensity.compact,
                     backgroundColor: theme.colorScheme.secondaryContainer,
                   ),

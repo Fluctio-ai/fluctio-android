@@ -53,7 +53,9 @@ class Composer extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        // Margins match the transcript's 12px list padding, so the card's
+        // edges line up with the message bubbles above (user feedback).
+        margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
@@ -86,7 +88,7 @@ class Composer extends StatelessWidget {
               maxLines: 6,
               keyboardType: TextInputType.multiline,
               textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(fontSize: 15, height: 1.4),
+              style: const TextStyle(fontSize: AppType.body, height: 1.4),
               decoration: InputDecoration(
                 hintText: l.chatEmpty,
                 border: InputBorder.none,
@@ -176,7 +178,7 @@ class _ToolButton extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     label!,
-                    style: TextStyle(fontSize: 12, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
+                    style: TextStyle(fontSize: AppType.caption, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
                   ),
                 ],
               ],

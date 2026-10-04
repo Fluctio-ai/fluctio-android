@@ -171,7 +171,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(t.labelKey(l), style: const TextStyle(fontSize: 12)),
+                      label: Text(t.labelKey(l), style: const TextStyle(fontSize: AppType.caption)),
                       visualDensity: VisualDensity.compact,
                       selected: _tab == t.id,
                       onSelected: (_) => setState(() => _tab = t.id),
@@ -403,7 +403,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       decoration: const InputDecoration(isDense: true),
       items: [
         for (final o in options)
-          DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))),
+          DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: AppType.secondary))),
       ],
       onChanged: (v) => v == null ? null : onChanged(v),
     );
@@ -454,7 +454,7 @@ class _ModelFieldState extends ConsumerState<_ModelField> {
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: ActionChip(
-                      label: Text(m, style: const TextStyle(fontSize: 11)),
+                      label: Text(m, style: const TextStyle(fontSize: AppType.caption)),
                       visualDensity: VisualDensity.compact,
                       onPressed: () {
                         _controller.text = m;
@@ -581,7 +581,7 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
                       if (mounted) setState(() => _busy = false);
                     },
               icon: const Icon(LucideIcons.refreshCw, size: 14),
-              label: Text(l.settingsReload, style: const TextStyle(fontSize: 13)),
+              label: Text(l.settingsReload, style: const TextStyle(fontSize: AppType.secondary)),
             ),
           ],
         ),

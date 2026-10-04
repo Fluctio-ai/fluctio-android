@@ -716,7 +716,7 @@ class TodoCalendarView extends StatelessWidget {
               if (hidden > 0)
                 Text('+$hidden',
                     style: theme.textTheme.labelSmall
-                        ?.copyWith(color: scheme.outline, fontSize: 10)),
+                        ?.copyWith(color: scheme.outline, fontSize: AppType.chart)),
             ],
           ),
         ),
@@ -763,7 +763,7 @@ class TodoCalendarView extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 10,
+                fontSize: AppType.chart,
                 color: fg,
                 decoration: cancelled ? TextDecoration.lineThrough : null,
               ),
@@ -961,7 +961,7 @@ class TodoGanttView extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 9,
+                    fontSize: AppType.chart,
                     color: isToday
                         ? scheme.primary
                         : weekend
@@ -1180,7 +1180,7 @@ class TodoGanttView extends StatelessWidget {
                                 child: Text('$h',
                                     maxLines: 1,
                                     style: theme.textTheme.labelSmall
-                                        ?.copyWith(fontSize: 9, color: scheme.outline)),
+                                        ?.copyWith(fontSize: AppType.chart, color: scheme.outline)),
                               ),
                           ],
                         );

@@ -416,7 +416,7 @@ class _UserBubble extends ConsumerWidget {
                   child: Text(
                     l.chatThinking,
                     style: TextStyle(
-                        fontSize: 10, color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
+                        fontSize: AppType.caption, color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
                   ),
                 ),
               if (entry.failed)
@@ -516,7 +516,7 @@ class _RegenerateButton extends ConsumerWidget {
       ),
       onPressed: () => ref.read(chatStoreProvider.notifier).regenerate(),
       icon: const Icon(LucideIcons.rotateCcw, size: 14),
-      label: Text(l.chatRegenerate, style: const TextStyle(fontSize: 12)),
+      label: Text(l.chatRegenerate, style: const TextStyle(fontSize: AppType.caption)),
     );
   }
 }
@@ -531,23 +531,27 @@ MarkdownStyleSheet markdownStyle(BuildContext context) {
     p: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
     // Compact heading ladder close to the body size — fromTheme's
     // display-scale defaults made h1 tower over an otherwise 15px body.
-    h1: theme.textTheme.titleLarge?.copyWith(fontSize: 20, fontWeight: FontWeight.w600, height: 1.4),
-    h2: theme.textTheme.titleMedium?.copyWith(fontSize: 18, fontWeight: FontWeight.w600, height: 1.4),
-    h3: theme.textTheme.titleMedium?.copyWith(fontSize: 16, fontWeight: FontWeight.w600, height: 1.45),
-    h4: theme.textTheme.bodyLarge?.copyWith(fontSize: 15, fontWeight: FontWeight.w600, height: lineHeight),
-    h5: theme.textTheme.bodyMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w600, height: lineHeight),
-    h6: theme.textTheme.bodySmall?.copyWith(fontSize: 13, fontWeight: FontWeight.w500, height: lineHeight),
+    h1: theme.textTheme.titleLarge?.copyWith(fontSize: AppType.headline, fontWeight: FontWeight.w600, height: 1.4),
+    h2: theme.textTheme.titleMedium?.copyWith(fontSize: AppType.docH2, fontWeight: FontWeight.w600, height: 1.4),
+    h3: theme.textTheme.titleMedium?.copyWith(fontSize: AppType.docH3, fontWeight: FontWeight.w600, height: 1.45),
+    h4: theme.textTheme.bodyLarge?.copyWith(fontSize: AppType.body, fontWeight: FontWeight.w600, height: lineHeight),
+    h5: theme.textTheme.bodyMedium?.copyWith(fontSize: AppType.docH5, fontWeight: FontWeight.w600, height: lineHeight),
+    h6: theme.textTheme.bodySmall?.copyWith(fontSize: AppType.secondary, fontWeight: FontWeight.w500, height: lineHeight),
     listBullet: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
     blockquote: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
-    code: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 13),
+    code: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.secondary),
     codeblockDecoration: BoxDecoration(
       color: theme.colorScheme.secondaryContainer,
       borderRadius: AppRadius.controlBorder,
+      // Hairline like every tinted container (DESIGN.md §4) — without it
+      // the block dissolves into the page in dark (0.22 vs 0.145 L).
+      border: Border.all(color: theme.colorScheme.outlineVariant),
     ),
     codeblockPadding: const EdgeInsets.all(12),
     blockquoteDecoration: BoxDecoration(
       color: theme.colorScheme.secondaryContainer,
       borderRadius: AppRadius.controlBorder,
+      border: Border.all(color: theme.colorScheme.outlineVariant),
     ),
     blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
     tableHead: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
@@ -663,7 +667,7 @@ class _ToolCard extends ConsumerWidget {
                       child: SelectableText(
                         entry.arguments,
                         style:
-                            theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12),
+                            theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.caption),
                       ),
                     ),
                   if (entry.arguments.isNotEmpty && entry.result != null)
@@ -672,7 +676,7 @@ class _ToolCard extends ConsumerWidget {
                     SelectableText(
                       entry.result!,
                       style:
-                          theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: 12),
+                          theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.caption),
                     ),
                 ],
               ),
@@ -777,7 +781,7 @@ class _AuthCard extends ConsumerWidget {
                     onPressed: entry.answered
                         ? null
                         : () => ref.read(chatStoreProvider.notifier).answerAuth(option.cmd),
-                    child: Text(option.label(locale), style: const TextStyle(fontSize: 13)),
+                    child: Text(option.label(locale), style: const TextStyle(fontSize: AppType.secondary)),
                   ),
               ],
             ),

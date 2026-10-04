@@ -3,6 +3,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:markdown/markdown.dart' as md;
 
+import '../theme/tokens.dart';
+
 /// KaTeX-style math for the chat transcript (same delimiters as the web's
 /// @streamdown/math): `$...$` inline, `$$ ... $$` block. Unparseable TeX
 /// degrades to the raw LaTeX text instead of crashing (ticket 07).
@@ -62,13 +64,13 @@ class MathElementBuilder extends MarkdownElementBuilder {
         textStyle: style,
         onErrorFallback: (_) => SelectableText(
           tex,
-          style: style.copyWith(fontFamily: 'monospace', fontSize: 13),
+          style: style.copyWith(fontFamily: 'monospace', fontSize: AppType.secondary),
         ),
       );
     } catch (_) {
       return SelectableText(
         tex,
-        style: style.copyWith(fontFamily: 'monospace', fontSize: 13),
+        style: style.copyWith(fontFamily: 'monospace', fontSize: AppType.secondary),
       );
     }
   }

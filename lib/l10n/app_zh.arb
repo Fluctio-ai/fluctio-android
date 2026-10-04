@@ -178,6 +178,7 @@
   "noteUntitled": "无标题笔记",
   "noteNew": "新建笔记",
   "noteDiscard": "放弃未保存的修改？",
+  "exitAgain": "再按一次返回退出",
   "noteBodyHint": "正文（Markdown）",
   "noteAttachments": "附件（只读）",
   "tabProfile": "资料",

@@ -136,6 +136,28 @@ BoxDecoration surfaceCardDecoration(ColorScheme scheme) => BoxDecoration(
       border: Border.all(color: scheme.outlineVariant),
     );
 
+/// Type ladder (sp, DESIGN.md §3): display 28 / headline 22 / title 17 /
+/// body 15 / secondary 13 / caption 12, plus a data-annotation step used
+/// only inside dense chart/calendar cells (gantt hour ruler, week chips).
+/// Hierarchy rides weight and color, never extra sizes; the zh scope bans
+/// tracking, so every role leaves letterSpacing unset (null = 0).
+abstract final class AppType {
+  static const display = 28.0;
+  static const headline = 22.0;
+  static const title = 17.0;
+  static const body = 15.0;
+  static const secondary = 13.0;
+  static const caption = 12.0;
+  static const chart = 10.0;
+
+  /// Chat markdown document-heading interpolation (DESIGN.md §3): the
+  /// doc ladder 22/18/16/15/14/13 descends into body with weight — h2,
+  /// h3 and h5 are the steps between the named screen sizes.
+  static const docH2 = 18.0;
+  static const docH3 = 16.0;
+  static const docH5 = 14.0;
+}
+
 /// Radius families pinned like the web (globals.css @theme): 4px nested,
 /// 6px controls, 12px cards/menus/modals, 16px fullscreen.
 abstract final class AppRadius {

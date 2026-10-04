@@ -8,6 +8,7 @@ import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../auth/session_cookie.dart';
 import '../l10n/app_localizations.dart';
+import '../pages/app_drawer.dart';
 import 'local_web_server.dart';
 
 /// Web-app routes the native app embeds in the fallback container — the
@@ -26,7 +27,7 @@ abstract final class WebRoutes {
 /// cookie, injected via WebViewCookieManager before the first load —
 /// the same mechanism the browser uses, so no token-in-URL exposure.
 class WebContainerPage extends ConsumerStatefulWidget {
-  const WebContainerPage({super.key, required this.title, required this.path, this.showTitle = true});
+  const WebContainerPage({super.key, required this.title, required this.path, this.showTitle = true, this.showDrawer = false});
 
   final String title;
   final String path;
@@ -34,6 +35,11 @@ class WebContainerPage extends ConsumerStatefulWidget {
   /// False hides the app bar entirely — for web pages that carry their
   /// own title/back header (Workflows), so the two never stack up.
   final bool showTitle;
+
+  /// True mounts the app drawer with the chat gesture zone — for web
+  /// surfaces that read like a list page (Wiki). Off for editors
+  /// (Workflows), where an edge drag belongs to the canvas.
+  final bool showDrawer;
 
   @override
   ConsumerState<WebContainerPage> createState() => _WebContainerPageState();
@@ -185,6 +191,8 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       },
       child: Scaffold(
       appBar: widget.showTitle ? AppBar(title: Text(widget.title)) : null,
+      drawer: widget.showDrawer ? const AppDrawer() : null,
+      drawerEdgeDragWidth: widget.showDrawer ? AppDrawer.edgeDragWidth(context) : null,
       body: IndexedStack(
         index: _stackIndex,
         children: [

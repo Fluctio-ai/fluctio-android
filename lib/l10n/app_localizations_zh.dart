@@ -540,6 +540,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noteDiscard => '放弃未保存的修改？';
 
   @override
+  String get exitAgain => '再按一次返回退出';
+
+  @override
   String get noteBodyHint => '正文（Markdown）';
 
   @override

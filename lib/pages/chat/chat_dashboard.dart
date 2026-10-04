@@ -262,7 +262,7 @@ class _CardsPane extends ConsumerWidget {
                 foregroundColor: Theme.of(context).colorScheme.primary,
               ),
               onPressed: () => context.push('/kb/cards/review'),
-              child: Text(l.dashCardsBrowse, style: const TextStyle(fontSize: 12)),
+              child: Text(l.dashCardsBrowse, style: const TextStyle(fontSize: AppType.caption)),
             ),
           ],
         ),
@@ -336,7 +336,7 @@ class _TodosPane extends ConsumerWidget {
                   foregroundColor: Theme.of(context).colorScheme.primary,
                 ),
                 onPressed: () => context.push('/kb/todos'),
-                child: Text(l.dashTodoView, style: const TextStyle(fontSize: 12)),
+                child: Text(l.dashTodoView, style: const TextStyle(fontSize: AppType.caption)),
               ),
             ],
           );

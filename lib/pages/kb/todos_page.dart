@@ -1,3 +1,4 @@
+import '../app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -43,6 +44,9 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
     final todos = agentId == null ? null : ref.watch(kbTodosProvider(agentId));
 
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbTodos)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _edit(context, ref, agentId, null),

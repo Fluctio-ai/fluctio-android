@@ -6,11 +6,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:markdown/markdown.dart' as md;
 
+import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/form_editor_page.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/chevron_list_tile.dart';
@@ -62,35 +64,25 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
 
   Future<void> _addCard() async {
     final l = AppLocalizations.of(context)!;
-    final q = TextEditingController();
-    final a = TextEditingController();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.cardAdd),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: q, autofocus: true, decoration: InputDecoration(hintText: l.cardQuestion)),
-            const SizedBox(height: 8),
-            TextField(controller: a, maxLines: 3, decoration: InputDecoration(hintText: l.cardAnswer)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
+    // Full-page editor (question + answer) — same surface as the other
+    // KB edits; the old AlertDialog squeezed the answer behind it.
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => FormEditorPage<bool>(
+        heading: l.cardAdd,
+        fields: [
+          EditorField(label: l.cardQuestion, autofocus: true),
+          EditorField(label: l.cardAnswer, maxLines: 8),
         ],
+        canSave: (v) => v[0].trim().isNotEmpty,
+        onSave: (v) async {
+          await ref
+              .read(kbRepoProvider)
+              .saveCard(ref.read(agentsProvider).selectedId!, v[0].trim(), v[1].trim());
+          return true;
+        },
       ),
-    );
-    if (saved != true || q.text.trim().isEmpty) return;
-    try {
-      await ref
-          .read(kbRepoProvider)
-          .saveCard(ref.read(agentsProvider).selectedId!, q.text.trim(), a.text.trim());
-      _load();
-    } catch (e) {
-      if (mounted) showApiError(context, e);
-    }
+    ));
+    if (saved == true) _load();
   }
 
   @override
@@ -100,6 +92,9 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     final stats = _stats;
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbCards)),
       floatingActionButton: FloatingActionButton(
         onPressed: _addCard,

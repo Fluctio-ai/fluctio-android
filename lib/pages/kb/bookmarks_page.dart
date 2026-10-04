@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
+import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/form_editor_page.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
@@ -28,6 +30,9 @@ class KbBookmarksPage extends ConsumerWidget {
     final bookmarks = agentId == null ? null : ref.watch(kbBookmarksProvider(agentId));
 
     return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: const AppDrawer(),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbBookmarks)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _add(context, ref, agentId),
@@ -121,43 +126,24 @@ class KbBookmarksPage extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, WidgetRef ref, String agentId) async {
     final l = AppLocalizations.of(context)!;
-    final urlController = TextEditingController();
-    final titleController = TextEditingController();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.kbAddBookmark),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: urlController,
-                autofocus: true,
-                decoration: InputDecoration(hintText: 'https://…')),
-            const SizedBox(height: 8),
-            TextField(
-                controller: titleController,
-                decoration: InputDecoration(hintText: l.kbTitleOptional)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
+    // Full-page editor — same surface as the bookmark edit above; the
+    // old add dialog split the two flows.
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => FormEditorPage<bool>(
+        heading: l.kbAddBookmark,
+        fields: [
+          EditorField(label: 'URL', hint: 'https://…', keyboardType: TextInputType.url, autofocus: true),
+          EditorField(label: l.kbTitleOptional),
         ],
+        canSave: (v) => v[0].trim().isNotEmpty,
+        onSave: (v) async {
+          await ref.read(kbRepoProvider).saveBookmark(agentId, v[0].trim(), title: v[1].trim());
+          ref.invalidate(kbBookmarksProvider(agentId));
+          return true;
+        },
       ),
-    );
+    ));
     if (saved != true) return;
-    final url = urlController.text.trim();
-    if (url.isEmpty) return;
-    try {
-      await ref
-          .read(kbRepoProvider)
-          .saveBookmark(agentId, url, title: titleController.text.trim());
-      ref.invalidate(kbBookmarksProvider(agentId));
-    } catch (e) {
-      if (context.mounted) showApiError(context, e);
-    }
   }
 
   String _host(String url) => Uri.tryParse(url)?.host ?? url;
