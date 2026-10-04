@@ -150,7 +150,9 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
 }
 
 /// Groups todos under day labels; key order: 今天, 明天, upcoming dates,
-/// overdue dates, then 无日期.
+/// overdue dates, then 无日期. Rows inside a day follow the shared
+/// schedule order (compareTodosByStart: start, then end-only, undated last
+/// of all in the 无日期 group).
 Map<String, List<KbSource>> _groupByDay(BuildContext context, List<KbSource> list) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -159,14 +161,16 @@ Map<String, List<KbSource>> _groupByDay(BuildContext context, List<KbSource> lis
     final dated = <(DateTime, KbSource)>[];
     final noDate = <KbSource>[];
     for (final t in list) {
-      final start = t.startAt?.toLocal();
-      if (start == null) {
+      // Group by start, falling back to the deadline — an end-only
+      // todo belongs under its due day, not under 无日期.
+      final anchor = (t.startAt ?? t.endAt)?.toLocal();
+      if (anchor == null) {
         noDate.add(t);
       } else {
-        dated.add((start, t));
+        dated.add((anchor, t));
       }
     }
-    dated.sort((a, b) => a.$1.compareTo(b.$1));
+    dated.sort((a, b) => compareTodosByStart(a.$2, b.$2));
     final l = AppLocalizations.of(context)!;
     for (final (d, t) in dated) {
       final day = DateTime(d.year, d.month, d.day);

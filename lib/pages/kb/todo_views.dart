@@ -790,7 +790,7 @@ void _openDaySheet(
 ) {
   // Schedule order like the day views; the calendar cell's own chip
   // track layout stays as built (user feedback).
-  final ordered = [...segs]..sort((a, b) => _compareByStart(a.todo, b.todo));
+  final ordered = [...segs]..sort((a, b) => compareTodosByStart(a.todo, b.todo));
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -1248,14 +1248,14 @@ List<KbSource> _todosOn(List<KbSource> items, DateTime day) {
         return span != null && k.compareTo(span.s) >= 0 && k.compareTo(span.e) <= 0;
       })
       .toList();
-  todos.sort(_compareByStart);
+  todos.sort(compareTodosByStart);
   return todos;
 }
 
 /// Schedule order shared by the day views and the calendar day sheet
 /// (user rule): timed starts first (by start, then end), end-only
 /// deadlines after them (by end), fully undated last.
-int _compareByStart(KbSource a, KbSource b) {
+int compareTodosByStart(KbSource a, KbSource b) {
   final sa = a.startAt, sb = b.startAt;
   if (sa != null && sb != null) {
     final c = sa.compareTo(sb);
