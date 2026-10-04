@@ -1234,15 +1234,24 @@ class TodoGanttView extends StatelessWidget {
   }
 }
 
-/// Todos overlapping a calendar day ([_spanOf] owns the conventions).
+/// Todos overlapping a calendar day ([_spanOf] owns the conventions),
+/// in start-time order (start, then end; an end-only todo sorts by its
+/// deadline) — the day views read as a schedule, and the server's
+/// updated_at order made the rows jump around (user feedback).
 List<KbSource> _todosOn(List<KbSource> items, DateTime day) {
   final k = _dayKey(day);
-  return items
+  final todos = items
       .where((t) {
         final span = _spanOf(t);
         return span != null && k.compareTo(span.s) >= 0 && k.compareTo(span.e) <= 0;
       })
-      .toList(growable: false);
+      .toList();
+  DateTime sortKey(KbSource t) => t.startAt ?? t.endAt!;
+  todos.sort((a, b) {
+    final c = sortKey(a).compareTo(sortKey(b));
+    return c != 0 ? c : (a.endAt ?? sortKey(a)).compareTo(b.endAt ?? sortKey(b));
+  });
+  return todos;
 }
 
 List<KbSource> _undated(List<KbSource> items) =>
