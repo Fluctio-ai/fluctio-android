@@ -331,10 +331,10 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                     clipBehavior: Clip.none,
                     children: [
                       Positioned(
-                        top: -32,
+                        top: -20,
                         left: 0,
                         right: 0,
-                        height: 44,
+                        height: 32,
                         child: IgnorePointer(
                           child: DecoratedBox(
                             decoration: BoxDecoration(
@@ -346,7 +346,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                                   theme.scaffoldBackgroundColor,
                                   theme.scaffoldBackgroundColor,
                                 ],
-                                stops: const [0.0, 0.18, 1.0],
+                                stops: const [0.0, 0.35, 1.0],
                               ),
                             ),
                           ),
