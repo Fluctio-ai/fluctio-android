@@ -284,59 +284,18 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                 children: [
                   if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
                   Expanded(
-                    // Soft fade where the surface meets the composer:
-                    // content dissolves into the background instead of
-                    // hitting the card's hard top edge (user feedback).
-                    // A fixed-height background-gradient strip rather
-                    // than a full-viewport ShaderMask — same look, no
-                    // saveLayer on the streaming hot path.
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: _input.text.isEmpty &&
-                                  _pendingImages.isEmpty &&
-                                  !active.turnActive &&
-                                  !active.historyLoading &&
-                                  active.entries.isEmpty
-                              ? const ChatDashboard()
-                              // Keyed by session: entrance-animation bookkeeping lives
-                              // in MessageList's state and must reset on switch.
-                              : MessageList(
-                                  key: ValueKey(ref.watch(chatStoreProvider).activeKey),
-                                  state: active,
-                                  jumpSeq: widget.jumpSeq),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          // Tall enough to swallow a whole resting line
-                          // (body 15sp × 1.7 lh ≈ 25px, more with system
-                          // text scaling). Only the top ~15% fades — a
-                          // long translucent ramp kept parked text
-                          // readable inside the band and read as content
-                          // bleeding through (user feedback, twice); the
-                          // rest stays fully opaque.
-                          height: 34,
-                          child: IgnorePointer(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                                    theme.scaffoldBackgroundColor,
-                                    theme.scaffoldBackgroundColor,
-                                  ],
-                                  stops: const [0.0, 0.15, 1.0],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                    // Keyed by session: entrance-animation bookkeeping lives
+                    // in MessageList's state and must reset on switch.
+                    child: _input.text.isEmpty &&
+                            _pendingImages.isEmpty &&
+                            !active.turnActive &&
+                            !active.historyLoading &&
+                            active.entries.isEmpty
+                        ? const ChatDashboard()
+                        : MessageList(
+                            key: ValueKey(ref.watch(chatStoreProvider).activeKey),
+                            state: active,
+                            jumpSeq: widget.jumpSeq),
                   ),
                   _SlashPalette(
                     matches: matchSlashCommands(_input.text),
@@ -360,18 +319,53 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                         ],
                       ),
                     ),
-                  Composer(
-                    controller: _input,
-                    state: active,
-                    pendingImages: _pendingImages,
-                    chatOnly: chatOnly,
-                    onToggleChatOnly: (on) => _toggleChatOnly(context, on),
-                    onChanged: () => setState(() {}),
-                    onPickImages: _pickImages,
-                    onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
-                    onSend: _send,
-                    onSteer: _steer,
-                    onStop: () => ref.read(chatStoreProvider.notifier).stop(),
+                  // The fade layer sits UNDER the composer card and hugs
+                  // its top edge (z: transcript < fade < card) — user
+                  // feedback: move the whole band down behind the card
+                  // so no gap remains; the card covers the band's last
+                  // few px. Visible part above the card ≈ 32px (card
+                  // margin 8 + transcript 24); only the top ~18% fades,
+                  // the rest is opaque so parked text cannot read
+                  // through.
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        top: -32,
+                        left: 0,
+                        right: 0,
+                        height: 44,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  theme.scaffoldBackgroundColor.withValues(alpha: 0),
+                                  theme.scaffoldBackgroundColor,
+                                  theme.scaffoldBackgroundColor,
+                                ],
+                                stops: const [0.0, 0.18, 1.0],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Composer(
+                        controller: _input,
+                        state: active,
+                        pendingImages: _pendingImages,
+                        chatOnly: chatOnly,
+                        onToggleChatOnly: (on) => _toggleChatOnly(context, on),
+                        onChanged: () => setState(() {}),
+                        onPickImages: _pickImages,
+                        onRemoveImage: (i) => setState(() => _pendingImages.removeAt(i)),
+                        onSend: _send,
+                        onSteer: _steer,
+                        onStop: () => ref.read(chatStoreProvider.notifier).stop(),
+                      ),
+                    ],
                   ),
                 ],
               ),
