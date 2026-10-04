@@ -105,7 +105,8 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
           : stats == null
               ? const SkeletonListView(itemCount: 5)
               : ListView(
-                  padding: const EdgeInsets.all(16),
+                  // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                   children: [
                     // Stats header.
                     Container(

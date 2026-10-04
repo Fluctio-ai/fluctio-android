@@ -49,6 +49,9 @@ class KbNotesPage extends ConsumerWidget {
                   onRefresh: () =>
                       agentId == null ? Future.value() : ref.refresh(kbNotesProvider(agentId).future),
                   child: ListView.builder(
+                    // Bottom FAB clearance (56 + 16 + 16) so the last
+                    // row scrolls out from under the button.
+                    padding: const EdgeInsets.only(bottom: 88),
                     itemCount: list.length,
                     itemBuilder: (context, i) {
                       final n = list[i];

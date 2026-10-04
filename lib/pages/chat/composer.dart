@@ -155,33 +155,38 @@ class _ToolButton extends StatelessWidget {
     final color = toggled ? theme.colorScheme.primary : theme.colorScheme.outline;
     return Tooltip(
       message: tooltip,
-      child: TactileScale(
-        enabled: onTap != null,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.controlBorder,
-          child: Container(
-            height: 36,
-            // Equal horizontal padding with or without a label — the
-            // bare paperclip shouldn't collapse into a narrow strip.
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.controlBorder,
-              border: Border.all(color: theme.colorScheme.outlineVariant),
-              color: toggled ? theme.colorScheme.primaryContainer : null,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 16, color: color),
-                if (label != null) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    label!,
-                    style: TextStyle(fontSize: AppType.caption, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
-                  ),
+      // Disabled must read inert — a full-strength control that does
+      // nothing looks broken (paperclip mid-turn).
+      child: Opacity(
+        opacity: onTap == null ? 0.4 : 1.0,
+        child: TactileScale(
+          enabled: onTap != null,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: AppRadius.controlBorder,
+            child: Container(
+              height: 36,
+              // Equal horizontal padding with or without a label — the
+              // bare paperclip shouldn't collapse into a narrow strip.
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.controlBorder,
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+                color: toggled ? theme.colorScheme.primaryContainer : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: color),
+                  if (label != null) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      label!,
+                      style: TextStyle(fontSize: AppType.caption, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

@@ -132,6 +132,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
   void _send() {
     final text = _input.text.trim();
     if (text.isEmpty && _pendingImages.isEmpty) return;
+    HapticFeedback.lightImpact();
     // Ride the local chat-only override on the first send (the row
     // doesn't exist yet for a PATCH; the server persists params.chatOnly).
     final key = ref.read(chatStoreProvider).activeKey;

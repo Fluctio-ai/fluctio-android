@@ -762,6 +762,9 @@ class TodoCalendarView extends StatelessWidget {
               seg.todo.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              // Data annotation in a fixed 18px chip — exempt from the
+              // system font scale, else the chip overflows vertically.
+              textScaler: TextScaler.noScaling,
               style: theme.textTheme.labelSmall?.copyWith(
                 fontSize: AppType.chart,
                 color: fg,
@@ -1185,6 +1188,10 @@ class TodoGanttView extends StatelessWidget {
                                     border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
                                 child: Text('$h',
                                     maxLines: 1,
+                                    // Fixed ~50px hour cells — exempt the
+                                    // labels from the font scale so
+                                    // neighbors don't collide.
+                                    textScaler: TextScaler.noScaling,
                                     style: theme.textTheme.labelSmall
                                         ?.copyWith(fontSize: AppType.chart, color: scheme.outline)),
                               ),

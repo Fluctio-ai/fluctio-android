@@ -1,5 +1,6 @@
 import '../app_drawer.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -131,6 +132,9 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
       String agentId, List<KbSource> list) {
     final groups = _groupByDay(context, list);
     return ListView(
+      // Bottom FAB clearance (56 + 16 + 16) so the last row scrolls
+      // out from under the button.
+      padding: const EdgeInsets.only(bottom: 88),
       children: [
         for (final g in groups.entries) ...[
           Padding(
@@ -368,6 +372,7 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
   }
 
   void _toggle(WidgetRef ref) {
+    HapticFeedback.selectionClick();
     final next = widget.todo.status == 'done' ? 'pending' : 'done';
     ref
         .read(kbRepoProvider)
