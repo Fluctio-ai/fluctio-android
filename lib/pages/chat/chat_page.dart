@@ -311,12 +311,13 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                           right: 0,
                           bottom: 0,
                           // Tall enough to swallow a whole resting line
-                          // (body 15sp × 1.7 lh ≈ 25px): at 18px the top
-                          // half of a parked line stayed crisp above the
-                          // fade and read as text bleeding through a
-                          // seam (user feedback). The lower ~55% stays
-                          // fully opaque.
-                          height: 30,
+                          // (body 15sp × 1.7 lh ≈ 25px, more with system
+                          // text scaling). Only the top ~15% fades — a
+                          // long translucent ramp kept parked text
+                          // readable inside the band and read as content
+                          // bleeding through (user feedback, twice); the
+                          // rest stays fully opaque.
+                          height: 34,
                           child: IgnorePointer(
                             child: DecoratedBox(
                               decoration: BoxDecoration(
@@ -328,7 +329,7 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                                     theme.scaffoldBackgroundColor,
                                     theme.scaffoldBackgroundColor,
                                   ],
-                                  stops: const [0.0, 0.45, 1.0],
+                                  stops: const [0.0, 0.15, 1.0],
                                 ),
                               ),
                             ),
