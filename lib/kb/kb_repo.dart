@@ -99,8 +99,8 @@ class KbRepo {
     final res = await _dio.post('/api/agents/$agentId/kb/todo', data: {
       'content': content,
       'status': status,
-      if (startAt != null) 'start_at': startAt.toIso8601String(),
-      if (endAt != null) 'end_at': endAt.toIso8601String(),
+      if (startAt != null) 'start_at': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'end_at': endAt.toUtc().toIso8601String(),
     });
     _todoWritten();
     return res.data is Map && res.data['deduped'] == true;
@@ -121,8 +121,8 @@ class KbRepo {
     await _dio.patch('/api/agents/$agentId/kb/todos/$sourceId', data: {
       if (content != null && content.isNotEmpty) 'content': content,
       if (status != null && status.isNotEmpty) 'status': status,
-      if (startAt != null) 'start_at': startAt.toIso8601String(),
-      if (endAt != null) 'end_at': endAt.toIso8601String(),
+      if (startAt != null) 'start_at': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'end_at': endAt.toUtc().toIso8601String(),
     });
     _todoWritten();
   }

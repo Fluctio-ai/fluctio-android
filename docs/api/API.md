@@ -153,7 +153,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 端点组 `/api/agents/{id}/kb/*`（`handlers_kb.go`；形状见 `internal/kb/types.go`）：
 
 **通用形状**
-- `KBSource`：`{id, agent_id, title, source_type("text"|"url"|"file"), source_ref, entry_count, total_chars, created_at, updated_at, wiki_generated_at?, type?("article"|"flash"|"todo"), status?(todo: pending/in_progress/done/cancelled), start_at?/end_at?(todo，ISO 字符串), reminded_at?}`
+- `KBSource`：`{id, agent_id, title, source_type("text"|"url"|"file"), source_ref, entry_count, total_chars, created_at, updated_at, wiki_generated_at?, type?("article"|"flash"|"todo"), status?(todo: pending/in_progress/done/cancelled), start_at?/end_at?(todo，RFC3339 必须带时区：写路径原样入库，读路径 internal/kb/store_types.go:60 parseRFC3339Ptr 用 time.Parse(time.RFC3339) 解析，无时区串写入后读回即丢弃), reminded_at?}`
 - `KBEntry`：`{id, source_id, chunk_index, content}`（详情 = chunks 拼接）
 - `KBBookmark`：`{id, agent_id, url, title, summary, content?, fetched_at?, source?, created_at, updated_at, promoted_to_article_id?}`
 - `KBResult`：`{source_id, source_title, source_kind("kb"|"wiki"), content_type?("flash"|"todo"), chunk_index, content, snippet, rank}`
@@ -179,7 +179,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 **待办（todo）**
 - `POST /kb/todo` `{content, status?("pending"), start_at?, end_at?}` → `201 {source_id}` / 去重 200
 - `GET /kb/todos?status=&due_within_hours=` → `KBSource[]`（status 空全量；`active`=未完成）
-- `PATCH /kb/todos/{sid}` `{content?, status?, start_at?, end_at?}` — 仅非空字段生效 → `{status:"updated"}`
+- `PATCH /kb/todos/{sid}` `{content?, status?, start_at?, end_at?}` — 仅非空字段生效（start_at/end_at 同为 RFC3339 带时区）→ `{status:"updated"}`
 
 **书签（bookmark）**
 - `GET /kb/bookmarks` → `KBBookmark[]`（新→旧，上限 200）
