@@ -300,7 +300,8 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
     final done = todo.status == 'done';
     final cancelled = todo.status == 'cancelled';
     final tile = ListTile(
-      dense: true,
+      // No dense: same rhythm as the other KB lists — dense squeezed
+      // the rows a step smaller than the sibling tabs (user feedback).
       leading: InkWell(
         onTap: () => _toggle(ref),
         // 44×44 hit target (ticket 14) — a bare 20px icon misses taps.

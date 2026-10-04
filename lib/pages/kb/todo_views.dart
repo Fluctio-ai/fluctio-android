@@ -1024,7 +1024,10 @@ class TodoGanttView extends StatelessWidget {
                   // just wrap.
                   child: TodoFullTitle(
                     todo: t,
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    // Body step like the list view's rows — the gantt
+                    // titles used to sit one step smaller than the
+                    // sibling list tab (user feedback).
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       height: 1.35,
                       decoration: cancelled ? TextDecoration.lineThrough : null,
                       color: cancelled ? scheme.outline : null,
