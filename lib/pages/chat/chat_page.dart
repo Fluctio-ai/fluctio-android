@@ -309,17 +309,24 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          height: 14,
+                          height: 18,
                           child: IgnorePointer(
                             child: DecoratedBox(
                               decoration: BoxDecoration(
+                                // Bottom half stays fully opaque — a
+                                // gradient interpolating all the way
+                                // down left the content faintly
+                                // visible in a line right above the
+                                // composer card (user feedback).
                                 gradient: LinearGradient(
                                   begin: Alignment.topCenter,
                                   end: Alignment.bottomCenter,
                                   colors: [
                                     theme.scaffoldBackgroundColor.withValues(alpha: 0),
                                     theme.scaffoldBackgroundColor,
+                                    theme.scaffoldBackgroundColor,
                                   ],
+                                  stops: const [0.0, 0.5, 1.0],
                                 ),
                               ),
                             ),
