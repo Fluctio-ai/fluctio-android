@@ -21,13 +21,15 @@ import 'chat/panels.dart';
 class AppDrawer extends ConsumerStatefulWidget {
   const AppDrawer({super.key});
 
-  /// The drawer gesture zone every surface shares (ticket 13): 55% of
-  /// the screen width — wide enough for a right thumb dragging from
-  /// mid-screen, clear of the system back edges. Every Scaffold that
-  /// mounts this drawer sizes its edge drag with this, so the zone
-  /// never drifts between pages.
+  /// The drawer gesture zone every surface shares (ticket 13, revised
+  /// per user feedback): a quarter of the screen width. The original
+  /// 55% zone overlapped slidable list rows — a drag starting mid-list
+  /// fought the row's own swipe instead of opening the drawer; 25%
+  /// keeps the zone clear of both the system back edges and the rows.
+  /// Every Scaffold that mounts this drawer sizes its edge drag with
+  /// this, so the zone never drifts between pages.
   static double edgeDragWidth(BuildContext context) =>
-      MediaQuery.sizeOf(context).width * 0.55;
+      MediaQuery.sizeOf(context).width * 0.25;
 
   @override
   ConsumerState<AppDrawer> createState() => _AppDrawerState();
