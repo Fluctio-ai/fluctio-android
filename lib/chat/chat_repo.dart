@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -94,6 +97,49 @@ class ChatRepo {
       if (e.response?.statusCode == 409) return false;
       rethrow;
     }
+  }
+
+  /// Two-step attachment upload (web parity, api.ts:1454 → handlers.go:
+  /// handleAgentFileUpload): multipart files land in the workspace dir the
+  /// session's sandbox mounts (`projects/<pid>/` for project chats,
+  /// `sessions/<sid>/` otherwise) before the message fires — the chat request
+  /// then carries only breadcrumb text, so file size is bounded by the
+  /// server's multipart handling, not by a base64-inflated JSON body.
+  Future<void> uploadAttachments(
+    String agentId,
+    String sessionId,
+    List<PendingAttachment> files, {
+    String? projectId,
+    CancelToken? cancelToken,
+  }) async {
+    final form = FormData();
+    for (final f in files) {
+      final (mime, bytes) = _parseDataUrl(f.url);
+      form.files.add(MapEntry(
+        'file',
+        MultipartFile.fromBytes(bytes, filename: f.name, contentType: DioMediaType.parse(mime)),
+      ));
+    }
+    await _dio.post(
+      '/api/agents/$agentId/files',
+      queryParameters: {
+        if (sessionId.isNotEmpty) 'sessionId': sessionId,
+        if (projectId != null && projectId.isNotEmpty) 'projectId': projectId,
+      },
+      data: form,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// Split a `data:<mime>;base64,<payload>` URL (the shape this app builds)
+  /// back into parts for the multipart body.
+  static (String, Uint8List) _parseDataUrl(String url) {
+    final comma = url.indexOf(',');
+    final header = comma > 5 ? url.substring(5, comma) : '';
+    final semi = header.indexOf(';');
+    final mime = semi > 0 ? header.substring(0, semi) : '';
+    return (mime.isEmpty ? 'application/octet-stream' : mime,
+        base64Decode(url.substring(comma + 1)));
   }
 
   Future<void> renameSession(String agentId, String key, String title) =>

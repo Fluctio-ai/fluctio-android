@@ -407,6 +407,47 @@ class _UserBubble extends ConsumerWidget {
                     ],
                   ),
                 ),
+              // Non-image workspace attachments: name chips only — the
+              // wire history never carries them back, so this is the
+              // live-send bubble (plus offline cache replay).
+              if (entry.attachments.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final a in entry.attachments)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: scheme.onPrimaryContainer.withValues(alpha: 0.08),
+                            borderRadius: AppRadius.controlBorder,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(LucideIcons.fileText,
+                                  size: 14, color: scheme.onPrimaryContainer),
+                              const SizedBox(width: 5),
+                              ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 180),
+                                child: Text(
+                                  a.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: AppType.caption,
+                                    color: scheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               if (entry.text.isNotEmpty)
                 Text(entry.text,
                     style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5)),

@@ -13,6 +13,7 @@ import '../../files/agent_files.dart';
 import '../../files/file_preview.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/tokens.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
@@ -66,6 +67,30 @@ class SessionTile extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // IM-channel mark (web parity: ChannelIcon next to the title).
+          // No brand assets on the app side — a text chip names the
+          // channel and flags the read-only chat.
+          if (session.isImChannel)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: Tooltip(
+                message: '${channelLabel(session.channel)} · ${l.chatImChannelBadge}',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(AppRadius.nested),
+                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  ),
+                  child: Text(
+                    channelLabel(session.channel),
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(color: Theme.of(context).colorScheme.outline),
+                  ),
+                ),
+              ),
+            ),
           if (session.chatOnly)
             Padding(
               padding: const EdgeInsets.only(right: 2),
@@ -319,6 +344,12 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
   Future<AgentFileListing>? _future;
   String? _agentId;
 
+  /// Expanded folder keys (relative paths — stable across refreshes,
+  /// web FileTreeView parity). Seeded once when the tree first lands:
+  /// root folders open, deeper levels collapsed.
+  final Set<String> _expanded = {};
+  bool _expandedSeeded = false;
+
   /// The open chat's session — files scope to that conversation's
   /// workspace subtree, not the whole agent (fileScopeForRequest).
   String? get _sessionId =>
@@ -349,6 +380,21 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
     setState(() {
       _future = future;
     });
+  }
+
+  /// Depth-tagged visible rows: expanded folders' children inline,
+  /// collapsed ones hidden (one flat list, no nested scroll views).
+  List<(WsFileNode, int)> _flatten(List<WsFileNode> nodes, int depth) => [
+        for (final n in nodes) ...[
+          (n, depth),
+          if (n.isDir && _expanded.contains(n.relPath)) ..._flatten(n.children, depth + 1),
+        ],
+      ];
+
+  void _seedExpansion(List<WsFileNode> roots) {
+    if (_expandedSeeded) return;
+    _expandedSeeded = true;
+    _expanded.addAll([for (final n in roots) if (n.isDir) n.relPath]);
   }
 
   Future<void> _delete(AgentFile f) async {
@@ -395,39 +441,112 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                   ? ErrorPane(message: l.chatHistoryError)
                   : (snap.data?.files.isEmpty ?? true)
                       ? EmptyState(icon: LucideIcons.folderOpen, message: l.kbEmpty)
-                      : ListView(
-                          shrinkWrap: true,
-                          children: [
-                            for (final f in snap.data!.files)
-                              Slidable(
-                                key: ValueKey('wsfile-${f.path}'),
-                                endActionPane: ActionPane(
-                                  motion: const DrawerMotion(),
-                                  extentRatio: 0.25,
-                                  children: [
-                                    SlidableAction(
-                                      onPressed: (_) => _delete(f),
-                                      backgroundColor: theme.colorScheme.error,
-                                      foregroundColor: theme.colorScheme.onError,
-                                      icon: LucideIcons.trash2,
-                                      label: l.chatDelete,
+                      : Builder(builder: (context) {
+                          final tree = buildWsFileTree(snap.data!.files);
+                          _seedExpansion(tree);
+                          final rows = _flatten(tree, 0);
+                          return ListView(
+                            shrinkWrap: true,
+                            children: [
+                              for (final (node, depth) in rows)
+                                if (node.isDir)
+                                  _FolderRow(
+                                    node: node,
+                                    depth: depth,
+                                    expanded: _expanded.contains(node.relPath),
+                                    onToggle: () => setState(() {
+                                          if (_expanded.contains(node.relPath)) {
+                                            _expanded.remove(node.relPath);
+                                          } else {
+                                            _expanded.add(node.relPath);
+                                          }
+                                        }),
+                                  )
+                                else
+                                  Slidable(
+                                    key: ValueKey('wsfile-${node.file!.path}'),
+                                    endActionPane: ActionPane(
+                                      motion: const DrawerMotion(),
+                                      extentRatio: 0.25,
+                                      children: [
+                                        SlidableAction(
+                                          onPressed: (_) => _delete(node.file!),
+                                          backgroundColor: theme.colorScheme.error,
+                                          foregroundColor: theme.colorScheme.onError,
+                                          icon: LucideIcons.trash2,
+                                          label: l.chatDelete,
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                child: ListTile(
-                                  dense: true,
-                                  leading: Icon(LucideIcons.fileText,
-                                      size: 20, color: theme.colorScheme.outline),
-                                  title: Text(f.name,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  subtitle: Text(
-                                      '${_fmtSize(f.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(f.modTimeMs))}',
-                                      maxLines: 1),
-                                  onTap: () => _open(context, f),
-                                ),
-                              ),
-                          ],
-                        ),
+                                    child: ListTile(
+                                      dense: true,
+                                      contentPadding:
+                                          EdgeInsets.only(left: 16 + depth * 14.0, right: 16),
+                                      leading: Icon(LucideIcons.fileText,
+                                          size: 20, color: theme.colorScheme.outline),
+                                      title: Text(node.name,
+                                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      subtitle: Text(
+                                        '${_fmtSize(node.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(node.modTimeMs))}',
+                                        maxLines: 1),
+                                      onTap: () => _open(context, node.file!),
+                                    ),
+                                  ),
+                            ],
+                          );
+                        }),
+        ),
+      ),
+    );
+  }
+}
+
+/// Folder row: chevron + folder icon + name; tap toggles. No swipe
+/// delete — the backend delete endpoint is per-file.
+class _FolderRow extends StatelessWidget {
+  const _FolderRow({
+    required this.node,
+    required this.depth,
+    required this.expanded,
+    required this.onToggle,
+  });
+
+  final WsFileNode node;
+  final int depth;
+  final bool expanded;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onToggle,
+      child: Padding(
+        padding: EdgeInsets.only(left: 16 + depth * 14.0, right: 16),
+        child: SizedBox(
+          height: 44,
+          child: Row(
+            children: [
+              Icon(
+                expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
+                size: 16,
+                color: theme.colorScheme.outline,
+              ),
+              const SizedBox(width: 4),
+              Icon(LucideIcons.folder, size: 18, color: theme.colorScheme.outline),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(node.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface)),
+              ),
+              Text('${node.children.length}',
+                  style: TextStyle(
+                      fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
         ),
       ),
     );

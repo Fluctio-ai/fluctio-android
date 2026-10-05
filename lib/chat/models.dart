@@ -35,6 +35,7 @@ class ChatSessionInfo {
     this.preview = '',
     this.chatOnly = false,
     this.projectId = '',
+    this.channel = '',
     this.thumbnailUrl = '',
     this.createdAt = 0,
     this.updatedAt = 0,
@@ -45,9 +46,17 @@ class ChatSessionInfo {
   final String preview;
   final bool chatOnly;
   final String projectId;
+
+  /// Owning IM channel (wechat/telegram/…). Empty or `web` = a chat this
+  /// app can compose into; anything else is read-only — the app/web send
+  /// path can't deliver into upstream messengers (web parity,
+  /// chat-screen.tsx:1399-1414).
+  final String channel;
   final String thumbnailUrl;
   final int createdAt;
   final int updatedAt;
+
+  bool get isImChannel => channel.isNotEmpty && channel != 'web';
 
   factory ChatSessionInfo.fromJson(Map<String, dynamic> json) => ChatSessionInfo(
         id: json['id'] as String? ?? '',
@@ -55,11 +64,25 @@ class ChatSessionInfo {
         preview: json['preview'] as String? ?? '',
         chatOnly: json['chatOnly'] as bool? ?? false,
         projectId: json['projectId'] as String? ?? '',
+        channel: json['channel'] as String? ?? '',
         thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
         createdAt: (json['createdAt'] as num?)?.toInt() ?? 0,
         updatedAt: (json['updatedAt'] as num?)?.toInt() ?? 0,
       );
 }
+
+/// Human-readable channel name for badges/tooltips — mirrors the web
+/// channelLabel (channel-icon.tsx:45). Brand names stay untranslated.
+String channelLabel(String channel) => switch (channel) {
+      'wechat' => 'WeChat',
+      'qq' => 'QQ',
+      'feishu' => 'Feishu',
+      'telegram' => 'Telegram',
+      'discord' => 'Discord',
+      'slack' => 'Slack',
+      'line' => 'LINE',
+      _ => 'Web',
+    };
 
 class ProjectInfo {
   const ProjectInfo({required this.id, required this.name, this.description = ''});
@@ -176,6 +199,34 @@ class HistoryMessage {
     );
   }
 }
+
+/// One entry of the chat request's `attachments` field (API.md §4,
+/// handlers.go:1034): a non-image file inlined as a data URL. The server
+/// materializes it into the session workspace and appends the
+/// `[Attached: /workspace/X]` breadcrumb — it never rides the vision
+/// `images` channel (a pdf there fails the whole turn upstream).
+class PendingAttachment {
+  const PendingAttachment({required this.name, required this.url});
+
+  /// Sanitized on the server into the on-disk filename the agent sees.
+  final String name;
+  final String url;
+
+  Map<String, dynamic> toJson() => {'url': url, 'name': name};
+
+  factory PendingAttachment.fromJson(Map<String, dynamic> json) => PendingAttachment(
+        name: json['name'] as String? ?? '',
+        url: json['url'] as String? ?? '',
+      );
+}
+
+/// `[Attached: /workspace/X]` lines prepended to the outgoing text when
+/// attachments were uploaded ahead of the message (web parity,
+/// chat-screen.tsx:1920). The server's StripAttachedPrefix removes them
+/// again on history reads, and preMaterialized() then skips duplicate
+/// server-side materialization.
+String attachmentBreadcrumb(List<PendingAttachment> attachments) =>
+    [for (final a in attachments) '[Attached: /workspace/${a.name}]'].join('\n');
 
 /// `GET /api/chat/history` page: `{history, earliestSeq, hasMore,
 /// latestEventSeq?}` — latestEventSeq is the resume cursor for subscribe.

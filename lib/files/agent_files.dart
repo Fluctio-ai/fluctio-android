@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
@@ -31,6 +32,12 @@ class AgentFile {
     }
     return path;
   }
+
+  @visibleForTesting
+  factory AgentFile.forTest(String path, List<String> scopePrefixes,
+      {int size = 0, int modTimeMs = 0}) {
+    return AgentFile._fromRow({'path': path, 'size': size, 'modTime': modTimeMs}, scopePrefixes);
+  }
 }
 
 /// Listing result: files plus the backend-resolved scope prefixes for
@@ -46,6 +53,81 @@ class AgentFileListing {
 
   String get workspaceRoot =>
       scopePrefixes.isNotEmpty ? scopePrefixes.last : '';
+}
+
+/// One node of the workspace file tree — a synthesized folder or a file
+/// leaf. Mirrors the web FileTreeNode (chat-screen.tsx:4177).
+class WsFileNode {
+  WsFileNode.dir(this.name, this.relPath)
+      : file = null,
+        size = 0,
+        modTimeMs = 0;
+
+  WsFileNode.leaf(AgentFile this.file, this.relPath)
+      : name = relPath.split('/').last,
+        size = file.size,
+        modTimeMs = file.modTimeMs;
+  final String name;
+
+  /// Folder: path relative to the scope root (stable expansion key);
+  /// leaf: the file's already-stripped relative path.
+  final String relPath;
+
+  /// Non-null = file leaf (carries the full workspace path for
+  /// preview/delete); null = synthesized directory.
+  final AgentFile? file;
+  final int size;
+  final int modTimeMs;
+  final List<WsFileNode> children = [];
+
+  bool get isDir => file == null;
+}
+
+/// Flatten the listing into a nested tree. [AgentFile.name] already
+/// carries the prefix-stripped relative path, so its `/` segments are
+/// the folder levels (web buildFileTree, chat-screen.tsx:4193); leaves
+/// keep their full path for preview/delete. Folders sort before files,
+/// then by name.
+List<WsFileNode> buildWsFileTree(List<AgentFile> files) {
+  final root = WsFileNode.dir('', '');
+  for (final f in files) {
+    final parts = f.name.split('/').where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) continue;
+    var node = root;
+    for (var i = 0; i < parts.length; i++) {
+      final isLeaf = i == parts.length - 1;
+      final name = parts[i];
+      final relPath = parts.sublist(0, i + 1).join('/');
+      WsFileNode? child;
+      if (isLeaf) {
+        for (final c in node.children) {
+          if (!c.isDir && c.name == name) child = c;
+        }
+      } else {
+        for (final c in node.children) {
+          if (c.isDir && c.name == name) child = c;
+        }
+      }
+      child ??= () {
+        final n = isLeaf ? WsFileNode.leaf(f, relPath) : WsFileNode.dir(name, relPath);
+        node.children.add(n);
+        return n;
+      }();
+      node = child;
+    }
+  }
+  _sortWsNodes(root.children);
+  return root.children;
+}
+
+void _sortWsNodes(List<WsFileNode> nodes) {
+  nodes.sort((a, b) {
+    if (a.isDir != b.isDir) return a.isDir ? -1 : 1;
+    return a.name.compareTo(b.name);
+  });
+  for (final n in nodes) {
+    if (n.isDir) _sortWsNodes(n.children);
+  }
 }
 
 final agentFilesRepoProvider =

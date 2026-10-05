@@ -494,11 +494,29 @@ abstract class AppLocalizations {
   /// **'昨天'**
   String get chatYesterday;
 
-  /// No description provided for @chatPickImageError.
+  /// No description provided for @chatPickAttachmentError.
   ///
   /// In zh, this message translates to:
-  /// **'图片读取失败'**
-  String get chatPickImageError;
+  /// **'附件读取失败'**
+  String get chatPickAttachmentError;
+
+  /// No description provided for @chatAttachLimit.
+  ///
+  /// In zh, this message translates to:
+  /// **'最多 8 个附件'**
+  String get chatAttachLimit;
+
+  /// No description provided for @chatFileTooLarge.
+  ///
+  /// In zh, this message translates to:
+  /// **'文件过大（上限 50MB）：{name}'**
+  String chatFileTooLarge(String name);
+
+  /// No description provided for @chatAttachTotalTooLarge.
+  ///
+  /// In zh, this message translates to:
+  /// **'附件总大小超过 100MB 上限'**
+  String get chatAttachTotalTooLarge;
 
   /// No description provided for @navProjects.
   ///
@@ -785,7 +803,7 @@ abstract class AppLocalizations {
   /// No description provided for @chatAttach.
   ///
   /// In zh, this message translates to:
-  /// **'添加图片'**
+  /// **'添加附件'**
   String get chatAttach;
 
   /// No description provided for @chatCopy.

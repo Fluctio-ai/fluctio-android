@@ -212,7 +212,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatYesterday => 'Yesterday';
 
   @override
-  String get chatPickImageError => 'Could not read the image';
+  String get chatPickAttachmentError => 'Could not read the attachment';
+
+  @override
+  String get chatAttachLimit => 'Up to 8 attachments';
+
+  @override
+  String chatFileTooLarge(String name) {
+    return 'File too large (50MB max): $name';
+  }
+
+  @override
+  String get chatAttachTotalTooLarge =>
+      'Attachments exceed the 100MB total cap';
 
   @override
   String get navProjects => 'Projects';
@@ -360,7 +372,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatSend => 'Send';
 
   @override
-  String get chatAttach => 'Attach image';
+  String get chatAttach => 'Attach files';
 
   @override
   String get chatCopy => 'Copy';

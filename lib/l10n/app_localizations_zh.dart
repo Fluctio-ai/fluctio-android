@@ -208,7 +208,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatYesterday => '昨天';
 
   @override
-  String get chatPickImageError => '图片读取失败';
+  String get chatPickAttachmentError => '附件读取失败';
+
+  @override
+  String get chatAttachLimit => '最多 8 个附件';
+
+  @override
+  String chatFileTooLarge(String name) {
+    return '文件过大（上限 50MB）：$name';
+  }
+
+  @override
+  String get chatAttachTotalTooLarge => '附件总大小超过 100MB 上限';
 
   @override
   String get navProjects => '项目';
@@ -356,7 +367,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatSend => '发送';
 
   @override
-  String get chatAttach => '添加图片';
+  String get chatAttach => '添加附件';
 
   @override
   String get chatCopy => '复制';

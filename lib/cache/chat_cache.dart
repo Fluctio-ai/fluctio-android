@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
+import '../chat/models.dart';
+
 /// Light local cache (ticket 11): session list + per-session recent
 /// messages in SQLite so the app opens readable in airplane mode.
 /// Sessions are small rows; messages store the rendered entry shape
@@ -20,7 +22,7 @@ class ChatCache {
     final dir = await getDatabasesPath();
     final db = await openDatabase(
       p.join(dir, 'fluctio_cache.db'),
-      version: 1,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE cached_sessions (
@@ -30,6 +32,7 @@ class ChatCache {
             preview TEXT NOT NULL DEFAULT '',
             updated_at INTEGER NOT NULL DEFAULT 0,
             chat_only INTEGER NOT NULL DEFAULT 0,
+            channel TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (agent_id, session_id)
           )
         ''');
@@ -42,10 +45,26 @@ class ChatCache {
             kind TEXT NOT NULL DEFAULT '',
             content TEXT NOT NULL DEFAULT '',
             image_urls TEXT NOT NULL DEFAULT '[]',
+            attachments TEXT NOT NULL DEFAULT '[]',
             ts INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (agent_id, session_id, idx)
           )
         ''');
+      },
+      onUpgrade: (db, from, to) async {
+        // v2: channel rides along so the read-only (IM session) check
+        // survives offline cache hits.
+        if (from < 2) {
+          await db.execute(
+              'ALTER TABLE cached_sessions ADD COLUMN channel TEXT NOT NULL DEFAULT \'\'');
+        }
+        // v3: non-image workspace attachments. Names only — the data URLs
+        // can reach tens of MB and would stall the write transaction, so
+        // replayed chips show the filename and resends drop the bytes.
+        if (from < 3) {
+          await db.execute(
+              'ALTER TABLE cached_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT \'[]\'');
+        }
       },
     );
     return _instance = ChatCache._(db);
@@ -63,6 +82,7 @@ class ChatCache {
           'preview': s.preview,
           'updated_at': s.updatedAt,
           'chat_only': s.chatOnly ? 1 : 0,
+          'channel': s.channel,
         });
       }
     });
@@ -85,6 +105,7 @@ class ChatCache {
               (r['preview'] as String).startsWith('Instance of') ? '' : r['preview'] as String,
           updatedAt: r['updated_at'] as int,
           chatOnly: (r['chat_only'] as int) == 1,
+          channel: r['channel'] as String? ?? '',
         ),
     ];
   }
@@ -105,6 +126,10 @@ class ChatCache {
           'kind': m.kind,
           'content': m.content,
           'image_urls': jsonEncode(m.imageUrls),
+          'attachments': jsonEncode([
+            for (final a in m.attachments)
+              if (a.name.isNotEmpty) {'name': a.name},
+          ]),
           'ts': m.ts,
         });
       }
@@ -123,6 +148,13 @@ class ChatCache {
           kind: r['kind'] as String,
           content: r['content'] as String,
           imageUrls: (jsonDecode(r['image_urls'] as String) as List?)?.whereType<String>().toList() ?? const [],
+          attachments: [
+            for (final a
+                in (jsonDecode(r['attachments'] as String? ?? '[]') as List?)
+                        ?.whereType<Map>() ??
+                    const <Map>[])
+              PendingAttachment.fromJson(Map<String, dynamic>.from(a)),
+          ],
           ts: r['ts'] as int,
         ),
     ];
@@ -136,6 +168,7 @@ class CachedSession {
     required this.preview,
     required this.updatedAt,
     required this.chatOnly,
+    this.channel = '',
   });
 
   final String sessionId;
@@ -143,6 +176,7 @@ class CachedSession {
   final String preview;
   final int updatedAt;
   final bool chatOnly;
+  final String channel;
 }
 
 class CachedMessage {
@@ -151,6 +185,7 @@ class CachedMessage {
     required this.kind,
     required this.content,
     required this.imageUrls,
+    this.attachments = const [],
     required this.ts,
   });
 
@@ -160,5 +195,9 @@ class CachedMessage {
   final String kind;
   final String content;
   final List<String> imageUrls;
+
+  /// Names only on cache reads (bytes never enter the row — see v3
+  /// migration note); full data URLs on live writes.
+  final List<PendingAttachment> attachments;
   final int ts;
 }

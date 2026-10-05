@@ -30,6 +30,7 @@ class UserEntry extends UiEntry {
     required super.key,
     required this.text,
     this.imageUrls = const [],
+    this.attachments = const [],
     this.pendingSteer = false,
     this.failed = false,
     this.ts = 0,
@@ -38,6 +39,10 @@ class UserEntry extends UiEntry {
 
   final String text;
   final List<String> imageUrls;
+
+  /// Non-image workspace files sent with this turn (the wire history
+  /// never carries them back — web parity, only imageUrls resurface).
+  final List<PendingAttachment> attachments;
   final bool pendingSteer;
   final bool failed;
 
@@ -48,6 +53,7 @@ class UserEntry extends UiEntry {
   UserEntry copyWith({
     String? text,
     List<String>? imageUrls,
+    List<PendingAttachment>? attachments,
     bool? pendingSteer,
     bool? failed,
     int? ts,
@@ -56,6 +62,7 @@ class UserEntry extends UiEntry {
         key: key,
         text: text ?? this.text,
         imageUrls: imageUrls ?? this.imageUrls,
+        attachments: attachments ?? this.attachments,
         pendingSteer: pendingSteer ?? this.pendingSteer,
         failed: failed ?? this.failed,
         ts: ts ?? this.ts,
@@ -261,11 +268,12 @@ class ChatEngine {
 
   // ---- send / steer / stop transitions (controller-driven) ----
 
-  void beginSend(String text, List<String> images) {
+  void beginSend(String text, List<String> images, {List<PendingAttachment> attachments = const []}) {
     _entries.add(UserEntry(
       key: _key('u'),
       text: text,
       imageUrls: List.of(images),
+      attachments: List.of(attachments),
       ts: DateTime.now().millisecondsSinceEpoch,
     ));
     _statusHint = '';
@@ -322,9 +330,12 @@ class ChatEngine {
 
   /// Regenerate: hand back the last real user turn so the controller can
   /// resend it (with rollback — a no-op once it has been answered).
-  ({String text, List<String> images})? takeLastUserForRegenerate() {
+  ({String text, List<String> images, List<PendingAttachment> attachments})?
+      takeLastUserForRegenerate() {
     for (final e in _entries.reversed) {
-      if (e is UserEntry && !e.pendingSteer) return (text: e.text, images: e.imageUrls);
+      if (e is UserEntry && !e.pendingSteer) {
+        return (text: e.text, images: e.imageUrls, attachments: e.attachments);
+      }
     }
     return null;
   }
@@ -423,7 +434,8 @@ class ChatEngine {
           tone: NoticeTone.warn,
         ));
       } else if (m.role == 'user') {
-        _entries.add(UserEntry(key: _key('u'), text: m.content, imageUrls: m.imageUrls, ts: m.ts));
+        _entries.add(UserEntry(
+            key: _key('u'), text: m.content, imageUrls: m.imageUrls, attachments: m.attachments, ts: m.ts));
       } else if (m.role == 'assistant') {
         _entries.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.ts));
       }

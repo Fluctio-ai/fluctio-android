@@ -14,6 +14,7 @@ import '../auth/auth_state.dart';
 import 'chat_engine.dart';
 import 'chat_repo.dart';
 import 'models.dart';
+import 'slash_commands.dart';
 
 // ---------------------------------------------------------------------------
 // Agents
@@ -139,6 +140,7 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
                   preview: s.preview,
                   updatedAt: s.updatedAt,
                   chatOnly: s.chatOnly,
+                  channel: s.channel,
                 ),
             ],
           )).catchError((_) {}));
@@ -154,6 +156,7 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
               preview: c.preview,
               updatedAt: c.updatedAt,
               chatOnly: c.chatOnly,
+              channel: c.channel,
             ),
         ]);
       } catch (_) {
@@ -426,18 +429,35 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   // ---- sending ----
 
-  Future<void> send(String text, {List<String> images = const [], bool? chatOnly}) async {
+  /// Open session belongs to an IM channel — read-only over the app
+  /// compose path (web parity, chat-screen.tsx:1408).
+  bool _isReadOnlySession(String sessionId) =>
+      ref.read(sessionsProvider).value
+          ?.where((s) => s.id == sessionId)
+          .firstOrNull
+          ?.isImChannel ??
+      false;
+
+  /// IM-channel sessions reject sends — a write here would land in the
+  /// session but never reach the upstream messenger. Only the
+  /// read-only-safe slash commands pass (chat-screen.tsx:1832-1841).
+  bool _blockedByReadOnly(String sessionId, String text) =>
+      _isReadOnlySession(sessionId) && !isReadOnlySafeSlashCommand(text);
+
+  Future<void> send(String text,
+      {List<String> images = const [], List<PendingAttachment> attachments = const [], bool? chatOnly}) async {
     final key = state.activeKey;
-    if (key == null || text.trim().isEmpty) return;
+    if (key == null || (text.trim().isEmpty && images.isEmpty && attachments.isEmpty)) return;
     final engine = _engines[key];
     if (engine == null || engine.phase != TurnPhase.idle) return;
-    engine.beginSend(text, images);
-    _markDirty(key);
-    _publish();
     final parts = splitSessionKey(key);
     if (parts == null) return;
+    if (_blockedByReadOnly(parts.sessionId, text)) return;
+    engine.beginSend(text, images, attachments: attachments);
+    _markDirty(key);
+    _publish();
     final (agentId, sessionId) = (parts.agentId, parts.sessionId);
-    unawaited(_runSend(agentId, sessionId, text, images,
+    unawaited(_runSend(agentId, sessionId, text, images, attachments,
         rollback: false, chatOnly: chatOnly));
   }
 
@@ -446,17 +466,22 @@ class ChatStoreController extends Notifier<ChatStore> {
   Future<void> resendFailed() async {
     final key = state.activeKey;
     if (key == null) return;
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    if (_isReadOnlySession(parts.sessionId)) return;
     final engine = _engines[key];
     if (engine == null) return;
     final failed = engine.takeFailedUser();
     if (failed == null) return;
-    engine.beginSend(failed.text, failed.imageUrls);
+    // Cache-replayed attachments carry names only (bytes never enter the
+    // SQLite row) — resend just those still holding a data URL.
+    final attachments = failed.attachments.where((a) => a.url.isNotEmpty).toList();
+    engine.beginSend(failed.text, failed.imageUrls, attachments: attachments);
     _markDirty(key);
     _publish();
-    final parts = splitSessionKey(key);
-    if (parts == null) return;
     final (agentId, sessionId) = (parts.agentId, parts.sessionId);
-    unawaited(_runSend(agentId, sessionId, failed.text, failed.imageUrls, rollback: true));
+    unawaited(_runSend(agentId, sessionId, failed.text, failed.imageUrls, attachments,
+        rollback: true));
   }
 
   /// Regenerate: resend the last user turn; rollback makes it a no-op for
@@ -466,22 +491,32 @@ class ChatStoreController extends Notifier<ChatStore> {
     if (key == null) return;
     final engine = _engines[key];
     if (engine == null || engine.phase != TurnPhase.idle) return;
-    final last = engine.takeLastUserForRegenerate();
-    if (last == null || last.text.trim().isEmpty) return;
-    engine.beginSend(last.text, last.images);
-    _markDirty(key);
-    _publish();
     final parts = splitSessionKey(key);
     if (parts == null) return;
+    // IM-channel sessions: regenerating would append an orphan turn the
+    // upstream messenger user never sees — refuse before takeLastUser
+    // (which consumes the message).
+    if (_isReadOnlySession(parts.sessionId)) return;
+    final last = engine.takeLastUserForRegenerate();
+    if (last == null ||
+        (last.text.trim().isEmpty && last.images.isEmpty && last.attachments.isEmpty)) {
+      return;
+    }
+    final attachments = last.attachments.where((a) => a.url.isNotEmpty).toList();
+    engine.beginSend(last.text, last.images, attachments: attachments);
+    _markDirty(key);
+    _publish();
     final (agentId, sessionId) = (parts.agentId, parts.sessionId);
-    unawaited(_runSend(agentId, sessionId, last.text, last.images, rollback: true));
+    unawaited(_runSend(agentId, sessionId, last.text, last.images, attachments,
+        rollback: true));
   }
 
   Future<void> _runSend(
     String agentId,
     String sessionId,
     String text,
-    List<String> images, {
+    List<String> images,
+    List<PendingAttachment> attachments, {
     required bool rollback,
     bool? chatOnly,
   }) async {
@@ -495,12 +530,30 @@ class ChatStoreController extends Notifier<ChatStore> {
     final projectHint = _pendingProject[key];
     var gotFrame = false;
     try {
+      // Two-step attachment flow (web parity, chat-screen.tsx:1867): the
+      // files ride a multipart upload into the session workspace dir
+      // first, so the message carries only the breadcrumb text. Inline
+      // `attachments` would base64-inflate the JSON body and cap sizes
+      // at client-memory levels. Upload failures land in the same
+      // catch below as a dead POST — failed-bubble resend path.
+      var messageText = text;
+      if (attachments.isNotEmpty) {
+        await ref.read(chatRepoProvider).uploadAttachments(
+              agentId,
+              sessionId,
+              attachments,
+              projectId: projectHint,
+              cancelToken: cancel,
+            );
+        final breadcrumb = attachmentBreadcrumb(attachments);
+        messageText = text.isEmpty ? breadcrumb : '$breadcrumb\n$text';
+      }
       final frames = ref.read(chatRepoProvider).sse.post(
             '/api/chat/stream',
             body: {
               'agentId': agentId,
               'sessionId': sessionId,
-              'message': text,
+              'message': messageText,
               if (images.isNotEmpty) 'images': images,
               'rollbackPendingUser': rollback,
               'projectId': ?projectHint,
@@ -793,7 +846,8 @@ class ChatStoreController extends Notifier<ChatStore> {
       final messages = <CachedMessage>[];
       for (final e in engine.entries) {
         if (e is UserEntry) {
-          messages.add(CachedMessage(role: 'user', kind: '', content: e.text, imageUrls: e.imageUrls, ts: e.ts));
+          messages.add(CachedMessage(
+              role: 'user', kind: '', content: e.text, imageUrls: e.imageUrls, attachments: e.attachments, ts: e.ts));
         } else if (e is AssistantEntry) {
           messages.add(CachedMessage(role: 'assistant', kind: '', content: e.text, imageUrls: const [], ts: e.ts));
         } else if (e is NoticeEntry) {
