@@ -3,9 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// DESIGN.md §4/§6: while a turn streams, feedback is the three-dot
-/// typing indicator — a 1.4s flow-easing loop, dots phase-shifted by a
-/// third of the cycle, transform and opacity only. Reduced motion freezes
-/// the dots (state stays legible, motion drops).
+/// typing indicator — a 1.4s flow-easing loop. One dot hops at a time
+/// (user feedback: sequential hops replaced the web's phase-shifted
+/// ripple), transform and opacity only. Reduced motion freezes the
+/// dots (state stays legible, motion drops).
 class TypingDots extends StatefulWidget {
   const TypingDots({super.key, this.size = 5, this.color});
 
@@ -40,8 +41,11 @@ class _TypingDotsState extends State<TypingDots> with SingleTickerProviderStateM
         : AnimatedBuilder(
             animation: _c,
             builder: (context, child) {
-              final t = (_c.value * 3 - i) % 1.0;
-              final up = math.sin(t * math.pi);
+              // Dot i hops in slot i of the cycle (thirds of the loop);
+              // outside its slot the dot rests, so the dots read as
+              // one-at-a-time rather than a shared wave.
+              final t = _c.value * 3 - i;
+              final up = t > 0 && t < 1 ? math.sin(t * math.pi) : 0.0;
               return Transform.translate(
                 offset: Offset(0, -3 * up),
                 child: Opacity(opacity: 0.3 + 0.7 * up, child: child),

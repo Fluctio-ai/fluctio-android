@@ -369,6 +369,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOnlyChip => 'Chat only';
 
   @override
+  String get chatImReadOnlyHint =>
+      'Read-only — this chat came in from an IM channel';
+
+  @override
+  String get chatImChannelBadge => 'IM channel session (read-only)';
+
+  @override
   String get kbEmpty => 'Nothing here yet';
 
   @override
@@ -394,6 +401,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get todoStatusCancelled => 'Cancelled';
+
+  @override
+  String get kbStatus => 'Status';
+
+  @override
+  String get kbNotSet => 'Not set';
 
   @override
   String get kbDueDate => 'Date';

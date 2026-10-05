@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../util/dates.dart';
+import 'todo_views.dart';
 
 /// Full-screen text editor for KB items (flash/todo/note). The mobile
 /// take on the web's edit dialogs (DESIGN.md §4): editing is a full
@@ -122,63 +123,131 @@ class _KbEditorPageState extends State<KbEditorPage> {
     });
   }
 
-  /// The status segment row (todos): the same SegmentedButton idiom as
-  /// the page's view switcher; a pick marks the page dirty like any
-  /// other edit.
+  /// The status row (todos): current status with a semantic dot
+  /// (todoStatusColor, shared with the calendar/gantt dots), tap to
+  /// pick from a bottom sheet. Replaced the inline SegmentedButton
+  /// (user feedback): four segments crowded on narrow screens and
+  /// read as a control block rather than a field.
   Widget _statusRow() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: SegmentedButton<String>(
-        segments: [
-          for (final (id, label) in widget.statusOptions)
-            ButtonSegment(
-                value: id,
-                label: Text(label,
-                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+    final l = AppLocalizations.of(context)!;
+    final current =
+        widget.statusOptions.where((o) => o.$1 == _status).firstOrNull?.$2 ?? _status;
+    return _propRow(
+      label: l.kbStatus,
+      value: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.circle, size: 10, color: todoStatusColor(context, _status)),
+          const SizedBox(width: 6),
+          Text(current),
         ],
-        selected: {_status},
-        showSelectedIcon: false,
-        onSelectionChanged: (s) => setState(() {
-          _status = s.first;
-          _dirty = true;
-        }),
+      ),
+      onTap: _pickStatus,
+    );
+  }
+
+  /// One aligned property row (status/start/end): fixed label column,
+  /// value, optional clear ✕, chevron — one structure and one 16px
+  /// margin grid for all three rows (user feedback: the previous mix
+  /// of full-width text buttons read scattered). Row height ≥44px.
+  Widget _propRow({
+    required String label,
+    required Widget value,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 64,
+              child: Text(label,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            ),
+            Expanded(child: Align(alignment: Alignment.centerLeft, child: value)),
+            if (onClear != null)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: '清除',
+                onPressed: onClear,
+                icon: Icon(LucideIcons.x, size: 16, color: theme.colorScheme.outline),
+              ),
+            Icon(LucideIcons.chevronRight, size: 16, color: theme.colorScheme.outline),
+          ],
+        ),
       ),
     );
   }
 
-  /// One start/end datetime row: pick button + clear button when set.
-  Widget _dateRow(bool isEnd) {
-    final value = isEnd ? _endDate : _date;
-    final label = isEnd ? widget.endDateLabel! : widget.dateLabel!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextButton.icon(
-              onPressed: () => _pickDate(isEnd),
-              icon: const Icon(LucideIcons.calendar, size: 16),
-              label: Text(value == null
-                  ? label
-                  : '$label · ${formatShortDate(value, withTime: true)}'),
-            ),
+  /// Bottom-sheet single pick for the status row — full-width rows
+  /// beat four cramped segments on a phone; same interaction as the
+  /// date pickers (tap the row, pick, sheet closes).
+  Future<void> _pickStatus() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+        final l = AppLocalizations.of(sheetContext)!;
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+                child: Text(l.kbStatus, style: theme.textTheme.labelLarge),
+              ),
+              for (final (id, label) in widget.statusOptions)
+                ListTile(
+                  leading: Icon(LucideIcons.circle,
+                      size: 10, color: todoStatusColor(sheetContext, id)),
+                  title: Text(label),
+                  trailing: id == _status
+                      ? Icon(LucideIcons.check, size: 18, color: theme.colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(id),
+                ),
+            ],
           ),
-          if (value != null)
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: '清除',
-              onPressed: () => setState(() {
-                if (isEnd) {
-                  _endDate = null;
-                } else {
-                  _date = null;
-                }
-                _dirty = true;
-              }),
-              icon: const Icon(LucideIcons.x, size: 16),
-            ),
-        ],
+        );
+      },
+    );
+    if (picked == null || picked == _status || !mounted) return;
+    setState(() {
+      _status = picked;
+      _dirty = true;
+    });
+  }
+
+  /// One start/end datetime row: same aligned grid as the status row,
+  /// picker on tap, clear ✕ when set.
+  Widget _dateRow(bool isEnd) {
+    final l = AppLocalizations.of(context)!;
+    final value = isEnd ? _endDate : _date;
+    final scheme = Theme.of(context).colorScheme;
+    return _propRow(
+      label: isEnd ? widget.endDateLabel! : widget.dateLabel!,
+      value: Text(
+        value == null ? l.kbNotSet : formatShortDate(value, withTime: true),
+        style: value == null ? TextStyle(color: scheme.outline) : null,
       ),
+      onTap: () => _pickDate(isEnd),
+      onClear: value == null
+          ? null
+          : () => setState(() {
+              if (isEnd) {
+                _endDate = null;
+              } else {
+                _date = null;
+              }
+              _dirty = true;
+            }),
     );
   }
 
@@ -236,6 +305,8 @@ class _KbEditorPageState extends State<KbEditorPage> {
               if (widget.statusOptions.isNotEmpty) _statusRow(),
               if (widget.dateLabel != null) _dateRow(false),
               if (widget.endDateLabel != null) _dateRow(true),
+              // Property block boundary before the content field.
+              const Divider(height: 1),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),

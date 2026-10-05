@@ -97,7 +97,10 @@ bool _overdue(KbSource t) =>
     t.endAt!.isBefore(DateTime.now()) &&
     (t.status == 'pending' || t.status == 'in_progress');
 
-Color _statusDot(BuildContext context, String status) {
+/// Semantic dot color per todo status — shared by the calendar/gantt
+/// dots here and the editor's status row/sheet (info while running,
+/// success when done, muted otherwise).
+Color todoStatusColor(BuildContext context, String status) {
   final scheme = Theme.of(context).colorScheme;
   return switch (status) {
     'in_progress' => paletteOf(context).info,
@@ -380,7 +383,7 @@ class TodoLine extends StatelessWidget {
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(color: _statusDot(context, todo.status), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: todoStatusColor(context, todo.status), shape: BoxShape.circle),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1019,7 +1022,7 @@ class TodoGanttView extends StatelessWidget {
                     width: 7,
                     height: 7,
                     decoration:
-                        BoxDecoration(color: _statusDot(context, t.status), shape: BoxShape.circle),
+                        BoxDecoration(color: todoStatusColor(context, t.status), shape: BoxShape.circle),
                   ),
                 ),
                 const SizedBox(width: 8),

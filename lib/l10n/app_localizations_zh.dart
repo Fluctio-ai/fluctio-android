@@ -365,6 +365,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatOnlyChip => '仅对话';
 
   @override
+  String get chatImReadOnlyHint => '只读——此对话来自 IM 渠道';
+
+  @override
+  String get chatImChannelBadge => 'IM 渠道会话（只读）';
+
+  @override
   String get kbEmpty => '暂无内容';
 
   @override
@@ -390,6 +396,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get todoStatusCancelled => '已取消';
+
+  @override
+  String get kbStatus => '状态';
+
+  @override
+  String get kbNotSet => '未设置';
 
   @override
   String get kbDueDate => '日期';

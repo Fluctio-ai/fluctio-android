@@ -64,17 +64,23 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
                 }
                 return Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                      child: SegmentedButton<_TodoView>(
-                        segments: [
-                          ButtonSegment(value: _TodoView.list, label: Text(l.kbViewList)),
-                          ButtonSegment(value: _TodoView.calendar, label: Text(l.kbViewCalendar)),
-                          ButtonSegment(value: _TodoView.gantt, label: Text(l.kbViewGantt)),
+                    // View switcher as underline tabs — the same TabBar
+                    // idiom as the article detail page (原文/概要…),
+                    // replacing the SegmentedButton block (user
+                    // feedback). The panes below stay a plain switch,
+                    // not a TabBarView: calendar/gantt own their
+                    // horizontal drags and would fight the page swipe.
+                    DefaultTabController(
+                      length: 3,
+                      child: TabBar(
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        onTap: (i) => setState(() => _view = _TodoView.values[i]),
+                        tabs: [
+                          Tab(text: l.kbViewList),
+                          Tab(text: l.kbViewCalendar),
+                          Tab(text: l.kbViewGantt),
                         ],
-                        selected: {_view},
-                        showSelectedIcon: false,
-                        onSelectionChanged: (s) => setState(() => _view = s.first),
                       ),
                     ),
                     Expanded(

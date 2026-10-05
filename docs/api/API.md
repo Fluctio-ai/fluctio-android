@@ -118,7 +118,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 → `{"sessions":[WebSession]}`。WebSession 字段（`session/manager.go:1057`）：`id`/`title`/`preview`/`createdAt`/`updatedAt`（unix ms）+ omitempty 的 `chatOnly`/`projectId`/`channel`/`accountId`/`chatId`/`thumbnailUrl`。agent 不存在 → `{"sessions":[]}` |
+| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 → `{"sessions":[WebSession]}`。WebSession 字段（`session/manager.go:1057`）：`id`/`title`/`preview`/`createdAt`/`updatedAt`（unix ms）+ omitempty 的 `chatOnly`/`projectId`/`channel`/`accountId`/`chatId`/`thumbnailUrl`。agent 不存在 → `{"sessions":[]}`。`channel` 非空且非 `web` = IM 渠道会话（wechat/telegram/…），app/web 的 compose 通道无法送达对端 IM，客户端须按只读渲染（web 出处 chat-screen.tsx:1399-1414，banner+禁输入；只读 slash 白名单 help/status/usage/insights/version 例外） |
 | `PUT /api/chat/sessions/{key}` | 重命名，body `{"agentId","title"}`（agentId 也可走 query）→ `{"ok":true}` |
 | `DELETE /api/chat/sessions/{key}?agentId=` | 删除。有 fork 子会话 → `409 {"error":...,"code":"has_fork_children"}` |
 | `PATCH /api/chat/sessions/{key}/project` | 移动到项目 `{"projectId":...}`（空=脱离） |

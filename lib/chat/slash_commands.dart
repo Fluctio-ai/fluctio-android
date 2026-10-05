@@ -40,3 +40,15 @@ List<SlashCommand> matchSlashCommands(String text) {
   if (query.isEmpty) return slashCommands;
   return slashCommands.where((c) => c.name.startsWith(query)).toList();
 }
+
+/// Commands still sendable from an IM-channel (read-only) session —
+/// pure status queries that don't mutate the transcript. 1:1 mirror of
+/// the web READ_ONLY_SLASH_COMMANDS (chat-screen.tsx:155).
+const readOnlySafeSlashCommands = {'help', 'status', 'usage', 'insights', 'version'};
+
+/// True when [text] is `/name …` with a read-only-safe name (web parity,
+/// chat-screen.tsx:987-993).
+bool isReadOnlySafeSlashCommand(String text) {
+  final match = RegExp(r'^/(\w+)').firstMatch(text.trim());
+  return match != null && readOnlySafeSlashCommands.contains(match.group(1));
+}

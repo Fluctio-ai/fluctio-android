@@ -800,6 +800,18 @@ abstract class AppLocalizations {
   /// **'仅对话'**
   String get chatOnlyChip;
 
+  /// No description provided for @chatImReadOnlyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'只读——此对话来自 IM 渠道'**
+  String get chatImReadOnlyHint;
+
+  /// No description provided for @chatImChannelBadge.
+  ///
+  /// In zh, this message translates to:
+  /// **'IM 渠道会话（只读）'**
+  String get chatImChannelBadge;
+
   /// No description provided for @kbEmpty.
   ///
   /// In zh, this message translates to:
@@ -853,6 +865,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'已取消'**
   String get todoStatusCancelled;
+
+  /// No description provided for @kbStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态'**
+  String get kbStatus;
+
+  /// No description provided for @kbNotSet.
+  ///
+  /// In zh, this message translates to:
+  /// **'未设置'**
+  String get kbNotSet;
 
   /// No description provided for @kbDueDate.
   ///
