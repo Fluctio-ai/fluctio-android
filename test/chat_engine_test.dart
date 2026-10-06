@@ -106,6 +106,33 @@ void main() {
       expect(tools[0].result, 'out');
     });
 
+    test('nameless tool_call frames (dirty session_events replays) are dropped',
+        () {
+      // Real-world dirty row shape replayed from the server's event log:
+      // early synthetic memory_search events were persisted without a
+      // name — they used to render as a "工具调用" card stuck running.
+      final e = _primed();
+      e.applyFrame(1, {
+        'seq': 1,
+        'type': 'tool_call',
+        'data': {'id': 'synth-memory_search', 'arguments': '[object Object]'},
+      });
+      expect(e.snapshot().entries.whereType<ToolEntry>(), isEmpty);
+
+      e.applyFrame(2, {
+        'seq': 2,
+        'type': 'tool_call',
+        'data': {
+          'id': 'synth-memory_search',
+          'name': 'memory_search',
+          'arguments': '{"query":"好","limit":3}',
+        },
+      });
+      final tools = e.snapshot().entries.whereType<ToolEntry>().toList();
+      expect(tools.single.name, 'memory_search');
+      expect(tools.single.arguments, '{"query":"好","limit":3}');
+    });
+
     test('toggleTool flips expanded', () {
       final e = _primed();
       e.applyFrame(1, {'seq': 1, 'type': 'tool_call', 'data': {'id': 'c1', 'name': 'n'}});
@@ -261,6 +288,25 @@ void main() {
       expect(state.earliestSeq, 2);
       // Resume cursor comes from latestEventSeq (30), not the message max (5).
       expect(state.lastSeq, 30);
+    });
+
+    test('nameless toolCalls in history are skipped (dirty-row defense)', () {
+      final e = ChatEngine();
+      e.loadHistory(
+        HistoryPage(
+          earliestSeq: 1,
+          hasMore: false,
+          messages: const [
+            HistoryMessage(role: 'assistant', content: '', toolCalls: [
+              ToolCallData(id: 'synth-memory_search', name: '', arguments: '[object Object]'),
+              ToolCallData(id: 'c2', name: 'exec', arguments: '{}'),
+            ]),
+          ],
+        ),
+        older: false,
+      );
+      final tools = e.snapshot().entries.whereType<ToolEntry>().toList();
+      expect(tools.single.name, 'exec');
     });
 
     test('pagination prepends older pages', () {

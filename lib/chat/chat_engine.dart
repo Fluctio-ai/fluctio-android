@@ -463,6 +463,9 @@ class ChatEngine {
           batch.add(AssistantEntry(key: _key('a'), text: m.content, ts: m.timestamp, seq: m.seq));
         }
         for (final tc in m.toolCalls) {
+          // Same dirty-row defense as applyFrame: a nameless tool call
+          // renders as a card stuck running forever.
+          if (tc.name.isEmpty) continue;
           batch.add(ToolEntry(key: 'tc-${tc.id}', name: tc.name, arguments: tc.arguments));
         }
       case 'tool':
@@ -526,9 +529,15 @@ class ChatEngine {
         _commitContent(content is String ? content : '');
       case 'tool_call':
         final id = map['id'];
+        final name = map['name'] as String? ?? '';
+        // Frames without a name are legacy dirty rows replayed from the
+        // server's session_events log (early synthetic memory_search
+        // events persisted before the name field existed). They render
+        // as a nameless card stuck "running" forever — drop them.
+        if (name.isEmpty) break;
         _entries.add(ToolEntry(
           key: 'tc-${id ?? _key('t')}',
-          name: map['name'] as String? ?? '',
+          name: name,
           arguments: map['arguments'] as String? ?? '',
         ));
       case 'tool_result':
