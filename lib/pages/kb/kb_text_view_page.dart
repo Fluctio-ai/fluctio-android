@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:markdown/markdown.dart' as md;
 
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
@@ -93,12 +91,7 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
                     // this wrapper long content overflows (yellow-black
                     // stripes) and can't be scrolled.
                     padding: const EdgeInsets.all(16),
-                    child: MarkdownBody(
-                      data: snap.data ?? '',
-                      extensionSet: md.ExtensionSet.gitHubWeb,
-                      builders: markdownBuilders,
-                      styleSheet: markdownStyle(context),
-                    ),
+                    child: transcriptMarkdown(context, snap.data ?? ''),
                   ),
             ),
           ),

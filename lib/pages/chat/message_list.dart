@@ -515,13 +515,9 @@ class _AssistantBubble extends ConsumerWidget {
               ),
               border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
-            child: MarkdownBody(
-              data: entry.text,
-              extensionSet: md.ExtensionSet.gitHubWeb,
-              inlineSyntaxes: mathInlineSyntaxes,
-              blockSyntaxes: mathBlockSyntaxes,
-              builders: markdownBuilders,
-              styleSheet: markdownStyle(context),
+            child: transcriptMarkdown(
+              context,
+              entry.text,
               onTapLink: (_, href, _) {
                 // Gateway file URLs and bare workspace paths preview
                 // natively; everything else goes to the browser.
@@ -562,10 +558,30 @@ class _RegenerateButton extends ConsumerWidget {
   }
 }
 
+/// The one markdown body every transcript surface uses (chat bubbles,
+/// KB readers): GitHub-web extensions, math syntaxes, shared builders
+/// and stylesheet. Wiring these per callsite is how KB pages silently
+/// lost math once — the bundle lives here now.
+MarkdownBody transcriptMarkdown(
+  BuildContext context,
+  String data, {
+  MarkdownTapLinkCallback? onTapLink,
+  MarkdownSizedImageBuilder? sizedImageBuilder,
+}) =>
+    MarkdownBody(
+      data: data,
+      extensionSet: md.ExtensionSet.gitHubWeb,
+      inlineSyntaxes: mathInlineSyntaxes,
+      blockSyntaxes: mathBlockSyntaxes,
+      builders: markdownBuilders,
+      styleSheet: markdownStyle(context),
+      onTapLink: onTapLink,
+      sizedImageBuilder: sizedImageBuilder,
+    );
+
 /// Public so non-chat reading surfaces (KB article detail) share the
 /// transcript's exact markdown look — zh 1.7 leading, tinted blocks.
-MarkdownStyleSheet markdownStyle(BuildContext context) {
-  final theme = Theme.of(context);
+MarkdownStyleSheet markdownStyle(BuildContext context) {  final theme = Theme.of(context);
   final zhScope = Localizations.localeOf(context).languageCode == 'zh';
   final lineHeight = zhScope ? 1.7 : 1.5;
   return MarkdownStyleSheet.fromTheme(theme).copyWith(

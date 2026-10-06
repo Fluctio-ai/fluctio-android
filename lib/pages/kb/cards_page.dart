@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:markdown/markdown.dart' as md;
 
 import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
@@ -259,12 +257,7 @@ class _CardViewPage extends StatelessWidget {
                 style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.outline, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
-            MarkdownBody(
-              data: body,
-              extensionSet: md.ExtensionSet.gitHubWeb,
-              builders: markdownBuilders,
-              styleSheet: markdownStyle(context),
-            ),
+            transcriptMarkdown(context, body),
           ],
         );
     return Scaffold(

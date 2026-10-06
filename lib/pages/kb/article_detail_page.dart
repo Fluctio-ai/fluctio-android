@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:markdown/markdown.dart' as md;
 
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
@@ -150,12 +148,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
   /// code/blockquote blocks.
   Widget _proseTab(BuildContext context, String text) => SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: MarkdownBody(
-          data: text,
-          extensionSet: md.ExtensionSet.gitHubWeb,
-          builders: markdownBuilders,
-          styleSheet: markdownStyle(context),
-        ),
+        child: transcriptMarkdown(context, text),
       );
 
   Widget _chaptersTab(BuildContext context) {
@@ -168,12 +161,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
           for (final c in _insights!.chapters) ...[
             Text(c.title, style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
-            MarkdownBody(
-              data: c.body,
-              extensionSet: md.ExtensionSet.gitHubWeb,
-              builders: markdownBuilders,
-              styleSheet: markdownStyle(context),
-            ),
+            transcriptMarkdown(context, c.body),
             const SizedBox(height: 16),
           ],
         ],
