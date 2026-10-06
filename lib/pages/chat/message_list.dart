@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:markdown/markdown.dart' as md;
 
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
-import '../../chat/math_render.dart';
-import '../../webview/web_container.dart';
+import '../../chat/markdown.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import 'typing_dots.dart';
@@ -518,15 +515,15 @@ class _AssistantBubble extends ConsumerWidget {
             child: transcriptMarkdown(
               context,
               entry.text,
-              onTapLink: (_, href, _) {
+              onTapLink: (href) {
                 // Gateway file URLs and bare workspace paths preview
                 // natively; everything else goes to the browser.
-                if (href != null) openChatLink(context, ref, href);
+                openChatLink(context, ref, href);
               },
-              sizedImageBuilder: (config) => _MarkdownImage(
-                url: config.uri.toString(),
-                width: config.width,
-                height: config.height,
+              imageBuilder: (context, url, width, height) => _MarkdownImage(
+                url: url,
+                width: width,
+                height: height,
               ),
             ),
           ),
@@ -556,66 +553,6 @@ class _RegenerateButton extends ConsumerWidget {
       label: Text(l.chatRegenerate, style: const TextStyle(fontSize: AppType.caption)),
     );
   }
-}
-
-/// The one markdown body every transcript surface uses (chat bubbles,
-/// KB readers): GitHub-web extensions, math syntaxes, shared builders
-/// and stylesheet. Wiring these per callsite is how KB pages silently
-/// lost math once — the bundle lives here now.
-MarkdownBody transcriptMarkdown(
-  BuildContext context,
-  String data, {
-  MarkdownTapLinkCallback? onTapLink,
-  MarkdownSizedImageBuilder? sizedImageBuilder,
-}) =>
-    MarkdownBody(
-      data: data,
-      extensionSet: md.ExtensionSet.gitHubWeb,
-      inlineSyntaxes: mathInlineSyntaxes,
-      blockSyntaxes: mathBlockSyntaxes,
-      builders: markdownBuilders,
-      styleSheet: markdownStyle(context),
-      onTapLink: onTapLink,
-      sizedImageBuilder: sizedImageBuilder,
-    );
-
-/// Public so non-chat reading surfaces (KB article detail) share the
-/// transcript's exact markdown look — zh 1.7 leading, tinted blocks.
-MarkdownStyleSheet markdownStyle(BuildContext context) {  final theme = Theme.of(context);
-  final zhScope = Localizations.localeOf(context).languageCode == 'zh';
-  final lineHeight = zhScope ? 1.7 : 1.5;
-  return MarkdownStyleSheet.fromTheme(theme).copyWith(
-    p: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
-    // Compact heading ladder close to the body size — fromTheme's
-    // display-scale defaults made h1 tower over an otherwise 15px body.
-    h1: theme.textTheme.titleLarge?.copyWith(fontSize: AppType.headline, fontWeight: FontWeight.w600, height: 1.4),
-    h2: theme.textTheme.titleMedium?.copyWith(fontSize: AppType.docH2, fontWeight: FontWeight.w600, height: 1.4),
-    h3: theme.textTheme.titleMedium?.copyWith(fontSize: AppType.docH3, fontWeight: FontWeight.w600, height: 1.45),
-    h4: theme.textTheme.bodyLarge?.copyWith(fontSize: AppType.body, fontWeight: FontWeight.w600, height: lineHeight),
-    h5: theme.textTheme.bodyMedium?.copyWith(fontSize: AppType.docH5, fontWeight: FontWeight.w600, height: lineHeight),
-    h6: theme.textTheme.bodySmall?.copyWith(fontSize: AppType.secondary, fontWeight: FontWeight.w500, height: lineHeight),
-    listBullet: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
-    blockquote: theme.textTheme.bodyMedium?.copyWith(height: lineHeight),
-    code: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.secondary),
-    codeblockDecoration: BoxDecoration(
-      color: theme.colorScheme.secondaryContainer,
-      borderRadius: AppRadius.controlBorder,
-      // Hairline like every tinted container (DESIGN.md §4) — without it
-      // the block dissolves into the page in dark (0.22 vs 0.145 L).
-      border: Border.all(color: theme.colorScheme.outlineVariant),
-    ),
-    codeblockPadding: const EdgeInsets.all(12),
-    blockquoteDecoration: BoxDecoration(
-      color: theme.colorScheme.secondaryContainer,
-      borderRadius: AppRadius.controlBorder,
-      border: Border.all(color: theme.colorScheme.outlineVariant),
-    ),
-    blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-    tableHead: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-    tableBody: theme.textTheme.bodySmall,
-    horizontalRuleDecoration:
-        BoxDecoration(border: Border(top: BorderSide(color: theme.colorScheme.outlineVariant))),
-  );
 }
 
 class _MarkdownImage extends ConsumerWidget {
@@ -844,55 +781,6 @@ class _AuthCard extends ConsumerWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Markdown element builders hoisted once (a per-bubble spread would
-/// allocate a new map + builder on every rebuild of every bubble).
-final markdownBuilders = <String, MarkdownElementBuilder>{
-  ...mathBuilders,
-  'code': _MermaidCodeBuilder(),
-};
-
-/// Mermaid fenced blocks become a tappable card that opens the
-/// full-screen WebView renderer (ticket 10); other code falls through
-/// to the default block style.
-class _MermaidCodeBuilder extends MarkdownElementBuilder {
-  @override
-  Widget? visitElementAfterWithContext(
-    BuildContext context,
-    md.Element element,
-    TextStyle? preferredStyle,
-    TextStyle? parentStyle,
-  ) {
-    final cls = element.attributes['class'] ?? '';
-    if (!cls.contains('language-mermaid')) return null;
-    final source = element.textContent;
-    final theme = Theme.of(context);
-    final l = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InkWell(
-        onTap: () => openMermaidViewer(context, source),
-        borderRadius: AppRadius.cardBorder,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondaryContainer,
-            borderRadius: AppRadius.cardBorder,
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Icon(LucideIcons.workflow, size: 18, color: theme.colorScheme.primary),
-              const SizedBox(width: 8),
-              Expanded(child: Text(l.mermaidHint, style: theme.textTheme.bodySmall)),
-              const Icon(LucideIcons.maximize2, size: 14),
-            ],
-          ),
-        ),
       ),
     );
   }

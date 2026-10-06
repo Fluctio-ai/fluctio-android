@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 import 'tokens.dart';
 
@@ -39,6 +40,40 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      extensions: [
+        // Markdown reading surface: compact heading ladder (the web
+        // contract's tokens — fromTheme display-scale made h1 tower
+        // over a 15px body), the surge-cyan link color, and the block
+        // styles (tinted code/table/quote, hairline borders per
+        // DESIGN.md §4). Built once here instead of per markdown call.
+        GptMarkdownThemeData(
+          brightness: brightness,
+          h1: TextStyle(fontSize: AppType.headline, fontWeight: FontWeight.w600, height: 1.4, color: scheme.onSurface),
+          h2: TextStyle(fontSize: AppType.docH2, fontWeight: FontWeight.w600, height: 1.4, color: scheme.onSurface),
+          h3: TextStyle(fontSize: AppType.docH3, fontWeight: FontWeight.w600, height: 1.45, color: scheme.onSurface),
+          h4: TextStyle(fontSize: AppType.body, fontWeight: FontWeight.w600, color: scheme.onSurface),
+          h5: TextStyle(fontSize: AppType.docH5, fontWeight: FontWeight.w600, color: scheme.onSurface),
+          h6: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500, color: scheme.onSurface),
+          linkColor: scheme.primary,
+          styleSheet: GptMarkdownStyleSheet(
+            blockSpacing: 8,
+            blockQuote: BlockQuoteStyle(
+              barColor: scheme.outlineVariant,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            ),
+            codeBlock: CodeBlockStyle(
+              backgroundColor: scheme.secondaryContainer,
+              borderColor: scheme.outlineVariant,
+              borderRadius: AppRadius.control,
+              padding: const EdgeInsets.all(12),
+              borderWidth: 0.5,
+            ),
+            table: TableStyle(borderColor: scheme.outlineVariant),
+            hr: HrStyle(color: scheme.outlineVariant),
+            inlineCode: const InlineCodeStyle(fontFamily: 'monospace'),
+          ),
+        ),
+      ],
       // The app's only type scale (DESIGN.md §3), mapped onto Material
       // roles so screens share it through textTheme instead of hand-set
       // sizes. Built from scratch — not copied from Typography.material3 —

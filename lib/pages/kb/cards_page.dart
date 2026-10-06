@@ -16,7 +16,7 @@ import '../../ui/dialogs.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
-import '../chat/message_list.dart';
+import '../../chat/markdown.dart';
 
 /// Cards dashboard: stats header, start-review CTA over the due queue,
 /// manual card creation.

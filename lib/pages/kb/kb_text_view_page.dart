@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../chat/markdown.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
-import '../chat/message_list.dart';
 
 /// Read-only content viewer for KB text items (flash/note): loads the
 /// full stored content — list rows only carry the truncated title — and
@@ -86,12 +87,22 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
             ? const SkeletonProse()
             : snap.hasError
                 ? ErrorPane(message: AppLocalizations.of(context)!.chatHistoryError)
-                : SingleChildScrollView(
-                    // MarkdownBody is non-scrolling on its own — without
-                    // this wrapper long content overflows (yellow-black
-                    // stripes) and can't be scrolled.
-                    padding: const EdgeInsets.all(16),
-                    child: transcriptMarkdown(context, snap.data ?? ''),
+                // SliverGptMarkdown splits the document at top-level
+                // blank lines (fences and $$ blocks stay whole — the
+                // package rewrites them to \[...\] first) and lazily
+                // builds only the visible segments: formula-heavy
+                // documents no longer parse TeX for off-screen formulas.
+                : CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.all(16),
+                        sliver: SliverGptMarkdown(
+                          snap.data ?? '',
+                          config: markdownConfig(context),
+                          useDollarSignsForLatex: true,
+                        ),
+                      ),
+                    ],
                   ),
             ),
           ),

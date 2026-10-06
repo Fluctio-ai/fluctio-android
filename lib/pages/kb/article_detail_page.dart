@@ -8,7 +8,7 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
-import '../chat/message_list.dart';
+import '../../chat/markdown.dart';
 
 /// Article detail, tabbed like the web (knowledge-views.tsx DetailTab):
 /// the original text plus the five deep-reading sections — 概要 / 章节 /
