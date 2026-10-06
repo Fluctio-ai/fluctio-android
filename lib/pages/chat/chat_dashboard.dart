@@ -44,7 +44,9 @@ class ChatDashboard extends ConsumerWidget {
     if (agent == null) return const SizedBox.shrink();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      // Horizontal 12 matches the composer card's margin and the transcript
+      // list padding — the panes and the input box share one edge line.
+      padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
       children: [
         // Hero: who you're talking to (web fresh-chat header).
         _DashIn(
