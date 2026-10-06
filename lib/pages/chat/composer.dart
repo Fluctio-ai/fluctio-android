@@ -277,7 +277,7 @@ class _ActionButton extends StatelessWidget {
     if (turnActive) {
       if (stopping) {
         enabled = false;
-        icon = LucideIcons.square;
+        icon = Icons.stop;
         onPressed = null;
       } else if (hasInput) {
         enabled = true;
@@ -285,7 +285,9 @@ class _ActionButton extends StatelessWidget {
         onPressed = onSteer;
       } else {
         enabled = true;
-        icon = LucideIcons.square;
+        // Filled stop square — lucide is an outline-only font, so the
+        // previous fill:1.0 on LucideIcons.square silently did nothing.
+        icon = Icons.stop;
         onPressed = onStop;
       }
     } else {
@@ -311,7 +313,6 @@ class _ActionButton extends StatelessWidget {
             child: Icon(
               icon,
               size: 16,
-              fill: icon == LucideIcons.square ? 1.0 : 0.0,
               color: enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
             ),
           ),
