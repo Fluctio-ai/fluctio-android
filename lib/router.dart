@@ -17,7 +17,9 @@ import 'pages/kb/todos_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/session_list_page.dart';
 import 'pages/setup_page.dart';
-import 'pages/wiki_page.dart';
+import 'pages/wiki/wiki_graph_page.dart';
+import 'pages/wiki/wiki_home_page.dart';
+import 'pages/wiki/wiki_page_detail.dart';
 import 'pages/workflow_page.dart';
 
 /// Web-parity navigation: no bottom bar — the chat surface IS the app
@@ -82,7 +84,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(path: 'notes', builder: (_, _) => const KbNotesPage()),
         GoRoute(path: 'diary', builder: (_, _) => const KbDiaryPage()),
       ]),
-      GoRoute(path: '/wiki', builder: (_, _) => const WikiPage()),
+      // Native wiki module (list tabs → preview → graph); the old
+      // WebView container kept only the workflow surface.
+      GoRoute(path: '/wiki', builder: (_, _) => const WikiHomePage(), routes: [
+        GoRoute(
+          path: 'graph',
+          builder: (_, state) =>
+              WikiGraphPage(focusId: state.uri.queryParameters['focus']),
+        ),
+        GoRoute(
+          path: 'page/:pid',
+          builder: (_, state) =>
+              WikiPageDetail(pageId: state.pathParameters['pid'] ?? ''),
+        ),
+      ]),
       GoRoute(path: '/workflow', builder: (_, _) => const WorkflowPage()),
       GoRoute(path: '/me', builder: (_, _) => const ProfilePage()),
     ],
