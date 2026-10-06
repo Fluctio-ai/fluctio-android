@@ -207,7 +207,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
   - `GET /api/agents/{id}/wiki/graph` → `{nodes:[WikiPage], edges:[{src_page_id,dst_page_id,relation,weight}]|null}`
   - `DELETE /api/agents/{id}/wiki/pages/{pageId}` → `{status:"ok"}`
   - `POST /api/agents/{id}/wiki/generate` body `{source_ids:[...],force?}` → `202 {status:"started"}`；已在生成 `409 {status:"already_running"}`；进度轮询 `GET .../wiki/progress` → `{total,done,failed,status(running|done),updated_at}` 或 `{status:"idle"}`
-  - `PUT /api/agents/{id}/wiki/pages/{pageId}` body `{title?,body}` → 更新后的 `WikiPage`。**后端待实现**（handlers_wiki.go 暂无此路由；内部已有 `wiki.WikiStore.UpsertPage`，handlers_wiki.go:376 在用，包一层即可）。revision 乐观并发可选
+  - `PUT /api/agents/{id}/wiki/pages/{pageId}` body `{title?,body}` → 更新后的 `WikiPage`（只改传入字段；slug/page_type/source_ids 归生成器不可改；updated_at 重盖、revision+1，owner-only，handlers_wiki.go handleWikiUpdatePage）
 - Diary（internal/setup/handlers_diary.go、internal/store/diary.go）：
   - `GET /api/agents/{id}/diary?from=&to=` → `DailyDiary[]`（[from,to] 闭区间，YYYY-MM-DD、UTC+8，新→旧；缺省=近 30 天）
   - `GET /api/agents/{id}/diary/{date}` → `DailyDiary`；无记录 404；该 (agent,date) 手动生成进行中 → `200 {agentId,date,generating:true}`
