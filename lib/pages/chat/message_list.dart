@@ -237,7 +237,11 @@ class _MessageListState extends ConsumerState<MessageList> {
       AssistantEntry a => a.text,
       _ => '',
     };
-    if (text.isEmpty && !regenerate) return;
+    // Web gates the fork button on msg.seq != null && msg.seq >= 0 —
+    // fork-inherited prefix turns (seq<0) never fork again
+    // (chat-screen.tsx:2714, 3213).
+    final canFork = entry is AssistantEntry && (entry.seq ?? -1) >= 0;
+    if (text.isEmpty && !regenerate && !canFork) return;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -252,6 +256,20 @@ class _MessageListState extends ConsumerState<MessageList> {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: text));
                   Navigator.of(sheetContext).pop();
+                },
+              ),
+            if (canFork)
+              ListTile(
+                leading: const Icon(LucideIcons.gitBranch, size: 20),
+                title: Text(l.chatFork),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  final ok =
+                      await ref.read(chatStoreProvider.notifier).fork(entry.seq!);
+                  if (!ok && context.mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
+                  }
                 },
               ),
             if (regenerate)
@@ -352,6 +370,14 @@ class _EntryInState extends State<_EntryIn> {
   }
 }
 
+/// Web parity (chat-screen.tsx formatTime): HH:mm under the bubble; the
+/// full datetime lives in the web hover tooltip, which touch lacks.
+String _formatTime(int ts) {
+  final d = DateTime.fromMillisecondsSinceEpoch(ts);
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.hour)}:${two(d.minute)}';
+}
+
 class _UserBubble extends ConsumerWidget {
   const _UserBubble({required this.entry});
 
@@ -366,112 +392,130 @@ class _UserBubble extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Align(
         alignment: Alignment.centerRight,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
-          decoration: BoxDecoration(
-            // Web: primary/10 tint with primary text (light theme = our
-            // primaryContainer accent + onPrimaryContainer). Corners:
-            // rounded-2xl with the sender-side corner pulled in
-            // (rounded-br-md) — the user sits right, the assistant left,
-            // so the tails face who spoke.
-            color: scheme.primaryContainer,
-            borderRadius: const BorderRadius.only(
-              topLeft: AppRadius.fullscreen,
-              topRight: AppRadius.fullscreen,
-              bottomLeft: AppRadius.fullscreen,
-              bottomRight: AppRadius.control,
-            ),
-            border: entry.failed ? Border.all(color: scheme.error) : null,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (entry.imageUrls.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Wrap(
-                    children: [
-                      for (final url in entry.imageUrls)
-                        ChatImageThumb(
-                          url: url,
-                          baseUrl: auth.baseUrl,
-                          cookie: auth.sid,
-                          size: 84,
-                          onTap: () => _openImage(context, ref, url),
-                        ),
-                    ],
-                  ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
+              decoration: BoxDecoration(
+                // Web: primary/10 tint with primary text (light theme = our
+                // primaryContainer accent + onPrimaryContainer). Corners:
+                // rounded-2xl with the sender-side corner pulled in
+                // (rounded-br-md) — the user sits right, the assistant left,
+                // so the tails face who spoke.
+                color: scheme.primaryContainer,
+                borderRadius: const BorderRadius.only(
+                  topLeft: AppRadius.fullscreen,
+                  topRight: AppRadius.fullscreen,
+                  bottomLeft: AppRadius.fullscreen,
+                  bottomRight: AppRadius.control,
                 ),
-              // Non-image workspace attachments: name chips only — the
-              // wire history never carries them back, so this is the
-              // live-send bubble (plus offline cache replay).
-              if (entry.attachments.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      for (final a in entry.attachments)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: scheme.onPrimaryContainer.withValues(alpha: 0.08),
-                            borderRadius: AppRadius.controlBorder,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(LucideIcons.fileText,
-                                  size: 14, color: scheme.onPrimaryContainer),
-                              const SizedBox(width: 5),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 180),
-                                child: Text(
-                                  a.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: AppType.caption,
-                                    color: scheme.onPrimaryContainer,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              if (entry.text.isNotEmpty)
-                Text(entry.text,
-                    style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5)),
-              if (entry.pendingSteer)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    l.chatThinking,
-                    style: TextStyle(
-                        fontSize: AppType.caption, color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
-                  ),
-                ),
-              if (entry.failed)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      foregroundColor: scheme.error,
+                border: entry.failed ? Border.all(color: scheme.error) : null,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (entry.imageUrls.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Wrap(
+                        children: [
+                          for (final url in entry.imageUrls)
+                            ChatImageThumb(
+                              url: url,
+                              baseUrl: auth.baseUrl,
+                              cookie: auth.sid,
+                              size: 84,
+                              onTap: () => _openImage(context, ref, url),
+                            ),
+                        ],
+                      ),
                     ),
-                    onPressed: () => ref.read(chatStoreProvider.notifier).resendFailed(),
-                    icon: const Icon(LucideIcons.refreshCw, size: 14),
-                    label: Text(l.chatResend),
-                  ),
+                  // Non-image workspace attachments: name chips only — the
+                  // wire history never carries them back, so this is the
+                  // live-send bubble (plus offline cache replay).
+                  if (entry.attachments.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          for (final a in entry.attachments)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: scheme.onPrimaryContainer.withValues(alpha: 0.08),
+                                borderRadius: AppRadius.controlBorder,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(LucideIcons.fileText,
+                                      size: 14, color: scheme.onPrimaryContainer),
+                                  const SizedBox(width: 5),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 180),
+                                    child: Text(
+                                      a.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: AppType.caption,
+                                        color: scheme.onPrimaryContainer,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  if (entry.text.isNotEmpty)
+                    Text(entry.text,
+                        style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5)),
+                  if (entry.pendingSteer)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        l.chatThinking,
+                        style: TextStyle(
+                            fontSize: AppType.caption,
+                            color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
+                      ),
+                    ),
+                  if (entry.failed)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: TextButton.icon(
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor: scheme.error,
+                        ),
+                        onPressed: () => ref.read(chatStoreProvider.notifier).resendFailed(),
+                        icon: const Icon(LucideIcons.refreshCw, size: 14),
+                        label: Text(l.chatResend),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // Web gates the user-side time behind hover (opacity-0
+            // group-hover, chat-screen.tsx:3158); touch has none, so show
+            // it always — same contract as the assistant side's time.
+            if (entry.ts > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  _formatTime(entry.ts),
+                  style: TextStyle(fontSize: AppType.caption, color: scheme.outline),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -527,10 +571,23 @@ class _AssistantBubble extends ConsumerWidget {
               ),
             ),
           ),
-          if (canRegenerate)
+          // Web's under-bubble meta row: the time is always visible, the
+          // hover actions (copy/fork) map to our long-press sheet. The
+          // mobile-only regenerate joins the row instead of standing alone.
+          if (entry.ts > 0 || canRegenerate)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: _RegenerateButton(),
+              child: Row(
+                children: [
+                  if (entry.ts > 0)
+                    Text(
+                      _formatTime(entry.ts),
+                      style: TextStyle(
+                          fontSize: AppType.caption, color: theme.colorScheme.outline),
+                    ),
+                  if (canRegenerate) _RegenerateButton(),
+                ],
+              ),
             ),
         ],
       ),

@@ -155,4 +155,14 @@ class ChatRepo {
         '/api/chat/sessions/${Uri.encodeComponent(key)}/chat-only',
         data: {'agentId': agentId, 'chatOnly': on},
       );
+
+  /// Fork at [forkSeq] (contract §5; web chat-screen.tsx handleFork): the
+  /// child session inherits the source archive up to forkSeq as a
+  /// read-only prefix. Returns the new session key, or null when the
+  /// server didn't create one.
+  Future<String?> forkSession(String agentId, String sourceSessionKey, int forkSeq) async {
+    final res = await _dio.post('/api/chat/sessions/fork',
+        data: {'agentId': agentId, 'sourceSessionKey': sourceSessionKey, 'forkSeq': forkSeq});
+    return res.data is Map ? (res.data['sessionKey'] as String?) : null;
+  }
 }
