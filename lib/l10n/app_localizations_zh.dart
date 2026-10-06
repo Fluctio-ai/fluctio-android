@@ -373,6 +373,61 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatCopy => '复制';
 
   @override
+  String get chatFork => '从此处分叉对话';
+
+  @override
+  String get wikiEntity => '实体';
+
+  @override
+  String get wikiConcept => '概念';
+
+  @override
+  String get wikiSource => '来源';
+
+  @override
+  String get wikiSearchHint => '搜索页面…';
+
+  @override
+  String get wikiNoPages => '暂无 Wiki 页面。请在知识库设置中生成。';
+
+  @override
+  String get wikiNoMatch => '没有匹配的页面';
+
+  @override
+  String wikiStats(Object pages, Object links) {
+    return '$pages 页 · $links 链接';
+  }
+
+  @override
+  String get wikiDeleteTitle => '删除页面';
+
+  @override
+  String wikiDeleteConfirm(Object name) {
+    return '确定删除「$name」？此操作无法撤销。';
+  }
+
+  @override
+  String get wikiKnowledgeGraph => '知识图谱';
+
+  @override
+  String get wikiFit => '重置视图';
+
+  @override
+  String get wikiOpen => '打开';
+
+  @override
+  String get wikiViewInGraph => '在图谱中查看';
+
+  @override
+  String get wikiEditPage => '编辑页面';
+
+  @override
+  String get wikiTitleLabel => '标题';
+
+  @override
+  String get wikiLoadFailed => '加载失败';
+
+  @override
   String get chatOnlyChip => '仅对话';
 
   @override
@@ -797,4 +852,32 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dashCronNone => '没有启用的定时任务';
+
+  @override
+  String editorIssues(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个问题',
+      one: '1 个问题',
+    );
+    return '⚠ $_temp0';
+  }
+
+  @override
+  String editorIssueGo(Object line) {
+    return '第 $line 行';
+  }
+
+  @override
+  String get editorLintUnclosedCodeFence => '代码围栏未闭合（```）';
+
+  @override
+  String get editorLintUnclosedMathFence => '公式块未闭合（\$\$）';
+
+  @override
+  String get editorLintOddDollars => '行内公式定界符不配对（\$）';
+
+  @override
+  String get editorLintTableColumns => '表格分隔行列数与表头不一致';
 }

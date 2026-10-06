@@ -378,6 +378,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatCopy => 'Copy';
 
   @override
+  String get chatFork => 'Fork conversation from here';
+
+  @override
+  String get wikiEntity => 'Entities';
+
+  @override
+  String get wikiConcept => 'Concepts';
+
+  @override
+  String get wikiSource => 'Sources';
+
+  @override
+  String get wikiSearchHint => 'Search pages…';
+
+  @override
+  String get wikiNoPages =>
+      'No wiki pages yet. Generate them in knowledge settings.';
+
+  @override
+  String get wikiNoMatch => 'No matching pages';
+
+  @override
+  String wikiStats(Object pages, Object links) {
+    return '$pages pages · $links links';
+  }
+
+  @override
+  String get wikiDeleteTitle => 'Delete page';
+
+  @override
+  String wikiDeleteConfirm(Object name) {
+    return 'Delete \"$name\"? This cannot be undone.';
+  }
+
+  @override
+  String get wikiKnowledgeGraph => 'Knowledge graph';
+
+  @override
+  String get wikiFit => 'Reset view';
+
+  @override
+  String get wikiOpen => 'Open';
+
+  @override
+  String get wikiViewInGraph => 'View in graph';
+
+  @override
+  String get wikiEditPage => 'Edit page';
+
+  @override
+  String get wikiTitleLabel => 'Title';
+
+  @override
+  String get wikiLoadFailed => 'Failed to load';
+
+  @override
   String get chatOnlyChip => 'Chat only';
 
   @override
@@ -805,4 +861,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashCronNone => 'No jobs enabled';
+
+  @override
+  String editorIssues(num count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count issues',
+      one: '1 issue',
+    );
+    return '⚠ $_temp0';
+  }
+
+  @override
+  String editorIssueGo(Object line) {
+    return 'Line $line';
+  }
+
+  @override
+  String get editorLintUnclosedCodeFence => 'Unclosed code fence (```)';
+
+  @override
+  String get editorLintUnclosedMathFence => 'Unclosed math block (\$\$)';
+
+  @override
+  String get editorLintOddDollars => 'Unpaired inline math delimiter (\$)';
+
+  @override
+  String get editorLintTableColumns =>
+      'Table separator column count differs from header';
 }

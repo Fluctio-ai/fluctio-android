@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:re_editor/re_editor.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../util/dates.dart';
+import 'markdown_field.dart';
 import 'todo_views.dart';
 
 /// Full-screen text editor for KB items (flash/todo/note). The mobile
 /// take on the web's edit dialogs (DESIGN.md §4): editing is a full
 /// surface with room for the keyboard, not an alert box squeezing a
 /// multi-line field. Optional title field (notes) and due-date row
-/// (todos) appear only when configured.
+/// (todos) appear only when configured. The body is [MarkdownField]:
+/// VSCode-style highlighting, line numbers and lint.
 class KbEditorPage extends StatefulWidget {
   const KbEditorPage({
     super.key,
@@ -63,7 +66,8 @@ class KbEditorPage extends StatefulWidget {
 }
 
 class _KbEditorPageState extends State<KbEditorPage> {
-  late final TextEditingController _text = TextEditingController(text: widget.initialText);
+  late final CodeLineEditingController _text =
+      CodeLineEditingController.fromText(widget.initialText);
   late final TextEditingController _title = TextEditingController(text: widget.initialTitle);
   late String _status = widget.initialStatus;
   DateTime? _date;
@@ -310,15 +314,11 @@ class _KbEditorPageState extends State<KbEditorPage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                  child: TextField(
+                  child: MarkdownField(
                     controller: _text,
-                    onChanged: (_) => setState(() => _dirty = true),
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
+                    hint: widget.hint.isEmpty ? null : widget.hint,
                     autofocus: widget.initialText.isEmpty,
-                    keyboardType: TextInputType.multiline,
-                    decoration: InputDecoration(hintText: widget.hint),
+                    onChanged: (_) => setState(() => _dirty = true),
                   ),
                 ),
               ),

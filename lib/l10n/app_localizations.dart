@@ -812,6 +812,108 @@ abstract class AppLocalizations {
   /// **'复制'**
   String get chatCopy;
 
+  /// No description provided for @chatFork.
+  ///
+  /// In zh, this message translates to:
+  /// **'从此处分叉对话'**
+  String get chatFork;
+
+  /// No description provided for @wikiEntity.
+  ///
+  /// In zh, this message translates to:
+  /// **'实体'**
+  String get wikiEntity;
+
+  /// No description provided for @wikiConcept.
+  ///
+  /// In zh, this message translates to:
+  /// **'概念'**
+  String get wikiConcept;
+
+  /// No description provided for @wikiSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源'**
+  String get wikiSource;
+
+  /// No description provided for @wikiSearchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索页面…'**
+  String get wikiSearchHint;
+
+  /// No description provided for @wikiNoPages.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无 Wiki 页面。请在知识库设置中生成。'**
+  String get wikiNoPages;
+
+  /// No description provided for @wikiNoMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有匹配的页面'**
+  String get wikiNoMatch;
+
+  /// No description provided for @wikiStats.
+  ///
+  /// In zh, this message translates to:
+  /// **'{pages} 页 · {links} 链接'**
+  String wikiStats(Object pages, Object links);
+
+  /// No description provided for @wikiDeleteTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除页面'**
+  String get wikiDeleteTitle;
+
+  /// No description provided for @wikiDeleteConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确定删除「{name}」？此操作无法撤销。'**
+  String wikiDeleteConfirm(Object name);
+
+  /// No description provided for @wikiKnowledgeGraph.
+  ///
+  /// In zh, this message translates to:
+  /// **'知识图谱'**
+  String get wikiKnowledgeGraph;
+
+  /// No description provided for @wikiFit.
+  ///
+  /// In zh, this message translates to:
+  /// **'重置视图'**
+  String get wikiFit;
+
+  /// No description provided for @wikiOpen.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开'**
+  String get wikiOpen;
+
+  /// No description provided for @wikiViewInGraph.
+  ///
+  /// In zh, this message translates to:
+  /// **'在图谱中查看'**
+  String get wikiViewInGraph;
+
+  /// No description provided for @wikiEditPage.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑页面'**
+  String get wikiEditPage;
+
+  /// No description provided for @wikiTitleLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'标题'**
+  String get wikiTitleLabel;
+
+  /// No description provided for @wikiLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'加载失败'**
+  String get wikiLoadFailed;
+
   /// No description provided for @chatOnlyChip.
   ///
   /// In zh, this message translates to:
@@ -1639,6 +1741,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'没有启用的定时任务'**
   String get dashCronNone;
+
+  /// No description provided for @editorIssues.
+  ///
+  /// In zh, this message translates to:
+  /// **'⚠ {count, plural, =1{1 个问题} other{{count} 个问题}}'**
+  String editorIssues(num count);
+
+  /// No description provided for @editorIssueGo.
+  ///
+  /// In zh, this message translates to:
+  /// **'第 {line} 行'**
+  String editorIssueGo(Object line);
+
+  /// No description provided for @editorLintUnclosedCodeFence.
+  ///
+  /// In zh, this message translates to:
+  /// **'代码围栏未闭合（```）'**
+  String get editorLintUnclosedCodeFence;
+
+  /// No description provided for @editorLintUnclosedMathFence.
+  ///
+  /// In zh, this message translates to:
+  /// **'公式块未闭合（\$\$）'**
+  String get editorLintUnclosedMathFence;
+
+  /// No description provided for @editorLintOddDollars.
+  ///
+  /// In zh, this message translates to:
+  /// **'行内公式定界符不配对（\$）'**
+  String get editorLintOddDollars;
+
+  /// No description provided for @editorLintTableColumns.
+  ///
+  /// In zh, this message translates to:
+  /// **'表格分隔行列数与表头不一致'**
+  String get editorLintTableColumns;
 }
 
 class _AppLocalizationsDelegate
