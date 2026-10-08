@@ -17,6 +17,7 @@ class ChevronListTile extends StatelessWidget {
     this.dense = false,
     this.padding,
     this.onTap,
+    this.onLongPress,
   });
 
   final Widget title;
@@ -25,6 +26,7 @@ class ChevronListTile extends StatelessWidget {
   final bool dense;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +40,7 @@ class ChevronListTile extends StatelessWidget {
       subtitle: subtitle,
       trailing: trailing,
       onTap: onTap,
+      onLongPress: onLongPress,
     );
   }
 }

@@ -65,7 +65,9 @@ class Composer extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final turnActive = state.turnActive;
     final hasInput =
-        controller.text.trim().isNotEmpty || pendingImages.isNotEmpty || pendingFiles.isNotEmpty;
+        controller.text.trim().isNotEmpty ||
+        pendingImages.isNotEmpty ||
+        pendingFiles.isNotEmpty;
 
     return SafeArea(
       top: false,
@@ -92,7 +94,13 @@ class Composer extends StatelessWidget {
                     children: [
                       for (var i = 0; i < pendingImages.length; i++)
                         Padding(
-                          padding: EdgeInsets.only(right: i == pendingImages.length - 1 && pendingFiles.isEmpty ? 0 : 8),
+                          padding: EdgeInsets.only(
+                            right:
+                                i == pendingImages.length - 1 &&
+                                    pendingFiles.isEmpty
+                                ? 0
+                                : 8,
+                          ),
                           child: _PendingThumb(
                             url: pendingImages[i],
                             onRemove: () => onRemoveImage(i),
@@ -100,7 +108,9 @@ class Composer extends StatelessWidget {
                         ),
                       for (var i = 0; i < pendingFiles.length; i++)
                         Padding(
-                          padding: EdgeInsets.only(right: i == pendingFiles.length - 1 ? 0 : 8),
+                          padding: EdgeInsets.only(
+                            right: i == pendingFiles.length - 1 ? 0 : 8,
+                          ),
                           child: _PendingFileChip(
                             name: pendingFiles[i].name,
                             onRemove: () => onRemoveFile(i),
@@ -156,17 +166,23 @@ class Composer extends StatelessWidget {
                   const SizedBox(width: 10),
                   const TypingDots(),
                   const SizedBox(width: 6),
-                  Text(l.chatThinking,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline)),
+                  Text(
+                    l.chatThinking,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
                 ],
                 const Spacer(),
                 _ActionButton(
                   turnActive: turnActive,
                   stopping: state.phase == TurnPhase.stopping,
                   hasInput: hasInput,
-                  sendAllowed: !readOnly || isReadOnlySafeSlashCommand(controller.text),
-                  tooltip: turnActive ? (hasInput ? l.chatSteer : l.chatStop) : l.chatSend,
+                  sendAllowed:
+                      !readOnly || isReadOnlySafeSlashCommand(controller.text),
+                  tooltip: turnActive
+                      ? (hasInput ? l.chatSteer : l.chatStop)
+                      : l.chatSend,
                   onSend: onSend,
                   onSteer: onSteer,
                   onStop: onStop,
@@ -199,7 +215,9 @@ class _ToolButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = toggled ? theme.colorScheme.primary : theme.colorScheme.outline;
+    final color = toggled
+        ? theme.colorScheme.primary
+        : theme.colorScheme.outline;
     return Tooltip(
       message: tooltip,
       // Disabled must read inert — a full-strength control that does
@@ -211,28 +229,39 @@ class _ToolButton extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: AppRadius.controlBorder,
-            child: Container(
-              height: 36,
-              // Equal horizontal padding with or without a label — the
-              // bare paperclip shouldn't collapse into a narrow strip.
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.controlBorder,
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-                color: toggled ? theme.colorScheme.primaryContainer : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon, size: 16, color: color),
-                  if (label != null) ...[
-                    const SizedBox(width: 6),
-                    Text(
-                      label!,
-                      style: TextStyle(fontSize: AppType.caption, color: toggled ? theme.colorScheme.onPrimaryContainer : color),
-                    ),
+            // Hit area ≥44 tall around the 36px visual — the tool row is
+            // a thumb-quick zone. The pad lives inside the InkWell's
+            // child so the gesture box covers it.
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              child: Container(
+                height: 36,
+                // Equal horizontal padding with or without a label — the
+                // bare paperclip shouldn't collapse into a narrow strip.
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  borderRadius: AppRadius.controlBorder,
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
+                  color: toggled ? theme.colorScheme.primaryContainer : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 16, color: color),
+                    if (label != null) ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        label!,
+                        style: TextStyle(
+                          fontSize: AppType.caption,
+                          color: toggled
+                              ? theme.colorScheme.onPrimaryContainer
+                              : color,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -303,17 +332,27 @@ class _ActionButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           borderRadius: AppRadius.controlBorder,
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.controlBorder,
-              color: enabled ? theme.colorScheme.primary : theme.colorScheme.secondaryContainer,
-            ),
-            child: Icon(
-              icon,
-              size: 16,
-              color: enabled ? theme.colorScheme.onPrimary : theme.colorScheme.outline,
+          // 44×44 hit box around the 36px visual — the send/stop is the
+          // highest-frequency thumb target in the app. The pad lives
+          // inside the InkWell's child so the gesture box covers it.
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.controlBorder,
+                color: enabled
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.secondaryContainer,
+              ),
+              child: Icon(
+                icon,
+                size: 16,
+                color: enabled
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.outline,
+              ),
             ),
           ),
         ),
@@ -334,6 +373,8 @@ class _PendingThumb extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Stack(
+      // None — the remove hit box bleeds past the thumb's corner.
+      clipBehavior: Clip.none,
       children: [
         ClipRRect(
           borderRadius: AppRadius.controlBorder,
@@ -347,22 +388,15 @@ class _PendingThumb extends StatelessWidget {
               width: 88,
               height: 88,
               color: scheme.secondaryContainer,
-              child: Icon(LucideIcons.imageOff, size: 20, color: scheme.outline),
+              child: Icon(
+                LucideIcons.imageOff,
+                size: 20,
+                color: scheme.outline,
+              ),
             ),
           ),
         ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: InkWell(
-            onTap: onRemove,
-            child: Container(
-              decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
-              padding: const EdgeInsets.all(3),
-              child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
-            ),
-          ),
-        ),
+        _RemoveBadge(onTap: onRemove),
       ],
     );
   }
@@ -395,7 +429,11 @@ class _PendingFileChip extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(LucideIcons.fileText, size: 20, color: scheme.onSecondaryContainer),
+              Icon(
+                LucideIcons.fileText,
+                size: 20,
+                color: scheme.onSecondaryContainer,
+              ),
               const SizedBox(height: 4),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 104),
@@ -412,19 +450,47 @@ class _PendingFileChip extends StatelessWidget {
             ],
           ),
         ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: InkWell(
-            onTap: onRemove,
+        _RemoveBadge(onTap: onRemove),
+      ],
+    );
+  }
+}
+
+/// Corner remove ✕ shared by the pending-image thumb and the pending
+/// file chip: a 28px hit box around the 20px scrim chip, bleeding past
+/// the host Stack's corner (both host Stacks clip none).
+class _RemoveBadge extends StatelessWidget {
+  const _RemoveBadge({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Positioned(
+      top: -4,
+      right: -4,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: Center(
             child: Container(
-              decoration: BoxDecoration(color: scheme.scrim, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: scheme.scrim,
+                shape: BoxShape.circle,
+              ),
               padding: const EdgeInsets.all(3),
-              child: Icon(LucideIcons.x, size: 14, color: scheme.onInverseSurface),
+              child: Icon(
+                LucideIcons.x,
+                size: 14,
+                color: scheme.onInverseSurface,
+              ),
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

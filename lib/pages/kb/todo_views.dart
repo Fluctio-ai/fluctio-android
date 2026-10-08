@@ -273,7 +273,6 @@ class MonthNavRow extends StatelessWidget {
         Row(
           children: [
             IconButton(
-              visualDensity: VisualDensity.compact,
               onPressed: () => onChange(granularity.step(anchor, -1)),
               icon: const Icon(LucideIcons.chevronLeft, size: 18),
             ),
@@ -283,7 +282,6 @@ class MonthNavRow extends StatelessWidget {
               ),
             ),
             IconButton(
-              visualDensity: VisualDensity.compact,
               onPressed: () => onChange(granularity.step(anchor, 1)),
               icon: const Icon(LucideIcons.chevronRight, size: 18),
             ),
@@ -335,7 +333,9 @@ class GranularityPill extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               onTap: () => onGranularity(g),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                // ~33px tall segments in the pill — small glyph, but the
+                // pad keeps month/week/day a real tap target.
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(4),
                   color: g == granularity ? scheme.secondaryContainer : null,

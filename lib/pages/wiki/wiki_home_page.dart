@@ -6,10 +6,13 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/chat_controller.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
+import '../../wiki/wiki_actions.dart';
 import '../app_drawer.dart';
 
 /// Native wiki tab (replaces the WebView container): the web's
@@ -31,29 +34,7 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
   static const _tabs = ['entity', 'concept', 'source'];
 
   Future<void> _delete(WikiPageInfo page) async {
-    final l = AppLocalizations.of(context)!;
-    final agentId = ref.read(agentsProvider).selectedId;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.wikiDeleteTitle),
-        content: Text(l.wikiDeleteConfirm(page.title)),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-        ],
-      ),
-    );
-    if (ok != true || agentId == null) return;
-    try {
-      await ref.read(wikiRepoProvider).delete(agentId, page.id);
-      ref.invalidate(wikiInventoryProvider(agentId));
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
-      }
-    }
+    await deleteWikiPageWithConfirm(context, ref, page);
   }
 
   @override
@@ -79,7 +60,7 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
             ),
             const SizedBox(width: 4),
           ],
-          bottom: TabBar(
+          bottom: AdaptiveTabBar(
             tabs: [
               for (final t in _tabs)
                 Tab(text: '${_tabLabel(l, t)}${_tabCount(inv, t)}'),
@@ -195,6 +176,14 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
                   : Text(p.summary,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
               onTap: () => context.push('/wiki/page/${Uri.encodeComponent(p.id)}'),
+              onLongPress: () => showRowActionsMenu(context, [
+                RowAction(
+                  icon: LucideIcons.trash2,
+                  label: l.chatDelete,
+                  destructive: true,
+                  onRun: () => _delete(p),
+                ),
+              ]),
             ),
           );
         },

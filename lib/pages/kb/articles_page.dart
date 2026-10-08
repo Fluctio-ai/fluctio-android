@@ -15,6 +15,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
@@ -111,6 +112,23 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                               itemBuilder: (context, i) {
                                 final s = articles[i];
                                 final scheme = theme.colorScheme;
+                                // Character count localized like a human
+                                // would say it — a bare "12345 · 10-07"
+                                // reads as an ID, not a size.
+                                final chars = l.localeName.startsWith('zh') &&
+                                        s.totalChars >= 10000
+                                    ? l.articleCharsWan(
+                                        (s.totalChars / 10000).toStringAsFixed(1))
+                                    : l.articleCharsCount(s.totalChars);
+                                Future<void> delete() async {
+                                  if (!await confirmDelete(context)) return;
+                                  try {
+                                    await ref.read(kbRepoProvider).deleteSource(agentId!, s.id);
+                                    ref.invalidate(kbSourcesProvider(agentId));
+                                  } catch (e) {
+                                    if (context.mounted) showApiError(context, e);
+                                  }
+                                }
                                 return Slidable(
                                   key: ValueKey('art-${s.id}'),
                                   endActionPane: ActionPane(
@@ -118,17 +136,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                     extentRatio: 0.25,
                                     children: [
                                       SlidableAction(
-                                        onPressed: (_) async {
-                                          if (!await confirmDelete(context)) return;
-                                          try {
-                                            await ref
-                                                .read(kbRepoProvider)
-                                                .deleteSource(agentId!, s.id);
-                                            ref.invalidate(kbSourcesProvider(agentId));
-                                          } catch (e) {
-                                            if (context.mounted) showApiError(context, e);
-                                          }
-                                        },
+                                        onPressed: (_) => delete(),
                                         backgroundColor: scheme.error,
                                         foregroundColor: scheme.onError,
                                         icon: LucideIcons.trash2,
@@ -140,11 +148,19 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
-                                    '${s.totalChars} · ${DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))}',
+                                    '$chars · ${DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))}',
                                     maxLines: 1,
                                   ),
                                   onTap: () => context.push(
                                       '/kb/articles/${Uri.encodeComponent(s.id)}?title=${Uri.encodeComponent(s.title)}'),
+                                  onLongPress: () => showRowActionsMenu(context, [
+                                    RowAction(
+                                      icon: LucideIcons.trash2,
+                                      label: l.chatDelete,
+                                      destructive: true,
+                                      onRun: delete,
+                                    ),
+                                  ]),
                                 ),
                                 );
                               },

@@ -11,8 +11,10 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../todo/todo_reminders.dart';
+import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
 import 'kb_editor_page.dart';
 import 'todo_views.dart';
@@ -60,21 +62,30 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
               error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyState(icon: LucideIcons.squareCheckBig, message: l.kbEmpty);
+                  return EmptyState(
+                    icon: LucideIcons.squareCheckBig,
+                    message: l.kbEmpty,
+                    // The empty state carries its own entry — same as the
+                    // notes/flash lists.
+                    action: agentId == null
+                        ? null
+                        : FilledButton(
+                            onPressed: () => _edit(context, ref, agentId, null),
+                            child: Text(l.kbAddTodo)),
+                  );
                 }
                 return Column(
                   children: [
                     // View switcher as underline tabs — the same TabBar
                     // idiom as the article detail page (原文/概要…),
                     // replacing the SegmentedButton block (user
-                    // feedback). The panes below stay a plain switch,
-                    // not a TabBarView: calendar/gantt own their
+                    // feedback); evenly spread like the wiki tabs
+                    // (user feedback). The panes below stay a plain
+                    // switch, not a TabBarView: calendar/gantt own their
                     // horizontal drags and would fight the page swipe.
                     DefaultTabController(
                       length: 3,
-                      child: TabBar(
-                        isScrollable: true,
-                        tabAlignment: TabAlignment.start,
+                      child: AdaptiveTabBar(
                         onTap: (i) => setState(() => _view = _TodoView.values[i]),
                         tabs: [
                           Tab(text: l.kbViewList),
@@ -144,7 +155,8 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
       children: [
         for (final g in groups.entries) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+            // 12 gutters to match the tightened row padding below.
+            padding: const EdgeInsets.fromLTRB(12, 16, 12, 4),
             child: Text(
               g.key,
               style: theme.textTheme.labelSmall?.copyWith(
@@ -325,13 +337,25 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
     final tile = ListTile(
       // No dense: same rhythm as the other KB lists — dense squeezed
       // the rows a step smaller than the sibling tabs (user feedback).
+      // Tighter gutters (user feedback): the default 16 plus the
+      // centered 44px hit box read as a wide gap around the checkbox —
+      // 12 matches the ChevronListTile rhythm; the right edge sits at
+      // 8 (user feedback: full-text rows shouldn't look boxed in).
+      contentPadding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
+      // 36-wide leading + 6 gap ≈ the ChevronListTile rhythm (user
+      // feedback: 44-wide + 8 read as a wide gap around the checkbox);
+      // the 44px-tall hit box stays.
+      horizontalTitleGap: 6,
       leading: InkWell(
         onTap: () => _toggle(ref),
-        // 44×44 hit target (ticket 14) — a bare 20px icon misses taps.
+        // 44×44 hit target (ticket 14) — a bare 20px icon misses taps;
+        // left-aligned so the glyph hugs the row edge, not the box's
+        // center.
         child: SizedBox(
-          width: 44,
+          width: 36,
           height: 44,
-          child: Center(
+          child: Align(
+            alignment: Alignment.centerLeft,
             child: Icon(
               done
                   ? LucideIcons.squareCheckBig
@@ -359,6 +383,19 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
       subtitle: todo.startAt == null
             ? null
             : Text(formatShortDate(todo.startAt!, withTime: true), maxLines: 1),
+      onLongPress: () => showRowActionsMenu(context, [
+        RowAction(
+          icon: LucideIcons.penLine,
+          label: l.kbEdit,
+          onRun: () => _edit(context, ref, widget.agentId, todo),
+        ),
+        RowAction(
+          icon: LucideIcons.trash2,
+          label: l.chatDelete,
+          destructive: true,
+          onRun: () => _deleteTodo(context, ref, widget.agentId, todo),
+        ),
+      ]),
     );
     return Slidable(
       key: ValueKey('todo-${todo.id}'),

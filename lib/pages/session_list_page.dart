@@ -49,6 +49,9 @@ class SessionListPage extends ConsumerWidget {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: PopupMenuButton<String>(
+          // Same gate as the drawer's agent header — a single agent has
+          // nothing to switch, and a lone-option menu reads as a stub.
+          enabled: agents.agents.length > 1,
           initialValue: selected.id,
           onSelected: (id) => ref.read(agentsProvider.notifier).select(id),
           itemBuilder: (_) => [
@@ -75,7 +78,7 @@ class SessionListPage extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(selected.name, style: theme.textTheme.titleMedium),
-                const Icon(LucideIcons.chevronDown),
+                if (agents.agents.length > 1) const Icon(LucideIcons.chevronDown),
               ],
             ),
           ),
@@ -98,54 +101,108 @@ class SessionListPage extends ConsumerWidget {
   }
 }
 
-class _SessionListView extends ConsumerWidget {
+class _SessionListView extends ConsumerStatefulWidget {
   const _SessionListView({required this.agentId});
 
   final String agentId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SessionListView> createState() => _SessionListViewState();
+}
+
+class _SessionListViewState extends ConsumerState<_SessionListView> {
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final sessions = ref.watch(sessionsProvider);
+    // Local keyword filter (title / preview, case-insensitive) — the
+    // list is already fully loaded, no server round-trip needed.
+    final q = _search.text.trim().toLowerCase();
 
-    return RefreshIndicator(
-      onRefresh: () => ref.read(sessionsProvider.notifier).reload(),
-      child: sessions.when(
-        loading: () => const SkeletonListView(),
-        error: (e, _) => ListView( // keep the indicator draggable
-          children: [
-            const SizedBox(height: 120),
-            ErrorPane(message: l.chatHistoryError),
-          ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: TextField(
+            controller: _search,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: l.chatSearchHint,
+              prefixIcon: const Icon(LucideIcons.search),
+              isDense: true,
+              suffixIcon: q.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(LucideIcons.x, size: 18),
+                      onPressed: () {
+                        _search.clear();
+                        setState(() {});
+                      },
+                    ),
+            ),
+          ),
         ),
-        data: (list) {
-          if (list.isEmpty) {
-            return ListView( // keep the indicator draggable
-              children: [
-                const SizedBox(height: 120),
-                EmptyState(icon: LucideIcons.messageCircle, message: l.chatNoSessions),
-              ],
-            );
-          }
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (context, i) {
-              final s = list[i];
-              return SessionTile(
-                session: s,
-                slideActions: true,
-                selected:
-                    ref.watch(chatStoreProvider.select((st) => st.activeKey)) ==
-                        '$agentId|${s.id}',
-                onTap: () {
-                  ref.read(chatStoreProvider.notifier).openSession(agentId, s.id);
-                  context.go('/c/${Uri.encodeComponent(s.id)}');
-                },
-              );
-            },
-          );
-        },
-      ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(sessionsProvider.notifier).reload(),
+            child: sessions.when(
+              loading: () => const SkeletonListView(),
+              error: (e, _) => ListView( // keep the indicator draggable
+                children: [
+                  const SizedBox(height: 120),
+                  ErrorPane(message: l.chatHistoryError),
+                ],
+              ),
+              data: (list) {
+                final rows = q.isEmpty
+                    ? list
+                    : list
+                        .where((s) =>
+                            s.title.toLowerCase().contains(q) ||
+                            s.preview.toLowerCase().contains(q))
+                        .toList();
+                if (rows.isEmpty) {
+                  return ListView( // keep the indicator draggable
+                    children: [
+                      const SizedBox(height: 120),
+                      EmptyState(
+                          icon: LucideIcons.search,
+                          message: q.isEmpty ? l.chatNoSessions : l.chatNoMatch),
+                    ],
+                  );
+                }
+                return ListView.builder(
+                  itemCount: rows.length,
+                  itemBuilder: (context, i) {
+                    final s = rows[i];
+                    return SessionTile(
+                      session: s,
+                      slideActions: true,
+                      selected:
+                          ref.watch(chatStoreProvider.select((st) => st.activeKey)) ==
+                              '${widget.agentId}|${s.id}',
+                      onTap: () {
+                        ref
+                            .read(chatStoreProvider.notifier)
+                            .openSession(widget.agentId, s.id);
+                        context.go('/c/${Uri.encodeComponent(s.id)}');
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

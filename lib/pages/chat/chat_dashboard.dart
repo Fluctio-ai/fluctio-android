@@ -127,6 +127,27 @@ class _PaneCard extends StatelessWidget {
   }
 }
 
+/// A pane's trailing "more" link — default (non-compact) density so the
+/// 12px label keeps a full ≥44px tap row; primary color, one shared look
+/// for the cards/todos/recent panes.
+class _PaneLink extends StatelessWidget {
+  const _PaneLink({required this.label, this.onTap});
+
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      style: TextButton.styleFrom(
+        foregroundColor: Theme.of(context).colorScheme.primary,
+      ),
+      onPressed: onTap,
+      child: Text(label, style: const TextStyle(fontSize: AppType.caption)),
+    );
+  }
+}
+
 Widget _paneEmpty(BuildContext context, IconData icon, String text) {
   final theme = Theme.of(context);
   return Padding(
@@ -257,16 +278,9 @@ class _CardsPane extends ConsumerWidget {
                 ),
               ),
             const SizedBox(height: 6),
-            TextButton(
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              onPressed: () => context.push('/kb/cards/review'),
-              child: Text(l.dashCardsBrowse, style: const TextStyle(fontSize: AppType.caption)),
-            ),
-          ],
+            _PaneLink(
+                label: l.dashCardsBrowse,
+                onTap: () => context.push('/kb/cards/review')),          ],
         ),
       ),
     );
@@ -331,15 +345,8 @@ class _TodosPane extends ConsumerWidget {
                     ],
                   ),
                 ),
-              TextButton(
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  foregroundColor: Theme.of(context).colorScheme.primary,
-                ),
-                onPressed: () => context.push('/kb/todos'),
-                child: Text(l.dashTodoView, style: const TextStyle(fontSize: AppType.caption)),
-              ),
+              _PaneLink(
+                  label: l.dashTodoView, onTap: () => context.push('/kb/todos')),
             ],
           );
         },
@@ -384,6 +391,9 @@ class _RecentPane extends ConsumerWidget {
         data: (all) {
           if (list.isEmpty) return _paneEmpty(context, LucideIcons.messageSquare, l.dashRecentNone);
           return Column(
+            // start — the trailing "more" link must hug the left like the
+            // cards / todos panes, not center.
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (final s in list.take(5))
                 InkWell(
@@ -418,6 +428,10 @@ class _RecentPane extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // No extra gap before the link — matches the todos pane
+              // (row padding + link, nothing in between).
+              _PaneLink(
+                  label: l.dashRecentAll, onTap: () => context.push('/chats')),
             ],
           );
         },

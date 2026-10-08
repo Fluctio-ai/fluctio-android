@@ -15,6 +15,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
 
@@ -49,7 +50,12 @@ class SessionTile extends ConsumerWidget {
     final tile = ListTile(
       dense: true,
       selected: selected,
-      leading: leading,
+      // Chevron rhythm shared with the KB lists (ChevronListTile) —
+      // rows without an explicit leading still carry the pointer.
+      leading: leading ??
+          Icon(LucideIcons.chevronRight,
+              size: 16, color: Theme.of(context).colorScheme.outline),
+      horizontalTitleGap: 8,
       // Right gutter narrowed — the ⋯ menu hugs the row edge (its own
       // box adds a few px); left stays at the standard 16.
       contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
@@ -109,6 +115,22 @@ class SessionTile extends ConsumerWidget {
         ],
       ),
       onTap: onTap,
+      // Long-press menu mirrors the swipe actions — the discoverable
+      // channel; drawer rows (no swipe) get it too, their ⋯ menu
+      // stays as the visual affordance.
+      onLongPress: () => showRowActionsMenu(context, [
+        RowAction(
+          icon: LucideIcons.penLine,
+          label: l.chatRename,
+          onRun: () => _SessionMenu.run(context, ref, session, 'rename'),
+        ),
+        RowAction(
+          icon: LucideIcons.trash2,
+          label: l.chatDelete,
+          destructive: true,
+          onRun: () => _SessionMenu.run(context, ref, session, 'delete'),
+        ),
+      ]),
     );
     if (!slideActions) return tile;
     final scheme = Theme.of(context).colorScheme;
@@ -149,17 +171,8 @@ class _SessionMenu extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    return PopupMenuButton<String>(
+    return RowMenuButton(
       onSelected: (action) => run(context, ref, session, action),
-      // child form instead of icon: the icon variant centers the 18px
-      // glyph inside a 48dp tap-target box, leaving wide gutters on both
-      // sides; the plain child hugs the glyph.
-      padding: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Icon(LucideIcons.ellipsisVertical,
-            size: 18, color: Theme.of(context).colorScheme.outline),
-      ),
       itemBuilder: (_) => [
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
@@ -260,7 +273,7 @@ class _TodoSheet extends ConsumerWidget {
                   Expanded(child: Text(l.chatTodo, style: Theme.of(context).textTheme.titleMedium)),
                   if (agentId != null && sessionId != null)
                     IconButton(
-                      icon: const Icon(Icons.refresh),
+                      icon: const Icon(LucideIcons.refreshCw, size: 18),
                       onPressed: () => ref.invalidate(todoProvider((agentId, sessionId))),
                     ),
                 ],
@@ -494,6 +507,14 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                                         '${_fmtSize(node.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(node.modTimeMs))}',
                                         maxLines: 1),
                                       onTap: () => _open(context, node.file!),
+                                      onLongPress: () => showRowActionsMenu(context, [
+                                        RowAction(
+                                          icon: LucideIcons.trash2,
+                                          label: l.chatDelete,
+                                          destructive: true,
+                                          onRun: () => _delete(node.file!),
+                                        ),
+                                      ]),
                                     ),
                                   ),
                             ],
@@ -543,12 +564,12 @@ class _FolderRow extends StatelessWidget {
                 child: Text(node.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface)),
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(color: theme.colorScheme.onSurface)),
               ),
               Text('${node.children.length}',
-                  style: TextStyle(
-                      fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
         ),

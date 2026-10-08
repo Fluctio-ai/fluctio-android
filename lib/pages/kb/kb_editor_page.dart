@@ -161,6 +161,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
     VoidCallback? onClear,
   }) {
     final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -177,7 +178,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
             if (onClear != null)
               IconButton(
                 visualDensity: VisualDensity.compact,
-                tooltip: '清除',
+                tooltip: l.kbClear,
                 onPressed: onClear,
                 icon: Icon(LucideIcons.x, size: 16, color: theme.colorScheme.outline),
               ),

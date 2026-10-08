@@ -3,12 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../api/api_client.dart';
 import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../chat/markdown.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../ui/row_actions_menu.dart';
+import '../../util/dates.dart';
 import 'typing_dots.dart';
 import '../../theme/tokens.dart';
 import '../../files/file_preview.dart';
@@ -242,49 +245,32 @@ class _MessageListState extends ConsumerState<MessageList> {
     // (chat-screen.tsx:2714, 3213).
     final canFork = entry is AssistantEntry && (entry.seq ?? -1) >= 0;
     if (text.isEmpty && !regenerate && !canFork) return;
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (text.isNotEmpty)
-              ListTile(
-                leading: const Icon(LucideIcons.copy, size: 20),
-                title: Text(l.chatCopy),
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: text));
-                  Navigator.of(sheetContext).pop();
-                },
-              ),
-            if (canFork)
-              ListTile(
-                leading: const Icon(LucideIcons.gitBranch, size: 20),
-                title: Text(l.chatFork),
-                onTap: () async {
-                  Navigator.of(sheetContext).pop();
-                  final ok =
-                      await ref.read(chatStoreProvider.notifier).fork(entry.seq!);
-                  if (!ok && context.mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
-                  }
-                },
-              ),
-            if (regenerate)
-              ListTile(
-                leading: const Icon(LucideIcons.rotateCcw, size: 20),
-                title: Text(l.chatRegenerate),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  ref.read(chatStoreProvider.notifier).regenerate();
-                },
-              ),
-          ],
+    showRowActionsMenu(context, [
+      if (text.isNotEmpty)
+        RowAction(
+          icon: LucideIcons.copy,
+          label: l.chatCopy,
+          onRun: () => Clipboard.setData(ClipboardData(text: text)),
         ),
-      ),
-    );
+      if (canFork)
+        RowAction(
+          icon: LucideIcons.gitBranch,
+          label: l.chatFork,
+          onRun: () async {
+            try {
+              await ref.read(chatStoreProvider.notifier).fork(entry.seq!);
+            } catch (e) {
+              if (context.mounted) showApiError(context, e);
+            }
+          },
+        ),
+      if (regenerate)
+        RowAction(
+          icon: LucideIcons.rotateCcw,
+          label: l.chatRegenerate,
+          onRun: () => ref.read(chatStoreProvider.notifier).regenerate(),
+        ),
+    ]);
   }
 }
 
@@ -368,14 +354,6 @@ class _EntryInState extends State<_EntryIn> {
       child: widget.child,
     );
   }
-}
-
-/// Web parity (chat-screen.tsx formatTime): HH:mm under the bubble; the
-/// full datetime lives in the web hover tooltip, which touch lacks.
-String _formatTime(int ts) {
-  final d = DateTime.fromMillisecondsSinceEpoch(ts);
-  String two(int n) => n.toString().padLeft(2, '0');
-  return '${two(d.hour)}:${two(d.minute)}';
 }
 
 class _UserBubble extends ConsumerWidget {
@@ -511,7 +489,7 @@ class _UserBubble extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  _formatTime(entry.ts),
+                  formatTimeOfDay(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                   style: TextStyle(fontSize: AppType.caption, color: scheme.outline),
                 ),
               ),
@@ -581,7 +559,7 @@ class _AssistantBubble extends ConsumerWidget {
                 children: [
                   if (entry.ts > 0)
                     Text(
-                      _formatTime(entry.ts),
+                      formatTimeOfDay(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                       style: TextStyle(
                           fontSize: AppType.caption, color: theme.colorScheme.outline),
                     ),
@@ -766,7 +744,7 @@ class _NoticeChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: theme.colorScheme.secondaryContainer,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.cardBorder,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

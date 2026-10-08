@@ -9,6 +9,7 @@ import '../chat/models.dart';
 import '../l10n/app_localizations.dart';
 import '../ui/form_editor_page.dart';
 import '../ui/load_states.dart';
+import '../ui/row_actions_menu.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import 'chat/panels.dart';
@@ -69,28 +70,15 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   _SectionLabel(l.drawerGroupAgent),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                    child: Row(children: [
-                      Expanded(
-                        child: _ActionTile(
-                          icon: LucideIcons.plus,
-                          label: l.chatNew,
-                          onTap: () => _newChat(context),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _ActionTile(
-                          icon: LucideIcons.workflow,
-                          label: l.navWorkflow,
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            context.push('/workflow');
-                          },
-                        ),
-                      ),
-                    ]),
+                    // Full-width tile — the workflow shortcut moved into
+                    // the tools grid below (user layout request).
+                    child: _ActionTile(
+                      icon: LucideIcons.plus,
+                      label: l.chatNew,
+                      onTap: () => _newChat(context),
+                    ),
                   ),
-                  _SectionLabel(l.navKnowledge),
+                  _SectionLabel(l.navTools),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: _KbGrid(onTapNamed: _openKb),
@@ -129,16 +117,17 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
                     ),
                   for (final s in loose.take(10)) _sessionRow(s),
-                  if (loose.length > 10)
-                    ListTile(
-                      dense: true,
-                      leading: const Icon(LucideIcons.ellipsis, size: 18),
-                      title: Text(l.seeAllChats),
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        context.push('/chats');
-                      },
-                    ),
+                  // Always visible (not only past the 10-row fold): the
+                  // full page is also where chat search lives.
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(LucideIcons.ellipsis, size: 18),
+                    title: Text(l.seeAllChats),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.push('/chats');
+                    },
+                  ),
                 ],
               ),
             ),
@@ -360,7 +349,8 @@ class _SectionLabel extends StatelessWidget {
               onTap: onAction,
               borderRadius: AppRadius.controlBorder,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                // ≥40px tall touch row around the small "＋ new" text.
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -409,9 +399,9 @@ class _ActionTile extends StatelessWidget {
   }
 }
 
-/// 知识库 3-column tile grid — the drawer take on the web NavKnowledge
-/// grid (nav-knowledge.tsx): one entry per view, no intermediate hub
-/// page.
+/// Tools 3-column tile grid — the drawer take on the web NavKnowledge
+/// grid (nav-knowledge.tsx) plus the workflow entry (user layout
+/// request): one entry per view, no intermediate hub page.
 class _KbGrid extends StatelessWidget {
   const _KbGrid({required this.onTapNamed});
 
@@ -432,6 +422,7 @@ class _KbGrid extends StatelessWidget {
       (l.kbBookmarks, LucideIcons.bookmark, '/kb/bookmarks'),
       (l.kbCards, LucideIcons.layers, '/kb/cards'),
       (l.kbWiki, LucideIcons.bookMarked, '/wiki'),
+      (l.navWorkflow, LucideIcons.workflow, '/workflow'),
     ];
     Widget tileAt(int j) => _KbTile(label: entries[j].$1, icon: entries[j].$2, onTap: () {
           if (entries[j].$3.isEmpty) {
@@ -539,21 +530,12 @@ class _ProjectRow extends StatelessWidget {
           contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
           leading: Icon(expanded ? LucideIcons.folderOpen : LucideIcons.folder, size: 18),
           title: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-          trailing: PopupMenuButton<String>(
+          trailing: RowMenuButton(
             onSelected: (a) => switch (a) {
               'new' => onNewChatInProject(),
               'edit' => onEdit(),
               _ => onDelete(),
             },
-            // child form instead of icon: the icon variant centers the
-            // glyph in a 48dp box with wide gutters (same fix as the
-            // session/bookmark rows).
-            padding: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-              child: Icon(LucideIcons.ellipsisVertical,
-                  size: 18, color: Theme.of(context).colorScheme.outline),
-            ),
             itemBuilder: (_) => [
               PopupMenuItem(value: 'new', child: Text(l.newChatInProject)),
               PopupMenuItem(value: 'edit', child: Text(l.editProject)),

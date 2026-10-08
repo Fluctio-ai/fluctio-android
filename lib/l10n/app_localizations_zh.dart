@@ -25,6 +25,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get navWorkflow => '工作流';
 
   @override
+  String get navTools => '工具';
+
+  @override
+  String get workflowNew => '新建工作流';
+
+  @override
+  String get workflowNewHint => '工作流 ID（字母、数字、- 、_）';
+
+  @override
   String get navSettings => '设置';
 
   @override
@@ -128,6 +137,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatNew => '新对话';
+
+  @override
+  String get chatSearchHint => '搜索对话';
+
+  @override
+  String get chatNoMatch => '没有匹配的对话';
 
   @override
   String get chatSessions => '会话';
@@ -374,6 +389,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatFork => '从此处分叉对话';
+
+  @override
+  String get kbClear => '清除';
 
   @override
   String get wikiEntity => '实体';
@@ -771,7 +789,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get drawerChats => '对话';
 
   @override
-  String get seeAllChats => '查看所有对话';
+  String get seeAllChats => '查看更多对话';
 
   @override
   String get noProjects => '暂无项目';
@@ -845,6 +863,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dashRecentTitle => '最近对话';
 
   @override
+  String get dashRecentAll => '查看更多对话 →';
+
+  @override
   String get dashRecentNone => '还没有对话';
 
   @override
@@ -880,4 +901,56 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get editorLintTableColumns => '表格分隔行列数与表头不一致';
+
+  @override
+  String get settingsMaxTokens => '最大 Token 数';
+
+  @override
+  String get settingsTemperature => '温度';
+
+  @override
+  String get settingsMaxToolIterations => '最大工具迭代数';
+
+  @override
+  String get settingsPromptMode => '提示词模式';
+
+  @override
+  String get settingsGuidance => '引导模式';
+
+  @override
+  String get settingsCompactionMode => '上下文压缩模式';
+
+  @override
+  String get settingsCompactionThreshold => '压缩阈值';
+
+  @override
+  String get settingsLanguage => '语言';
+
+  @override
+  String get settingsSplitReplies => '分条回复';
+
+  @override
+  String get settingsAutoPersist => '自动持久化';
+
+  @override
+  String get settingsSharedIdentity => '共享身份';
+
+  @override
+  String get settingsName => '名称';
+
+  @override
+  String get settingsLangZh => '中文';
+
+  @override
+  String get settingsLangEn => 'English';
+
+  @override
+  String articleCharsCount(Object count) {
+    return '$count 字';
+  }
+
+  @override
+  String articleCharsWan(Object count) {
+    return '$count 万字';
+  }
 }

@@ -36,9 +36,32 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
   late String _genDate = _todayCST();
   String? _selected;
 
+  /// Calendar folded to the open day's single week — set by scrolling up
+  /// inside the day pane (reading space wins over the month overview),
+  /// cleared when the reader returns to the top or back to the list.
+  bool _collapsed = false;
+
+  /// Fold/unfold driver for the day pane's scroll: a decisive upward
+  /// flick collapses; coming to rest at the top unfolds. The month list
+  /// (nothing selected) never folds — the calendar stays put there.
+  bool _onDayPaneScroll(ScrollNotification n) {
+    if (n.depth != 0 || _selected == null) return false;
+    if (n is ScrollUpdateNotification) {
+      if ((n.scrollDelta ?? 0) > 18 && !_collapsed) {
+        setState(() => _collapsed = true);
+      }
+    } else if (n is ScrollEndNotification) {
+      if (n.metrics.pixels <= 8 && _collapsed) {
+        setState(() => _collapsed = false);
+      }
+    }
+    return false;
+  }
+
   void _shiftMonth(int delta) => setState(() {
         _month = DateTime(_month.year, _month.month + delta, 1);
         _selected = null;
+        _collapsed = false;
       });
 
   Future<void> _pickDate() async {
@@ -90,32 +113,53 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
           // An already-empty day yields nothing on regeneration — the
           // server had no summaries for it (web genDateIsEmpty).
           final genDateEmpty = byDate[_genDate]?.isEmptyDay ?? false;
+          // The fold applies only with a day open — one boolean, three
+          // readers (calendar, generate row, scroll listener's gate).
+          final folded = _collapsed && _selected != null;
           return Column(
             children: [
-              // Pinned head: month nav + heatmap + generate row.
+              // Pinned head: month nav + heatmap + generate row. With a
+              // day open, an upward scroll folds the heatmap down to
+              // that day's week (AnimatedSize) and drops the generate
+              // row — reading space wins; returning to the top unfolds.
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                 child: Column(
                   children: [
                     _MonthNav(month: _month, onShift: _shiftMonth),
-                    _HeatCalendar(
-                      month: _month,
-                      byDate: byDate,
-                      selected: _selected ?? _genDate,
-                      onTapDay: (date) => setState(() {
-                        _genDate = date;
-                        _selected = date;
-                      }),
-                    ),
-                    const SizedBox(height: 6),
-                    _GenerateRow(
-                      date: _genDate,
-                      running: genRunning,
-                      disabled: genRunning || genDateEmpty,
-                      onPick: _pickDate,
-                      onGenerate: () => ref
-                          .read(diaryGeneratingProvider.notifier)
-                          .start(agentId, _genDate),
+                    AnimatedSize(
+                      duration: MediaQuery.disableAnimationsOf(context)
+                          ? const Duration(milliseconds: 120)
+                          : const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _HeatCalendar(
+                            month: _month,
+                            byDate: byDate,
+                            selected: _selected ?? _genDate,
+                            collapsed: folded,
+                            onTapDay: (date) => setState(() {
+                              _genDate = date;
+                              _selected = date;
+                            }),
+                          ),
+                          if (!folded) ...[
+                            const SizedBox(height: 6),
+                            _GenerateRow(
+                              date: _genDate,
+                              running: genRunning,
+                              disabled: genRunning || genDateEmpty,
+                              onPick: _pickDate,
+                              onGenerate: () => ref
+                                  .read(diaryGeneratingProvider.notifier)
+                                  .start(agentId, _genDate),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -123,10 +167,15 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
               Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
               // Swap area: the selected day's content, or the month list.
               Expanded(
-                child: _selected != null
-                    ? _DayPane(agentId: agentId, date: _selected!,
-                        onClose: () => setState(() => _selected = null))
-                    : entries.isEmpty
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onDayPaneScroll,
+                  child: _selected != null
+                      ? _DayPane(agentId: agentId, date: _selected!,
+                          onClose: () => setState(() {
+                                _selected = null;
+                                _collapsed = false;
+                              }))
+                      : entries.isEmpty
                         ? Center(
                             child: Padding(
                               padding: const EdgeInsets.all(16),
@@ -160,6 +209,7 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
                               },
                             ),
                           ),
+                ),
               ),
             ],
           );
@@ -182,7 +232,6 @@ class _MonthNav extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          visualDensity: VisualDensity.compact,
           onPressed: () => onShift(-1),
           tooltip: l.diaryPrevMonth,
           icon: const Icon(LucideIcons.chevronLeft, size: 18),
@@ -193,7 +242,6 @@ class _MonthNav extends StatelessWidget {
                   style: theme.textTheme.titleSmall)),
         ),
         IconButton(
-          visualDensity: VisualDensity.compact,
           onPressed: () => onShift(1),
           tooltip: l.diaryNextMonth,
           icon: const Icon(LucideIcons.chevronRight, size: 18),
@@ -212,12 +260,17 @@ class _HeatCalendar extends StatelessWidget {
     required this.byDate,
     required this.selected,
     required this.onTapDay,
+    this.collapsed = false,
   });
 
   final DateTime month;
   final Map<String, DailyDiary> byDate;
   final String selected;
   final ValueChanged<String> onTapDay;
+
+  /// Folded mode: only the selected day's week renders — the month grid
+  /// gives way to the reading surface below.
+  final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
@@ -295,19 +348,45 @@ class _HeatCalendar extends StatelessWidget {
                 ),
             ],
           ),
-          for (var w = 0; w * 7 < leading + daysInMonth; w++)
-            Row(
-              children: [
-                for (var i = 0; i < 7; i++)
-                  Expanded(
-                    child: w * 7 + i < leading || w * 7 + i >= leading + daysInMonth
-                        ? const SizedBox(height: 38)
-                        : cell(w * 7 + i - leading + 1),
-                  ),
-              ],
-            ),
+          // The fold swaps the whole month grid for the selected day's
+          // single week row (AnimatedSize smooths the height change).
+          if (collapsed)
+            _foldedWeek(context, cell)
+          else
+            for (var w = 0; w * 7 < leading + daysInMonth; w++)
+              Row(
+                children: [
+                  for (var i = 0; i < 7; i++)
+                    Expanded(
+                      child: w * 7 + i < leading || w * 7 + i >= leading + daysInMonth
+                          ? const SizedBox(height: 38)
+                          : cell(w * 7 + i - leading + 1),
+                    ),
+                ],
+              ),
         ],
       ),
+    );
+  }
+
+  /// The folded row: the selected day's Monday-first week. Days outside
+  /// [month] render as empty slots (the shared cell() maps its day
+  /// number onto this month only); the selected day itself is always in
+  /// month, so the fold never hides it.
+  Widget _foldedWeek(BuildContext context, Widget Function(int day) cell) {
+    final sel = DateTime.tryParse('${selected}T00:00:00');
+    if (sel == null) return const SizedBox.shrink();
+    final weekStart = DateTime(sel.year, sel.month, sel.day)
+        .subtract(Duration(days: (sel.weekday + 6) % 7));
+    return Row(
+      children: [
+        for (var i = 0; i < 7; i++)
+          Expanded(
+            child: DateTime(weekStart.year, weekStart.month, weekStart.day + i).month != month.month
+                ? const SizedBox(height: 38)
+                : cell(DateTime(weekStart.year, weekStart.month, weekStart.day + i).day),
+          ),
+      ],
     );
   }
 }
@@ -339,7 +418,8 @@ class _GenerateRow extends StatelessWidget {
             onTap: onPick,
             borderRadius: AppRadius.controlBorder,
             child: Container(
-              height: 38,
+              // 44px touch row — matches the generate button beside it.
+              height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
@@ -354,8 +434,7 @@ class _GenerateRow extends StatelessWidget {
         FilledButton.tonalIcon(
           onPressed: disabled ? null : onGenerate,
           style: FilledButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            minimumSize: const Size(0, 38),
+            minimumSize: const Size(0, 44),
           ),
           icon: running
               ? const SizedBox(
@@ -415,8 +494,7 @@ class _DayPane extends ConsumerWidget {
                     ? null
                     : () => ref.read(diaryGeneratingProvider.notifier).start(agentId, date),
                 style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  minimumSize: const Size(0, 34),
+                  minimumSize: const Size(0, 40),
                 ),
                 icon: generating
                     ? const SizedBox(

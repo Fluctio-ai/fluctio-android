@@ -7,6 +7,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/load_states.dart';
 import '../../chat/markdown.dart';
 
@@ -103,9 +104,11 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
               length: tabCount,
               child: Column(
                 children: [
-                  TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
+                  AdaptiveTabBar(
+                    // Even spread like the wiki tabs (user feedback) —
+                    // labels are 2-4 CJK chars, so six still fit a phone;
+                    // longer/localized sets scroll horizontally instead
+                    // of clipping (AdaptiveTabBar).
                     tabs: [
                       Tab(text: l.kbOriginal),
                       if (hasInsights) ...[
@@ -179,16 +182,9 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
           for (final q in _insights!.quotes)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('❝ ', style: TextStyle(color: theme.colorScheme.primary)),
-                  Expanded(
-                    child: Text('${q.text} — ${q.tag}',
-                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
-                  ),
-                ],
-              ),
+              child: _QuoteRow(
+                  text: '${q.text} — ${q.tag}',
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
             ),
         ],
       ),
@@ -208,7 +204,16 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('• ', style: TextStyle(color: theme.colorScheme.primary)),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 7),
+                    child: Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                          color: theme.colorScheme.primary, shape: BoxShape.circle),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(a,
                         style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
@@ -260,7 +265,8 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
           ],
           if (ins.echoSeed.isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text('❝ ${ins.echoSeed}',
+            _QuoteRow(
+                text: ins.echoSeed,
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: theme.colorScheme.primary)),
             if (ins.echoSeedComment.isNotEmpty)
@@ -282,6 +288,31 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Quote-marked line — lucide quote glyph + text, shared by the quotes
+/// tab's entries and the sprouts' echo-seed callout.
+class _QuoteRow extends StatelessWidget {
+  const _QuoteRow({required this.text, this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Icon(LucideIcons.quote,
+              size: 14, color: Theme.of(context).colorScheme.primary),
+        ),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: style)),
+      ],
     );
   }
 }

@@ -25,6 +25,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navWorkflow => 'Workflows';
 
   @override
+  String get navTools => 'Tools';
+
+  @override
+  String get workflowNew => 'New workflow';
+
+  @override
+  String get workflowNewHint => 'Workflow id (letters, digits, - and _)';
+
+  @override
   String get navSettings => 'Settings';
 
   @override
@@ -132,6 +141,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatNew => 'New chat';
+
+  @override
+  String get chatSearchHint => 'Search chats';
+
+  @override
+  String get chatNoMatch => 'No matching chats';
 
   @override
   String get chatSessions => 'Chats';
@@ -379,6 +394,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatFork => 'Fork conversation from here';
+
+  @override
+  String get kbClear => 'Clear';
 
   @override
   String get wikiEntity => 'Entities';
@@ -854,6 +872,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashRecentTitle => 'Recent chats';
 
   @override
+  String get dashRecentAll => 'More chats →';
+
+  @override
   String get dashRecentNone => 'No chats yet';
 
   @override
@@ -890,4 +911,56 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get editorLintTableColumns =>
       'Table separator column count differs from header';
+
+  @override
+  String get settingsMaxTokens => 'Max tokens';
+
+  @override
+  String get settingsTemperature => 'Temperature';
+
+  @override
+  String get settingsMaxToolIterations => 'Max tool iterations';
+
+  @override
+  String get settingsPromptMode => 'Prompt mode';
+
+  @override
+  String get settingsGuidance => 'Guidance';
+
+  @override
+  String get settingsCompactionMode => 'Compaction mode';
+
+  @override
+  String get settingsCompactionThreshold => 'Compaction threshold';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get settingsSplitReplies => 'Split replies';
+
+  @override
+  String get settingsAutoPersist => 'Auto persist';
+
+  @override
+  String get settingsSharedIdentity => 'Shared identity';
+
+  @override
+  String get settingsName => 'Name';
+
+  @override
+  String get settingsLangZh => '中文';
+
+  @override
+  String get settingsLangEn => 'English';
+
+  @override
+  String articleCharsCount(Object count) {
+    return '$count chars';
+  }
+
+  @override
+  String articleCharsWan(Object count) {
+    return '${count}k chars';
+  }
 }

@@ -12,6 +12,7 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
@@ -45,7 +46,17 @@ class KbFlashPage extends ConsumerWidget {
               data: (list) {
                 final flashes = list.where((s) => s.type == 'flash').toList();
                 if (flashes.isEmpty) {
-                  return EmptyState(icon: LucideIcons.zap, message: l.kbEmpty);
+                  return EmptyState(
+                    icon: LucideIcons.zap,
+                    message: l.kbEmpty,
+                    // The empty state carries its own entry — same as the
+                    // notes list.
+                    action: agentId == null
+                        ? null
+                        : FilledButton(
+                            onPressed: () => _new(context, ref, agentId),
+                            child: Text(l.kbAddFlash)),
+                  );
                 }
                 return RefreshIndicator(
                   onRefresh: () =>
@@ -86,6 +97,19 @@ class KbFlashPage extends ConsumerWidget {
                               ? ''
                               : formatShortDate(DateTime.parse(s.updatedAt))),
                           onTap: () => _view(context, ref, agentId!, s),
+                          onLongPress: () => showRowActionsMenu(context, [
+                            RowAction(
+                              icon: LucideIcons.penLine,
+                              label: l.kbEdit,
+                              onRun: () => _edit(context, ref, agentId!, s),
+                            ),
+                            RowAction(
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
+                              destructive: true,
+                              onRun: () => _delete(context, ref, agentId!, s),
+                            ),
+                          ]),
                         ),
                       );
                     },

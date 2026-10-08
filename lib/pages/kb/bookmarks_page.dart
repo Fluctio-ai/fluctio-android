@@ -12,8 +12,8 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/form_editor_page.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
-import 'kb_editor_page.dart';
 import '../../util/open_url.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
@@ -45,7 +45,17 @@ class KbBookmarksPage extends ConsumerWidget {
               error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyState(icon: LucideIcons.bookmark, message: l.kbEmpty);
+                  return EmptyState(
+                    icon: LucideIcons.bookmark,
+                    message: l.kbEmpty,
+                    // The empty state carries its own entry — same as the
+                    // notes/flash lists.
+                    action: agentId == null
+                        ? null
+                        : FilledButton(
+                            onPressed: () => _add(context, ref, agentId),
+                            child: Text(l.kbAddBookmark)),
+                  );
                 }
                 return RefreshIndicator(
                   onRefresh: () => agentId == null
@@ -117,6 +127,26 @@ class KbBookmarksPage extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           onTap: () => openExternalUrl(b.url),
+                          onLongPress: () => showRowActionsMenu(context, [
+                            RowAction(
+                              icon: LucideIcons.penLine,
+                              label: l.kbEdit,
+                              onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
+                            ),
+                            if (!b.promoted)
+                              RowAction(
+                                icon: LucideIcons.trendingUp,
+                                label: l.kbPromote,
+                                onRun: () =>
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
+                              ),
+                            RowAction(
+                              icon: LucideIcons.trash2,
+                              label: l.chatDelete,
+                              destructive: true,
+                              onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
+                            ),
+                          ]),
                         ),
                       );
                     },
@@ -165,18 +195,20 @@ class _BookmarkActions {
         case 'edit':
           if (!context.mounted) return;
           // Full-page editor (title + summary) instead of the old
-          // dialog - same surface as notes/flash edits.
+          // dialog. Plain-text form — the summary is one field, the
+          // markdown editor (line numbers, lint) was overkill here.
           await Navigator.of(context).push<bool>(MaterialPageRoute(
-            builder: (_) => KbEditorPage(
+            builder: (_) => FormEditorPage<bool>(
               heading: l.kbEdit,
-              hint: l.kbSummary,
-              titleLabel: l.kbTitleOptional,
-              initialTitle: bookmark.title,
-              initialText: bookmark.summary,
-              onSave: (summary, title, _, _, {status}) async {
+              fields: [
+                EditorField(label: l.kbTitleOptional, initial: bookmark.title),
+                EditorField(
+                    label: l.kbSummary, initial: bookmark.summary, maxLines: 5),
+              ],
+              onSave: (v) async {
                 try {
                   await repo.updateBookmark(agentId, bookmark.id,
-                      title: title.trim(), summary: summary.trim());
+                      title: v[0].trim(), summary: v[1].trim());
                   ref.invalidate(kbBookmarksProvider(agentId));
                   return true;
                 } catch (e) {

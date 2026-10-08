@@ -384,13 +384,11 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
               : [
                   IconButton(
                     tooltip: l.chatFiles,
-                    visualDensity: VisualDensity.compact,
                     onPressed: () => showFilesSheet(context),
                     icon: const Icon(LucideIcons.folderOpen),
                   ),
                   IconButton(
                     tooltip: l.chatTodo,
-                    visualDensity: VisualDensity.compact,
                     onPressed: () => showTodoSheet(context),
                     icon: const Icon(LucideIcons.listTodo),
                   ),

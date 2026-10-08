@@ -179,7 +179,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   context,
                   icon: LucideIcons.shieldCheck,
                   label: l.allowSelfSigned,
-                  value: '✓',
+                  trailing: Icon(LucideIcons.check,
+                      size: 16, color: theme.colorScheme.primary),
                 ),
               _item(
                 context,

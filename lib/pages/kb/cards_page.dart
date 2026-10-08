@@ -10,9 +10,11 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/form_editor_page.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
@@ -28,10 +30,18 @@ class KbCardsPage extends ConsumerStatefulWidget {
 }
 
 class _KbCardsPageState extends ConsumerState<KbCardsPage> {
+  /// Filter-tab order (contract §7: due|active|mastered|archived) — one
+  /// list drives the default filter, the tab index and the switch.
+  static const _filters = ['due', 'active', 'mastered', 'archived'];
+
   KbCardStats? _stats;
   int _queueLength = 0;
   List<KbCard> _cards = const [];
   String? _error;
+
+  /// Library filter of the active tab; tab switching refetches only the
+  /// list; stats stay.
+  String _filter = _filters[1];
 
   @override
   void initState() {
@@ -47,7 +57,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
       final (stats, queue, cards) = await (
         repo.cardStats(agentId),
         repo.cardQueue(agentId),
-        repo.cardList(agentId),
+        repo.cardList(agentId, filter: _filter),
       ).wait;
       if (!mounted) return;
       setState(() {
@@ -57,6 +67,43 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
       });
     } catch (e) {
       if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  Future<void> _switchFilter(String filter) async {
+    if (filter == _filter) return;
+    setState(() => _filter = filter);
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return;
+    try {
+      final cards = await ref.read(kbRepoProvider).cardList(agentId, filter: filter);
+      if (mounted) setState(() => _cards = cards);
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    }
+  }
+
+  // Swipe + long-press sheet share these — one code path per action.
+  Future<void> _archiveCard(KbCard c) async {
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return;
+    try {
+      await ref.read(kbRepoProvider).archiveCard(agentId, c.id, true);
+      _load();
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    }
+  }
+
+  Future<void> _deleteCard(KbCard c) async {
+    if (!await confirmDelete(context)) return;
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return;
+    try {
+      await ref.read(kbRepoProvider).deleteCard(agentId, c.id);
+      _load();
+    } catch (e) {
+      if (mounted) showApiError(context, e);
     }
   }
 
@@ -88,150 +135,158 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final stats = _stats;
-    final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
-    return Scaffold(
-      // Drawer on every list surface — same gesture zone as chat.
-      drawer: const AppDrawer(),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
-      appBar: AppBar(title: Text(l.kbCards)),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCard,
-        child: const Icon(LucideIcons.plus),
-      ),
-      body: _error != null
-          ? ErrorPane(message: _error!)
-          : stats == null
-              ? const SkeletonListView(itemCount: 5)
-              : ListView(
-                  // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-                  children: [
-                    // Stats header.
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: surfaceCardDecoration(theme.colorScheme),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _Stat(l.cardDue, '${stats.dueToday}', theme.colorScheme.primary),
-                          _Stat(l.cardActive, '${stats.active}', null),
-                          _Stat(l.cardMastered, '${stats.mastered}', null),
-                          _Stat(l.cardStreak, '${stats.streakDays}', null),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_queueLength > 0)
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        onPressed: () async {
-                          await context.push('/kb/cards/review');
-                          _load();
-                        },
-                        icon: const Icon(LucideIcons.brain, size: 18),
-                        label: Text('${l.cardStart} ($_queueLength)'),
-                      )
-                    else
+    // Watch-only: rebuild on agent switch — the row actions re-read the
+    // id at run time (moved out of the build when the inline swipe
+    // closures became shared methods).
+    ref.watch(agentsProvider.select((a) => a.selectedId));
+    return DefaultTabController(
+      // initialIndex matches the default filter (active).
+      initialIndex: _filters.indexOf(_filter),
+      length: 4,
+      child: Scaffold(
+        // Drawer on every list surface — same gesture zone as chat.
+        drawer: const AppDrawer(),
+        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+        appBar: AppBar(
+          title: Text(l.kbCards),
+          // The stats numbers became filter tabs (user feedback): due /
+          // active / mastered / archived with inline counts, evenly
+          // spread like the wiki tabs. Streak isn't a filter — it rides
+          // as a caption under the review CTA.
+          bottom: AdaptiveTabBar(
+            onTap: (i) => _switchFilter(_filters[i]),
+            tabs: [
+              Tab(text: _tabLabel(l.cardDue, stats?.dueToday)),
+              Tab(text: _tabLabel(l.cardActive, stats?.active)),
+              Tab(text: _tabLabel(l.cardMastered, stats?.mastered)),
+              Tab(text: _tabLabel(l.cardArchived, stats?.archived)),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: _addCard,
+          child: const Icon(LucideIcons.plus),
+        ),
+        body: _error != null
+            ? ErrorPane(message: _error!)
+            : stats == null
+                ? const SkeletonListView(itemCount: 5)
+                : Column(
+                    children: [
                       Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Center(
+                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        child: _queueLength > 0
+                            ? FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: AppRadius.controlBorder),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                ),
+                                onPressed: () async {
+                                  await context.push('/kb/cards/review');
+                                  _load();
+                                },
+                                icon: const Icon(LucideIcons.brain, size: 18),
+                                label: Text('${l.cardStart} ($_queueLength)'),
+                              )
+                            : Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: Center(
+                                  child: Text(
+                                    l.cardAllDone,
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(color: theme.colorScheme.outline),
+                                  ),
+                                ),
+                              ),
+                      ),
+                      if (stats.streakDays > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4, bottom: 4),
                           child: Text(
-                            l.cardAllDone,
-                            style: theme.textTheme.bodyMedium
+                            '${l.cardStreak} · ${stats.streakDays}',
+                            style: theme.textTheme.labelSmall
                                 ?.copyWith(color: theme.colorScheme.outline),
                           ),
                         ),
+                      Expanded(
+                        child: _cards.isEmpty
+                            ? EmptyState(icon: LucideIcons.layers, message: l.kbEmpty)
+                            // Card library filtered by the active tab
+                            // (GET /kb/cards?filter=).
+                            : ListView(
+                                // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
+                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                                children: [
+                                  for (final c in _cards)
+                                    Slidable(
+                                      key: ValueKey('card-${c.id}'),
+                                      endActionPane: ActionPane(
+                                        motion: const DrawerMotion(),
+                                        extentRatio: 0.4,
+                                        children: [
+                                          SlidableAction(
+                                            onPressed: (_) => _archiveCard(c),
+                                            // Gold (warning) — distinct from the red
+                                            // delete block.
+                                            backgroundColor: paletteOf(context).warning,
+                                            foregroundColor: paletteOf(context).warningForeground,
+                                            icon: LucideIcons.archive,
+                                            label: l.kbArchive,
+                                          ),
+                                          SlidableAction(
+                                            onPressed: (_) => _deleteCard(c),
+                                            backgroundColor: theme.colorScheme.error,
+                                            foregroundColor: theme.colorScheme.onError,
+                                            icon: LucideIcons.trash2,
+                                            label: l.chatDelete,
+                                          ),
+                                        ],
+                                      ),
+                                      child: ChevronListTile(
+                                        padding: EdgeInsets.zero,
+                                        // Not dense — the 12px title read too small on
+                                        // device (user feedback); matches the wiki /
+                                        // article rows.
+                                        title: Text(c.question,
+                                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                                        subtitle: Text(c.answer,
+                                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        trailing: c.dueAt == null
+                                            ? null
+                                            : Text(formatShortDate(c.dueAt!.toLocal()),
+                                                style: theme.textTheme.labelSmall
+                                                    ?.copyWith(color: theme.colorScheme.outline)),
+                                        onTap: () => Navigator.of(context)
+                                            .push(MaterialPageRoute<void>(
+                                          builder: (_) => _CardViewPage(card: c),
+                                        )),
+                                        onLongPress: () => showRowActionsMenu(context, [
+                                          RowAction(
+                                            icon: LucideIcons.archive,
+                                            label: l.kbArchive,
+                                            onRun: () => _archiveCard(c),
+                                          ),
+                                          RowAction(
+                                            icon: LucideIcons.trash2,
+                                            label: l.chatDelete,
+                                            destructive: true,
+                                            onRun: () => _deleteCard(c),
+                                          ),
+                                        ]),
+                                      ),
+                                    ),
+                                ],
+                              ),
                       ),
-                    // Card library — the stats numbers above finally have
-                    // the rows behind them (GET /kb/cards?filter=).
-                    for (final c in _cards)
-                      Slidable(
-                        key: ValueKey('card-${c.id}'),
-                        endActionPane: ActionPane(
-                          motion: const DrawerMotion(),
-                          extentRatio: 0.4,
-                          children: [
-                            SlidableAction(
-                              onPressed: (_) async {
-                                try {
-                                  await ref
-                                      .read(kbRepoProvider)
-                                      .archiveCard(agentId!, c.id, true);
-                                  _load();
-                                } catch (e) {
-                                  if (context.mounted) showApiError(context, e);
-                                }
-                              },
-                              // Gold (warning) — distinct from the red
-                              // delete block.
-                              backgroundColor: paletteOf(context).warning,
-                              foregroundColor: paletteOf(context).warningForeground,
-                              icon: LucideIcons.archive,
-                              label: l.kbArchive,
-                            ),
-                            SlidableAction(
-                              onPressed: (_) async {
-                                if (!await confirmDelete(context)) return;
-                                try {
-                                  await ref.read(kbRepoProvider).deleteCard(agentId!, c.id);
-                                  _load();
-                                } catch (e) {
-                                  if (context.mounted) showApiError(context, e);
-                                }
-                              },
-                              backgroundColor: theme.colorScheme.error,
-                              foregroundColor: theme.colorScheme.onError,
-                              icon: LucideIcons.trash2,
-                              label: l.chatDelete,
-                            ),
-                          ],
-                        ),
-                        child: ChevronListTile(
-                          padding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(c.question,
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(c.answer,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          trailing: c.dueAt == null
-                              ? null
-                              : Text(formatShortDate(c.dueAt!.toLocal()),
-                                  style: theme.textTheme.labelSmall
-                                      ?.copyWith(color: theme.colorScheme.outline)),
-                          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) => _CardViewPage(card: c),
-                          )),
-                        ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
+      ),
     );
   }
-}
 
-class _Stat extends StatelessWidget {
-  const _Stat(this.label, this.value, this.color);
-
-  final String label;
-  final String value;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      children: [
-        Text(value,
-            style: theme.textTheme.titleLarge?.copyWith(
-                color: color ?? theme.colorScheme.onSurface, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
-      ],
-    );
-  }
+  /// Tab label with the wiki-tab count convention (blank until stats land).
+  String _tabLabel(String label, int? count) => count == null || count == 0 ? label : '$label $count';
 }
 
 /// Read-only card view: question / answer rendered as markdown plus the

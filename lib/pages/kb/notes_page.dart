@@ -11,6 +11,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
@@ -43,7 +44,17 @@ class KbNotesPage extends ConsumerWidget {
               error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
                 if (list.isEmpty) {
-                  return EmptyState(icon: LucideIcons.notebookPen, message: l.kbEmpty);
+                  return EmptyState(
+                    icon: LucideIcons.notebookPen,
+                    message: l.kbEmpty,
+                    // The empty state carries its own entry — the FAB in
+                    // the corner is not where a new user looks first.
+                    action: agentId == null
+                        ? null
+                        : FilledButton(
+                            onPressed: () => _new(context, ref, agentId),
+                            child: Text(l.noteNew)),
+                  );
                 }
                 return RefreshIndicator(
                   onRefresh: () =>
@@ -83,6 +94,19 @@ class KbNotesPage extends ConsumerWidget {
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
                         onTap: () => _view(context, ref, agentId!, n),
+                        onLongPress: () => showRowActionsMenu(context, [
+                          RowAction(
+                            icon: LucideIcons.penLine,
+                            label: l.kbEdit,
+                            onRun: () => _edit(context, ref, agentId!, n),
+                          ),
+                          RowAction(
+                            icon: LucideIcons.trash2,
+                            label: l.chatDelete,
+                            destructive: true,
+                            onRun: () => _delete(context, ref, agentId!, n),
+                          ),
+                        ]),
                       ),
                       );
                     },

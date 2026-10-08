@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/markdown.dart';
 import '../../files/file_preview.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
+import '../../wiki/wiki_actions.dart';
 import '../../wiki/wiki_links.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
@@ -51,11 +53,8 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
               await ref.read(wikiRepoProvider).save(agentId, widget.pageId,
                   title: title, body: text);
               return true;
-            } catch (_) {
-              if (mounted) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
-              }
+            } catch (e) {
+              if (mounted) showApiError(context, e);
               return false;
             }
           },
@@ -69,30 +68,8 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
   }
 
   Future<void> _delete(WikiPageInfo page) async {
-    final l = AppLocalizations.of(context)!;
-    final agentId = ref.read(agentsProvider).selectedId;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.wikiDeleteTitle),
-        content: Text(l.wikiDeleteConfirm(page.title)),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-        ],
-      ),
-    );
-    if (ok != true || agentId == null) return;
-    try {
-      await ref.read(wikiRepoProvider).delete(agentId, widget.pageId);
-      ref.invalidate(wikiInventoryProvider(agentId));
-      if (mounted) context.pop();
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.errorNetwork)));
-      }
-    }
+    final ok = await deleteWikiPageWithConfirm(context, ref, page);
+    if (ok && mounted) context.pop();
   }
 
   void _onLink(String href) {
@@ -194,8 +171,9 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(p.title, style: theme.textTheme.titleLarge),
+                // Title lives in the AppBar and (usually) the body's own
+                // `# heading` — a third copy here read as noise (user
+                // feedback), so the header row is badge + time only.
               ],
             ),
           ),

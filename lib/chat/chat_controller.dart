@@ -385,20 +385,17 @@ class ChatStoreController extends Notifier<ChatStore> {
   /// Fork the open session at assistant turn [seq] and land on the child
   /// (web parity, chat-screen.tsx handleFork): the child inherits the
   /// source archive up to seq, its prefix replaying with seq<0. Returns
-  /// false on rejection/failure — the caller stays on the source session.
+  /// false on a rejected fork (no active session / bad seq / no key) —
+  /// network errors rethrow for the caller to surface.
   Future<bool> fork(int seq) async {
     final parts = splitSessionKey(state.activeKey);
     if (parts == null || seq < 0) return false;
-    try {
-      final newKey =
-          await ref.read(chatRepoProvider).forkSession(parts.agentId, parts.sessionId, seq);
-      if (!ref.mounted || newKey == null || newKey.isEmpty) return false;
-      await openSession(parts.agentId, newKey);
-      ref.read(sessionsProvider.notifier).reload();
-      return true;
-    } catch (_) {
-      return false;
-    }
+    final newKey =
+        await ref.read(chatRepoProvider).forkSession(parts.agentId, parts.sessionId, seq);
+    if (!ref.mounted || newKey == null || newKey.isEmpty) return false;
+    await openSession(parts.agentId, newKey);
+    ref.read(sessionsProvider.notifier).reload();
+    return true;
   }
 
   Future<void> loadMore() async {

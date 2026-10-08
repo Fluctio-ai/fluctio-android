@@ -5,6 +5,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../api/api_client.dart';
 import '../../chat/chat_controller.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/adaptive_tab_bar.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/load_states.dart';
 import '../../settings/json_form.dart';
 import '../../settings/settings_repo.dart';
@@ -22,7 +24,7 @@ class AgentsAdminPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l.meAgentManage)),
       body: agents.agents.isEmpty
-          ? Center(child: Text(l.chatNoAgent, style: theme.textTheme.bodyMedium))
+          ? EmptyState(icon: LucideIcons.bot, message: l.chatNoAgent)
           : ListView.builder(
               itemCount: agents.agents.length,
               itemBuilder: (context, i) {
@@ -156,40 +158,25 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.agentName.isEmpty ? l.meAgentManage : widget.agentName)),
-      body: Column(
-        children: [
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              children: [
-                for (final t in _tabs)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(t.labelKey(l), style: const TextStyle(fontSize: AppType.caption)),
-                      visualDensity: VisualDensity.compact,
-                      selected: _tab == t.id,
-                      onSelected: (_) => setState(() => _tab = t.id),
-                    ),
-                  ),
-              ],
-            ),
+    return DefaultTabController(
+      length: _tabs.length,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.agentName.isEmpty ? l.meAgentManage : widget.agentName),
+          // The app's shared tab strip (was a ChoiceChip row) — 15
+          // short labels overflow a phone, so the AdaptiveTabBar scrolls
+          // horizontally instead of clipping.
+          bottom: AdaptiveTabBar(
+            onTap: (i) => setState(() => _tab = _tabs[i].id),
+            tabs: [for (final t in _tabs) Tab(text: t.labelKey(l))],
           ),
-          Divider(height: 1, color: theme.colorScheme.outlineVariant),
-          Expanded(
-            child: _scope == null || _config == null
-                ? const SkeletonListView()
-                : SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: _tabBody(context),
-                  ),
-          ),
-        ],
+        ),
+        body: _scope == null || _config == null
+            ? const SkeletonListView()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: _tabBody(context),
+              ),
       ),
     );
   }
@@ -276,23 +263,24 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
         ),
         labeledField(
             context,
-            'maxTokens',
+            l.settingsMaxTokens,
             TextField(controller: _maxTokens, keyboardType: TextInputType.number)),
         labeledField(
             context,
-            'temperature',
+            l.settingsTemperature,
             TextField(
                 controller: _temperature,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true))),
         labeledField(
             context,
-            'maxToolIterations',
+            l.settingsMaxToolIterations,
             TextField(controller: _iterations, keyboardType: TextInputType.number)),
       ],
     );
   }
 
   Widget _contextTab() {
+    final l = AppLocalizations.of(context)!;
     final cfg = _config!;
     return _FieldCard(
       onSave: () => _savePatch({
@@ -306,29 +294,31 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       children: [
         labeledField(
             context,
-            'promptMode',
+            l.settingsPromptMode,
             _dropdown(['agent', 'chatbot', 'customize'],
                 '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}',
                 (v) => setState(() => _scope!['promptMode'] = v))),
         labeledField(
             context,
-            'guidance',
+            l.settingsGuidance,
             _dropdown(['autonomous', 'guided'], '${_scope!['guidance'] ?? ''}',
             (v) => setState(() => _scope!['guidance'] = v))),
         labeledField(
             context,
-            'compactionMode',
+            l.settingsCompactionMode,
             _dropdown(['conservative', 'balanced', 'aggressive'], '${cfg['compactionMode'] ?? ''}',
                 (v) => setState(() => _config!['compactionMode'] = v))),
         labeledField(
             context,
-            'compactionThreshold',
+            l.settingsCompactionThreshold,
             TextField(controller: _threshold, keyboardType: TextInputType.number)),
         labeledField(
             context,
-            'language',
+            l.settingsLanguage,
             _dropdown(['zh-CN', 'en'], '${cfg['language'] ?? ''}',
-            (v) => setState(() => _config!['language'] = v))),
+                (v) => setState(() => _config!['language'] = v),
+                // Show the human name, persist the locale code.
+                labelOf: (v) => v == 'zh-CN' ? l.settingsLangZh : l.settingsLangEn)),
       ],
     );
   }
@@ -348,19 +338,19 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('splitReplies'),
+          title: Text(l.settingsSplitReplies),
           value: b('splitReplies'),
           onChanged: (v) => setState(() => scope['splitReplies'] = v),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('autoPersist'),
+          title: Text(l.settingsAutoPersist),
           value: b('autoPersist'),
           onChanged: (v) => setState(() => scope['autoPersist'] = v),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: const Text('sharedIdentity'),
+          title: Text(l.settingsSharedIdentity),
           value: b('sharedIdentity'),
           onChanged: (v) => setState(() => scope['sharedIdentity'] = v),
         ),
@@ -393,7 +383,8 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
     );
   }
 
-  Widget _dropdown(List<String> options, String current, ValueChanged<String> onChanged) {
+  Widget _dropdown(List<String> options, String current, ValueChanged<String> onChanged,
+      {String Function(String value)? labelOf}) {
     // Empty/unlisted current values must fall back to a real option —
     // an initialValue not present in items trips the DropdownButton
     // assertion (seen with fresh agents whose context fields are "").
@@ -403,7 +394,8 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       decoration: const InputDecoration(isDense: true),
       items: [
         for (final o in options)
-          DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: AppType.secondary))),
+          DropdownMenuItem(
+              value: o, child: Text(labelOf?.call(o) ?? o, style: const TextStyle(fontSize: AppType.secondary))),
       ],
       onChanged: (v) => v == null ? null : onChanged(v),
     );
@@ -599,10 +591,14 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
               subtitle: s['description'] is String ? Text('${s['description']}', maxLines: 1) : null,
               trailing: IconButton(
                 icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-                onPressed: () => ref
-                    .read(settingsRepoProvider)
-                    .deleteSkill(widget.agentId, '${s['name'] ?? s['id'] ?? ''}')
-                    .then((_) => _load()),
+                // Same destructive guard as every other list surface.
+                onPressed: () async {
+                  if (!await confirmDelete(context)) return;
+                  ref
+                      .read(settingsRepoProvider)
+                      .deleteSkill(widget.agentId, '${s['name'] ?? s['id'] ?? ''}')
+                      .then((_) => _load());
+                },
               ),
             ),
       ],
@@ -644,10 +640,9 @@ class _RepoListTabState extends State<_RepoListTab> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final rows = _rows;
     if (rows == null) return const SkeletonList(itemCount: 4);
-    if (rows.isEmpty) return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
+    if (rows.isEmpty) return EmptyState(icon: LucideIcons.inbox, message: l.settingsEmpty);
     return Column(
       children: [for (final row in rows) widget.tileBuilder(context, row, _reload)],
     );
@@ -686,10 +681,14 @@ Widget _regexTile(BuildContext context, Map<String, dynamic> row, VoidCallback o
     subtitle: row['pattern'] is String && row['name'] != null
         ? Text('${row['pattern']}', maxLines: 1)
         : null,
-    trailing: IconButton(
-      icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-      onPressed: onDelete,
-    ),
+            trailing: IconButton(
+              icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
+              // Same destructive guard as every other list surface.
+              onPressed: () async {
+                if (!await confirmDelete(context)) return;
+                onDelete();
+              },
+            ),
   );
 }
 
@@ -738,7 +737,11 @@ class _McpTabState extends State<_McpTab> {
                 : null,
             trailing: IconButton(
               icon: Icon(LucideIcons.trash2, size: 16, color: theme.colorScheme.outline),
-              onPressed: () => widget.onSaved({'mcpServers': {...servers}..remove(name)}),
+              // Same destructive guard as every other list surface.
+              onPressed: () async {
+                if (!await confirmDelete(context)) return;
+                widget.onSaved({'mcpServers': {...servers}..remove(name)});
+              },
             ),
           ),
         OutlinedButton.icon(
@@ -764,7 +767,7 @@ class _McpTabState extends State<_McpTab> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: name, decoration: const InputDecoration(hintText: 'name')),
+            TextField(controller: name, decoration: InputDecoration(hintText: l.settingsName)),
             const SizedBox(height: 8),
             TextField(controller: url, decoration: const InputDecoration(hintText: 'https://…')),
           ],
@@ -814,11 +817,10 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final registry = _registry;
     if (registry == null) return const SkeletonList(itemCount: 4);
     if (registry.isEmpty && _overlay.isEmpty) {
-      return Center(child: Text(l.settingsEmpty, style: theme.textTheme.bodySmall));
+      return EmptyState(icon: LucideIcons.puzzle, message: l.settingsEmpty);
     }
     final names = <String>{
       ..._overlay.keys,

@@ -128,6 +128,24 @@ abstract class AppLocalizations {
   /// **'工作流'**
   String get navWorkflow;
 
+  /// No description provided for @navTools.
+  ///
+  /// In zh, this message translates to:
+  /// **'工具'**
+  String get navTools;
+
+  /// No description provided for @workflowNew.
+  ///
+  /// In zh, this message translates to:
+  /// **'新建工作流'**
+  String get workflowNew;
+
+  /// No description provided for @workflowNewHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作流 ID（字母、数字、- 、_）'**
+  String get workflowNewHint;
+
   /// No description provided for @navSettings.
   ///
   /// In zh, this message translates to:
@@ -337,6 +355,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'新对话'**
   String get chatNew;
+
+  /// No description provided for @chatSearchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索对话'**
+  String get chatSearchHint;
+
+  /// No description provided for @chatNoMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有匹配的对话'**
+  String get chatNoMatch;
 
   /// No description provided for @chatSessions.
   ///
@@ -817,6 +847,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'从此处分叉对话'**
   String get chatFork;
+
+  /// No description provided for @kbClear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除'**
+  String get kbClear;
 
   /// No description provided for @wikiEntity.
   ///
@@ -1595,7 +1631,7 @@ abstract class AppLocalizations {
   /// No description provided for @seeAllChats.
   ///
   /// In zh, this message translates to:
-  /// **'查看所有对话'**
+  /// **'查看更多对话'**
   String get seeAllChats;
 
   /// No description provided for @noProjects.
@@ -1724,6 +1760,12 @@ abstract class AppLocalizations {
   /// **'最近对话'**
   String get dashRecentTitle;
 
+  /// No description provided for @dashRecentAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看更多对话 →'**
+  String get dashRecentAll;
+
   /// No description provided for @dashRecentNone.
   ///
   /// In zh, this message translates to:
@@ -1777,6 +1819,102 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'表格分隔行列数与表头不一致'**
   String get editorLintTableColumns;
+
+  /// No description provided for @settingsMaxTokens.
+  ///
+  /// In zh, this message translates to:
+  /// **'最大 Token 数'**
+  String get settingsMaxTokens;
+
+  /// No description provided for @settingsTemperature.
+  ///
+  /// In zh, this message translates to:
+  /// **'温度'**
+  String get settingsTemperature;
+
+  /// No description provided for @settingsMaxToolIterations.
+  ///
+  /// In zh, this message translates to:
+  /// **'最大工具迭代数'**
+  String get settingsMaxToolIterations;
+
+  /// No description provided for @settingsPromptMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'提示词模式'**
+  String get settingsPromptMode;
+
+  /// No description provided for @settingsGuidance.
+  ///
+  /// In zh, this message translates to:
+  /// **'引导模式'**
+  String get settingsGuidance;
+
+  /// No description provided for @settingsCompactionMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'上下文压缩模式'**
+  String get settingsCompactionMode;
+
+  /// No description provided for @settingsCompactionThreshold.
+  ///
+  /// In zh, this message translates to:
+  /// **'压缩阈值'**
+  String get settingsCompactionThreshold;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言'**
+  String get settingsLanguage;
+
+  /// No description provided for @settingsSplitReplies.
+  ///
+  /// In zh, this message translates to:
+  /// **'分条回复'**
+  String get settingsSplitReplies;
+
+  /// No description provided for @settingsAutoPersist.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动持久化'**
+  String get settingsAutoPersist;
+
+  /// No description provided for @settingsSharedIdentity.
+  ///
+  /// In zh, this message translates to:
+  /// **'共享身份'**
+  String get settingsSharedIdentity;
+
+  /// No description provided for @settingsName.
+  ///
+  /// In zh, this message translates to:
+  /// **'名称'**
+  String get settingsName;
+
+  /// No description provided for @settingsLangZh.
+  ///
+  /// In zh, this message translates to:
+  /// **'中文'**
+  String get settingsLangZh;
+
+  /// No description provided for @settingsLangEn.
+  ///
+  /// In zh, this message translates to:
+  /// **'English'**
+  String get settingsLangEn;
+
+  /// No description provided for @articleCharsCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 字'**
+  String articleCharsCount(Object count);
+
+  /// No description provided for @articleCharsWan.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 万字'**
+  String articleCharsWan(Object count);
 }
 
 class _AppLocalizationsDelegate

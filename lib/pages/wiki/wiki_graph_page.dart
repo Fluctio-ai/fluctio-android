@@ -20,11 +20,12 @@ final wikiGraphProvider = FutureProvider.family<WikiGraphInfo, String>((ref, age
 });
 
 /// Native force-directed wiki graph (this surface's replacement for
-/// the web's WebGL engine): [ForceSim] computes positions, [GraphPainter]
-/// draws, InteractiveViewer owns pan/zoom/pinch. Touch parity with the
-/// web's mobile overlay — taps select (tapping the selected node
-/// clears), no node dragging; a selection fades non-neighbours and the
-/// bottom bar jumps into the preview.
+/// the web's WebGL engine): [ForceSim] computes positions, the page
+/// owns the world→screen view matrix (pan / pinch via onScale*,
+/// node drag pins the node and reheats the sim), [GraphPainter] draws
+/// in screen space. Taps select (tapping the selected node clears);
+/// a selection fades non-neighbours and the bottom bar jumps into the
+/// preview.
 class WikiGraphPage extends ConsumerStatefulWidget {
   const WikiGraphPage({super.key, this.focusId});
 
@@ -38,20 +39,44 @@ class WikiGraphPage extends ConsumerStatefulWidget {
 class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
     with SingleTickerProviderStateMixin {
   static const Size _world = Size(2200, 1400);
+  static const double _minScale = 0.12, _maxScale = 3.5;
 
-  final _tf = TransformationController();
   late final Ticker _ticker;
   Size _viewport = Size.zero;
   ForceSim? _sim;
   List<SimNode> _nodes = const [];
   List<(int, int)> _edges = const [];
   Map<String, String> _typeOf = const {};
+
+  /// id → truncated label, built once per graph (every paint frame reads
+  /// it — per-build truncation cost a string pass per setState).
+  Map<String, String> _labelOf = const {};
+
+  /// TextPainter cache owned by the page: a painter instance dies with
+  /// every rebuild (pinch/zoom runs at frame rate), which used to drop
+  /// the layout cache of every label each frame.
+  final Map<String, TextPainter> _labelCache = {};
   Map<String, String> _titleOf = const {};
   Map<String, List<String>> _adj = {};
   String? _selected;
   Set<String> _neighbors = {};
   bool _labels = false;
   String? _builtFor;
+
+  // View (world→screen) + a version stamp — Matrix4 has no value
+  // equality, so the painter needs an int to detect change.
+  final Matrix4 _view = Matrix4.identity();
+  int _viewVersion = 0;
+
+  // Gesture state: node drag vs canvas pan/pinch, rebuilt each gesture
+  // from the snapshot taken at onScaleStart. The drag candidate is
+  // recorded on touch-down but only ACTIVATED once the pointer moves —
+  // pinning/reheating on touch-down would jiggle the node away before
+  // the tap's hit test ran (nodes became untappable after zoom).
+  SimNode? _dragged;
+  SimNode? _dragCandidate;
+  Matrix4? _viewAtGestureStart;
+  Offset? _gestureFocal;
 
   @override
   void initState() {
@@ -62,7 +87,6 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
   @override
   void dispose() {
     _ticker.dispose();
-    _tf.dispose();
     super.dispose();
   }
 
@@ -114,6 +138,11 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
     ];
     _typeOf = {for (final p in g.nodes) p.id: p.pageType};
     _titleOf = {for (final p in g.nodes) p.id: p.title};
+    // 12 CJK chars + ellipsis — the web engine's label cap.
+    _labelOf = {
+      for (final p in g.nodes)
+        p.id: p.title.length > 12 ? '${p.title.substring(0, 12)}…' : p.title,
+    };
     _adj = {};
     for (final e in g.edges) {
       _adj.putIfAbsent(e.src, () => []).add(e.dst);
@@ -128,23 +157,137 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
     _ticker.start();
   }
 
-  void _fit() {
-    if (_viewport == Size.zero) return;
-    final s = math.min(_viewport.width / _world.width,
-            _viewport.height / _world.height) *
-        0.95;
-    _tf.value = Matrix4.identity()
-      ..translateByDouble((_viewport.width - _world.width * s) / 2,
-          (_viewport.height - _world.height * s) / 2, 0, 1)
-      ..scaleByDouble(s, s, 1, 1);
+  // ---- view helpers ----
+
+  double get _scale => _view.getMaxScaleOnAxis();
+
+  void _setView(Matrix4 m) {
+    _view.setFrom(m);
+    setState(() => _viewVersion++);
   }
 
-  void _centerOn(SimNode n) {
+  Offset _screenToWorld(Offset p) => MatrixUtils.transformPoint(
+      Matrix4.inverted(_view), p);
+
+  void _fit() {
     if (_viewport == Size.zero) return;
-    final s = _tf.value.getMaxScaleOnAxis();
-    _tf.value = Matrix4.identity()
-      ..translateByDouble(_viewport.width / 2 - n.x * s, _viewport.height / 2 - n.y * s, 0, 1)
+    final s = math.max(
+        _minScale,
+        math.min(_viewport.width / _world.width, _viewport.height / _world.height) *
+            0.95);
+    final m = Matrix4.identity()
       ..scaleByDouble(s, s, 1, 1);
+    m.storage[12] = (_viewport.width - _world.width * s) / 2;
+    m.storage[13] = (_viewport.height - _world.height * s) / 2;
+    _setView(m);
+  }
+
+  void _centerOn(SimNode node) {
+    if (_viewport == Size.zero) return;
+    final s = _scale;
+    final m = Matrix4.identity()..scaleByDouble(s, s, 1, 1);
+    m.storage[12] = _viewport.width / 2 - node.x * s;
+    m.storage[13] = _viewport.height / 2 - node.y * s;
+    _setView(m);
+  }
+
+  /// Zoom around a screen-space anchor: view' = T(f) · S(k) · T(-f) · view.
+  Matrix4 _zoomed(Matrix4 base, Offset f, double k) {
+    final t = Matrix4.identity()
+      ..translateByDouble(f.dx, f.dy, 0, 1)
+      ..scaleByDouble(k, k, 1, 1)
+      ..translateByDouble(-f.dx, -f.dy, 0, 1);
+    t.multiply(base); // t = t·base — base maps world→screen, then the zoom
+    return t;
+  }
+
+  // ---- gestures ----
+
+  SimNode? _nodeAt(Offset screen) {
+    final w = _screenToWorld(screen);
+    final hitPad = 14 / _scale;
+    SimNode? best;
+    var bestD2 = double.infinity;
+    for (final n in _nodes) {
+      final dx = n.x - w.dx;
+      final dy = n.y - w.dy;
+      final d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        best = n;
+      }
+    }
+    if (best == null) return null;
+    final threshold = best.r - 5 + hitPad;
+    return bestD2 <= threshold * threshold ? best : null;
+  }
+
+  void _onScaleStart(ScaleStartDetails d) {
+    _viewAtGestureStart = _view.clone();
+    _gestureFocal = d.localFocalPoint;
+    _dragCandidate = _nodeAt(d.localFocalPoint);
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails d) {
+    final base = _viewAtGestureStart;
+    final focal0 = _gestureFocal;
+    if (base == null || focal0 == null) return;
+    final moved = (d.localFocalPoint - focal0).distance > 8;
+
+    // A second finger landing cancels a drag — pinch takes over.
+    if (d.pointerCount > 1 && _dragged != null) {
+      _endDrag();
+      _viewAtGestureStart = _view.clone();
+    }
+
+    if (_dragged == null && moved && d.pointerCount == 1 && _dragCandidate != null) {
+      // The gesture became a drag — pin + wake the sim only now.
+      _dragged = _dragCandidate;
+      _sim?.pinned = _dragged;
+      _sim?.reheat(0.25);
+      if (!_ticker.isActive) _ticker.start();
+    }
+
+    if (_dragged != null) {
+      final w = MatrixUtils.transformPoint(Matrix4.inverted(base), d.localFocalPoint);
+      _dragged!.x = w.dx;
+      _dragged!.y = w.dy;
+      _dragged!.vx = _dragged!.vy = 0;
+      if (!_ticker.isActive) _ticker.start();
+      setState(() {});
+      return;
+    }
+
+    // Pan + pinch, rebuilt from the gesture-start snapshot.
+    final s0 = base.getMaxScaleOnAxis();
+    final k = ((s0 * d.scale).clamp(_minScale, _maxScale)) / s0;
+    final m = _zoomed(base, focal0, k);
+    final pan = d.localFocalPoint - focal0;
+    m.storage[12] += pan.dx;
+    m.storage[13] += pan.dy;
+    _setView(m);
+  }
+
+  void _endDrag() {
+    _sim?.pinned = null;
+    _dragged = null;
+    _dragCandidate = null;
+  }
+
+  void _onScaleEnd(ScaleEndDetails d) {
+    _endDrag();
+    _viewAtGestureStart = null;
+    _gestureFocal = null;
+  }
+
+  void _tap(TapUpDetails d) {
+    // A tap only fires when the gesture arena resolved it as such (a
+    // node drag goes to the scale recognizer instead) — no extra
+    // movement guard needed, and the node is exactly where it looks:
+    // nothing reheated the sim during the touch.
+    final hit = _nodeAt(d.localPosition);
+    if (hit == null) return;
+    _select(hit.id);
   }
 
   void _select(String id) {
@@ -159,26 +302,6 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
     });
     final n = _nodes.where((n) => n.id == id).firstOrNull;
     if (n != null) _centerOn(n);
-  }
-
-  /// Tap coordinates arrive in the transformed (world) space — the
-  /// GestureDetector sits inside the viewer's child.
-  void _tap(TapUpDetails d) {
-    final scale = _tf.value.getMaxScaleOnAxis();
-    SimNode? best;
-    var bestD2 = double.infinity;
-    for (final n in _nodes) {
-      final dx = n.x - d.localPosition.dx;
-      final dy = n.y - d.localPosition.dy;
-      final d2 = dx * dx + dy * dy;
-      if (d2 < bestD2) {
-        bestD2 = d2;
-        best = n;
-      }
-    }
-    if (best == null) return;
-    final threshold = best.r - 5 + 14 / scale;
-    if (bestD2 <= threshold * threshold) _select(best.id);
   }
 
   @override
@@ -225,35 +348,27 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
       _viewport = constraints.biggest;
       return Stack(
         children: [
-          InteractiveViewer(
-            transformationController: _tf,
-            constrained: false,
-            boundaryMargin: const EdgeInsets.all(4000),
-            minScale: 0.08,
-            maxScale: 4,
-            child: SizedBox(
-              width: _world.width,
-              height: _world.height,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: _tap,
-                child: CustomPaint(
-                  painter: GraphPainter(
-                    nodes: _nodes,
-                    edgeIdx: _edges,
-                    typeOf: _typeOf,
-                    labelOf: {
-                      for (final e in _titleOf.entries)
-                        e.key:
-                            e.value.length > 12 ? '${e.value.substring(0, 12)}…' : e.value,
-                    },
-                    palette: palette,
-                    selected: _selected,
-                    neighbors: _neighbors,
-                    labels: _labels,
-                    labelStyle: TextStyle(fontSize: 12, color: palette.label),
-                    repaint: _tf,
-                  ),
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onScaleStart: _onScaleStart,
+              onScaleUpdate: _onScaleUpdate,
+              onScaleEnd: _onScaleEnd,
+              onTapUp: _tap,
+              child: CustomPaint(
+                painter: GraphPainter(
+                  nodes: _nodes,
+                  edgeIdx: _edges,
+                  typeOf: _typeOf,
+                  labelOf: _labelOf,
+                  labelCache: _labelCache,
+                  palette: palette,
+                  view: _view,
+                  viewVersion: _viewVersion,
+                  selected: _selected,
+                  neighbors: _neighbors,
+                  labels: _labels,
+                  labelStyle: TextStyle(fontSize: 12, color: palette.label),
                 ),
               ),
             ),
