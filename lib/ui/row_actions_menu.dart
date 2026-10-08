@@ -60,7 +60,7 @@ Future<void> showRowActionsMenu(BuildContext context, List<RowAction> actions) {
     elevation: 6,
     shape:
         const RoundedRectangleBorder(borderRadius: BorderRadius.all(AppRadius.card)),
-    popUpAnimationStyle: AnimationStyle(duration: const Duration(milliseconds: 160)),
+    popUpAnimationStyle: AnimationStyle(duration: AppMotion.entrance),
     items: [
       for (var i = 0; i < actions.length; i++)
         PopupMenuItem(

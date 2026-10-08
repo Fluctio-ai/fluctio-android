@@ -11,6 +11,7 @@ import 'agents/agent_settings_page.dart';
 import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/theme_mode.dart';
+import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import '../ui/settings_list.dart';
 
@@ -81,11 +82,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return Scaffold(
       appBar: AppBar(title: Text(l.navMe)),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.only(bottom: AppSpace.xxl),
         children: [
           // Profile header.
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(AppSpace.xl),
             color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
             child: Row(
               children: [

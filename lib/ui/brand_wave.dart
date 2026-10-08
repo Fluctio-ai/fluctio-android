@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../theme/tokens.dart';
+
 /// Brand waves (DESIGN.md §6, app take on the web logo-wave): three
 /// surge-cyan bands phase-shifted by a third of the cycle, drifting on a
 /// 3.9s loop — standing water never looks alive. Painted (not an asset),
@@ -19,7 +21,7 @@ class BrandWave extends StatefulWidget {
 
 class _BrandWaveState extends State<BrandWave> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 3900));
+      AnimationController(vsync: this, duration: AppMotion.brandWave);
 
   @override
   void dispose() {

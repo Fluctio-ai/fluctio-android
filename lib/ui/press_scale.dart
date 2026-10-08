@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/tokens.dart';
+
 /// DESIGN.md §4/§6: tactile push feedback — the wrapped control compresses
 /// to 0.98 while pressed and springs back in 120ms. A raw-pointer Listener
 /// drives it, so the child keeps its own gesture handling (InkWell taps,
@@ -26,7 +28,7 @@ class _TactileScaleState extends State<TactileScale> {
       onPointerCancel: (_) => setState(() => _down = false),
       child: AnimatedScale(
         scale: pressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 120),
+        duration: AppMotion.press,
         curve: Curves.easeOut,
         child: widget.child,
       ),

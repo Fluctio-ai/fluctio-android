@@ -176,3 +176,41 @@ abstract final class AppRadius {
   static final controlBorder = BorderRadius.all(control);
   static final cardBorder = BorderRadius.all(card);
 }
+
+/// Spacing ladder (px, tailwind-aligned 1/2/3/4/5/6): 4/8/12/16/20/24.
+/// New code takes EdgeInsets and gap SizedBoxes from here; legacy call
+/// sites migrate as they're touched — no big-bang sweep.
+abstract final class AppSpace {
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 20.0;
+  static const xxl = 24.0;
+}
+
+/// Motion tokens (DESIGN.md §6): two families only — one-shot Entrance
+/// and looping Flow — plus press feedback. Visual animations take
+/// durations/curves from here; timers, debounces and scroll-to runs
+/// stay literal (they are engineering, not motion design).
+abstract final class AppMotion {
+  /// Entrance — "fast, not flashy", real-time arrivals only.
+  static const entrance = Duration(milliseconds: 160);
+  static const entranceCurve = Cubic(0.16, 1, 0.3, 1); // expo-out
+
+  /// Press feedback (TactileScale).
+  static const press = Duration(milliseconds: 120);
+
+  /// Reduced-motion fallback: entrance degrades to a plain fade.
+  static const reducedFade = Duration(milliseconds: 120);
+
+  /// Flow — looping or staggered.
+  static const flowCurve = Cubic(0.45, 0, 0.25, 1);
+  static const typing = Duration(milliseconds: 1400);
+  static const stagger = Duration(milliseconds: 320);
+  static const staggerStep = Duration(milliseconds: 60);
+  static const brandWave = Duration(milliseconds: 3900);
+
+  /// Interaction physics — when springiness is needed.
+  static const spring = SpringDescription(mass: 1, stiffness: 100, damping: 20);
+}

@@ -26,7 +26,7 @@ class SystemSettingsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l.settingsCenter)),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: const EdgeInsets.only(bottom: AppSpace.xxl),
         children: [
           _group(context, l.settingsGeneral, LucideIcons.settings2,
               (_) => SystemBlobScreen(
@@ -56,7 +56,7 @@ class SystemSettingsPage extends ConsumerWidget {
 
   Widget _group(BuildContext context, String title, IconData icon, WidgetBuilder screen) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: AppSpace.md),
       child: SettingsGroup(
         children: [
           SettingsTile(
@@ -73,7 +73,7 @@ class SystemSettingsPage extends ConsumerWidget {
   Widget _advanced(BuildContext context, AppLocalizations l) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xl, AppSpace.lg, 0),
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         title: Text(l.settingsAdvanced,
@@ -134,7 +134,7 @@ class SystemBlobScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpace.lg),
         child: BlobEditor(
           load: () => repo.scopedGet(path),
           save: (blob) =>
@@ -258,8 +258,8 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                               subtitle: Text('${p['model'] ?? p['apiBase'] ?? ''}', maxLines: 1),
                               trailing: _testing == '${p['id']}'
                                   ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
+                                      width: AppSpace.lg,
+                                      height: AppSpace.lg,
                                       child: CircularProgressIndicator(strokeWidth: 2))
                                   : Row(
                                       mainAxisSize: MainAxisSize.min,
@@ -319,7 +319,7 @@ class _GenericListScreenState extends ConsumerState<GenericListScreen> {
           : _blob == null
               ? const SkeletonProse()
               : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpace.lg),
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: surfaceCardDecoration(theme.colorScheme),

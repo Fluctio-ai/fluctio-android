@@ -24,7 +24,7 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: padding ?? const EdgeInsets.fromLTRB(20, 20, 20, 6),
+      padding: padding ?? const EdgeInsets.fromLTRB(AppSpace.xl, AppSpace.xl, AppSpace.xl, 6),
       child: Row(
         children: [
           Expanded(
@@ -47,7 +47,7 @@ class SectionHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(LucideIcons.plus, size: 13),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: AppSpace.xs),
                     Text(action!, style: theme.textTheme.labelSmall),
                   ],
                 ),
@@ -71,7 +71,7 @@ class SettingsGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
       decoration: surfaceCardDecoration(scheme),
       child: Column(
         children: [
@@ -109,15 +109,15 @@ class SettingsTile extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: 14),
         child: Row(
           children: [
             Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 16),
+            const SizedBox(width: AppSpace.lg),
             Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             if (value != null)
               Padding(
-                padding: const EdgeInsets.only(left: 12),
+                padding: const EdgeInsets.only(left: AppSpace.md),
                 child: Text(
                   value!,
                   maxLines: 1,
@@ -126,7 +126,7 @@ class SettingsTile extends StatelessWidget {
                 ),
               ),
             if (trailing != null)
-              Padding(padding: const EdgeInsets.only(left: 4), child: trailing!),
+              Padding(padding: const EdgeInsets.only(left: AppSpace.xs), child: trailing!),
           ],
         ),
       ),

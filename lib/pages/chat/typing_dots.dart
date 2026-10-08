@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../theme/tokens.dart';
+
 /// DESIGN.md §4/§6: while a turn streams, feedback is the three-dot
 /// typing indicator — a 1.4s flow-easing loop. One dot hops at a time
 /// (user feedback: sequential hops replaced the web's phase-shifted
@@ -19,7 +21,7 @@ class TypingDots extends StatefulWidget {
 
 class _TypingDotsState extends State<TypingDots> with SingleTickerProviderStateMixin {
   late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
+      AnimationController(vsync: this, duration: AppMotion.typing);
 
   @override
   void dispose() {

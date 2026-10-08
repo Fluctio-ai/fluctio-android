@@ -211,11 +211,11 @@ class _MessageListState extends ConsumerState<MessageList> {
             ignoring: !_awayFromBottom,
             child: AnimatedScale(
               scale: _awayFromBottom ? 1 : 0,
-              duration: const Duration(milliseconds: 160),
+              duration: AppMotion.entrance,
               curve: Curves.easeOutCubic,
               child: AnimatedOpacity(
                 opacity: _awayFromBottom ? 1 : 0,
-                duration: const Duration(milliseconds: 160),
+                duration: AppMotion.entrance,
                 child: _JumpToLatest(
                   onTap: () {
                     if (_scroll.hasClients) {
@@ -341,7 +341,7 @@ class _EntryInState extends State<_EntryIn> {
     final reduceMotion = MediaQuery.of(context).disableAnimations;
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 160),
+      duration: AppMotion.entrance,
       curve: Curves.easeOutCubic,
       onEnd: () => _played = true,
       builder: (context, v, child) => Opacity(

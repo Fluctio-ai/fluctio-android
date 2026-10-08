@@ -105,6 +105,8 @@ amber 当数据色(amber 只属于 warning——chart 色环特意绕开它)。
 - **底部 5 tab**(对话/知识库/Wiki/工作流/设置),tab 图标 + 短标签;
   活动 tab 用 Surge Cyan,其余 neutral。
 - **触控目标 ≥ 44dp**,含行内 chip 与图标按钮。
+- **间距阶梯** 4/8/12/16/20/24(`AppSpace.xs`–`xxl`,对齐 tailwind 1–6):新代码的
+  EdgeInsets 与间隙只从阶梯取值,存量随触碰渐进迁移,不搞一次性大扫除。
 - **圆角一族一屏**:4px 只用于嵌套(卡片内的 chip/pill)、6px 控件、
   12px 卡片/菜单/弹层、16px 全屏容器。混族即错。
 - **无重叠、无绝对定位堆叠**:每个元素占自己的空间带,信息靠分组与留白
@@ -115,7 +117,10 @@ amber 当数据色(amber 只属于 warning——chart 色环特意绕开它)。
 
 ## 6. Motion & Interaction
 
-两个家族,参数精确,不发明第三个:
+两个家族,参数精确,不发明第三个。参数落码在 `AppMotion`(tokens.dart):
+entrance / press / reducedFade / stagger / staggerStep / typing / brandWave 时长,
+entranceCurve / flowCurve 曲线,spring 弹性。视觉动画只从这里取值;
+计时器、防抖、滚动归位是工程参数,不占用动效 token。
 
 - **Entrance(一次性入场)** — 160ms,`Cubic(0.16, 1, 0.3, 1)`(expo-out),
   translateY(4px) + 淡入。"快,不炫"。**只对实时到达的内容编排**:

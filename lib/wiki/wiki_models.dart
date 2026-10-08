@@ -1,5 +1,7 @@
 import 'dart:ui';
 
+import '../theme/tokens.dart';
+
 /// Wire models for the wiki surface (contract §8, handlers_wiki.go).
 /// Page ids come in two shapes — UUIDs and `page_type:slug` pairs (the
 /// form `[[wiki links]]` embed) — both resolve server-side, so the
@@ -91,9 +93,11 @@ class WikiGraphInfo {
       );
 }
 
-/// Node palette per brightness — mirrors the web engine's GraphTheme
-/// (wiki/page.tsx graphTheme): node fills share the chart-ring family,
-/// selection rides the surge-cyan brand axis.
+/// Node fills mirror the web graphTheme (wiki/page.tsx) bit-for-bit —
+/// a wiki-domain contract, NOT the tokens.dart chart ring. The two
+/// brand-axis colors (overview / selectedBorder) anchor to AppPalette
+/// so the cyan axis stays single-sourced; the rest stay literal on
+/// purpose.
 class WikiGraphPalette {
   const WikiGraphPalette._(
     this._typeColors,
@@ -103,33 +107,36 @@ class WikiGraphPalette {
     this.selectedBorder,
   );
 
-  factory WikiGraphPalette.of(Brightness brightness) => brightness == Brightness.dark
-      ? const WikiGraphPalette._(
-          {
-            'overview': Color(0xFF22D3EE),
-            'entity': Color(0xFF60A5FA),
-            'concept': Color(0xFF2DD4BF),
-            'source': Color(0xFFA78BFA),
-            'query': Color(0xFFFB7185),
-          },
-          Color(0xFF6B7280),
-          Color(0xFFE5E7EB),
-          Color(0xFF555555),
-          Color(0xFF22D3EE),
-        )
-      : const WikiGraphPalette._(
-          {
-            'overview': Color(0xFF0891B2),
-            'entity': Color(0xFF1D4ED8),
-            'concept': Color(0xFF0D9488),
-            'source': Color(0xFF7C3AED),
-            'query': Color(0xFFE11D48),
-          },
-          Color(0xFF6B7280),
-          Color(0xFF1F2937),
-          Color(0xFF9CA3AF),
-          Color(0xFF0E7490),
-        );
+  factory WikiGraphPalette.of(Brightness brightness) {
+    final p = brightness == Brightness.dark ? appPaletteDark : appPaletteLight;
+    return brightness == Brightness.dark
+        ? WikiGraphPalette._(
+            {
+              'overview': p.primary,
+              'entity': const Color(0xFF60A5FA),
+              'concept': const Color(0xFF2DD4BF),
+              'source': const Color(0xFFA78BFA),
+              'query': const Color(0xFFFB7185),
+            },
+            const Color(0xFF6B7280),
+            const Color(0xFFE5E7EB),
+            const Color(0xFF555555),
+            p.primary,
+          )
+        : WikiGraphPalette._(
+            {
+              'overview': p.chart1,
+              'entity': const Color(0xFF1D4ED8),
+              'concept': const Color(0xFF0D9488),
+              'source': const Color(0xFF7C3AED),
+              'query': const Color(0xFFE11D48),
+            },
+            const Color(0xFF6B7280),
+            const Color(0xFF1F2937),
+            const Color(0xFF9CA3AF),
+            p.primary,
+          );
+  }
 
   final Map<String, Color> _typeColors;
   final Color fallbackNode;

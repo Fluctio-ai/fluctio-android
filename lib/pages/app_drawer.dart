@@ -38,7 +38,7 @@ class AppDrawer extends ConsumerStatefulWidget {
 }
 
 class _AppDrawerState extends ConsumerState<AppDrawer> {
-  static const _sectionLabelPadding = EdgeInsets.fromLTRB(16, 12, 8, 4);
+  static const _sectionLabelPadding = EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.md, AppSpace.sm, AppSpace.xs);
 
   final Set<String> _expandedProjects = {};
 
@@ -68,11 +68,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
             Divider(height: 1, color: theme.colorScheme.outlineVariant),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: AppSpace.sm),
                 children: [
                   SectionHeader(l.drawerGroupAgent, padding: _sectionLabelPadding),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                    padding: const EdgeInsets.fromLTRB(AppSpace.md, AppSpace.xs, AppSpace.md, AppSpace.xs),
                     // Full-width tile — the workflow shortcut moved into
                     // the tools grid below (user layout request).
                     child: _ActionTile(
@@ -83,7 +83,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   ),
                   SectionHeader(l.navTools, padding: _sectionLabelPadding),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
                     child: _KbGrid(onTapNamed: _openKb),
                   ),
                   SectionHeader(l.navProjects, action: l.newProject, onAction: () => _createProject(context), padding: _sectionLabelPadding),
@@ -91,7 +91,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     data: (list) => [
                       if (list.isEmpty)
                         Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                          padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.lg, AppSpace.xs),
                           child: Text(l.noProjects,
                               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
                         ),
@@ -109,13 +109,13 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                           onDelete: () => _deleteProject(context, p),
                         ),
                     ],
-                    loading: () => const [Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: SkeletonList(itemCount: 3))],
+                    loading: () => const [Padding(padding: EdgeInsets.symmetric(horizontal: AppSpace.lg), child: SkeletonList(itemCount: 3))],
                     error: (_, _) => const [SizedBox.shrink()],
                   ),
                   SectionHeader(l.drawerChats, padding: _sectionLabelPadding),
                   if (loose.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                      padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.lg, AppSpace.xs),
                       child: Text(l.chatNoSessions,
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
                     ),
@@ -298,11 +298,11 @@ class _AgentHeader extends ConsumerWidget {
           PopupMenuItem(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis)),
       ],
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+        padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.lg, AppSpace.lg, AppSpace.md),
         child: Row(
           children: [
             const AgentAvatar(size: 44),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpace.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,7 +338,7 @@ class _ActionTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: AppRadius.controlBorder,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: AppSpace.md),
         decoration: BoxDecoration(
           borderRadius: AppRadius.controlBorder,
           border: Border.all(color: theme.colorScheme.outlineVariant),
@@ -395,7 +395,7 @@ class _KbGrid extends StatelessWidget {
     return Container(
       // Web nav-knowledge.tsx container (nav-tile.tsx): a rounded,
       // bordered, tinted box so the grid reads as one group.
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(AppSpace.xs),
       decoration: BoxDecoration(
         color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
         borderRadius: AppRadius.cardBorder,
@@ -484,7 +484,7 @@ class _ProjectRow extends StatelessWidget {
           visualDensity: VisualDensity.compact,
           // Right gutter narrowed — the ⋯ hugs the edge like the chat
           // rows below.
-          contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+          contentPadding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.sm, 0),
           leading: Icon(expanded ? LucideIcons.folderOpen : LucideIcons.folder, size: 18),
           title: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: RowMenuButton(
@@ -503,7 +503,7 @@ class _ProjectRow extends StatelessWidget {
         ),
         if (expanded)
           Padding(
-            padding: const EdgeInsets.only(left: 8),
+            padding: const EdgeInsets.only(left: AppSpace.sm),
             child: Column(
               children: [
                 for (final s in sessions)

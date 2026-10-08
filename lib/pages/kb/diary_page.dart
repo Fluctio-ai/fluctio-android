@@ -129,7 +129,7 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
                     _MonthNav(month: _month, onShift: _shiftMonth),
                     AnimatedSize(
                       duration: MediaQuery.disableAnimationsOf(context)
-                          ? const Duration(milliseconds: 120)
+                          ? AppMotion.reducedFade
                           : const Duration(milliseconds: 300),
                       curve: Curves.easeOutCubic,
                       alignment: Alignment.topCenter,

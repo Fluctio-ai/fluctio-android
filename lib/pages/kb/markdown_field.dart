@@ -149,7 +149,7 @@ class _MarkdownFieldState extends State<MarkdownField> {
             Text(l.editorIssues(_issues.length),
                 style: theme.textTheme.bodySmall?.copyWith(color: color)),
             const Spacer(),
-            const Icon(LucideIcons.chevronRight, size: 14, color: Colors.grey),
+            Icon(LucideIcons.chevronRight, size: 14, color: color),
           ],
         ),
       ),

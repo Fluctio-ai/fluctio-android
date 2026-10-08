@@ -1,13 +1,20 @@
 # UI 优化 · 设计决策
 
-> 版本：v1.1 · 2026-10-08 · 状态：一期（决策 1+2+3）已实施并通过验证
+> 版本：v1.2 · 2026-10-08 · 状态：三期全部实施完毕并通过验证
 >
 > 本文档是 fluctio Android 客户端 UI 优化的完整决策记录。每条决策按"原则 → 现状证据 → 动作 → 影响面"组织，证据均标注源码位置，可逐项复核。
 >
-> **一期实施记录（2026-10-08）**：
+> **一期实施记录（2026-10-08，commit 2aab083）**：
 > - 改动：`lib/theme/app_theme.dart`（AppBarTheme.titleTextStyle=17px）、新增 `lib/ui/settings_list.dart`（SectionHeader/SettingsGroup/SettingsTile）、收敛 `lib/pages/profile_page.dart` / `lib/pages/settings/system_settings_page.dart` / `lib/pages/app_drawer.dart`、`lib/pages/chat/message_list.dart` 通知条接 `paletteOf()`（warn=金 / info=青，底色为同色 10% tint）
 > - 验证：`flutter analyze` 0 error；`flutter test` 119/119 通过；真机（23113RKC6C / Android 16）改前改后截图对比 + 独立评审一轮：**通过**
-> - 证据：`docs/ui-optimization/before/` 7 张、`docs/ui-optimization/after/` 10 张（含 08 通知条 warn 金色实证、09 亮色模式、10 深色恢复）
+>
+> **二三期实施记录（2026-10-08）**：
+> - token 补层：`tokens.dart` 新增 `AppSpace`（4/8/12/16/20/24，对齐 tailwind）与 `AppMotion`（按 DESIGN.md §6 编码 entrance/press/reducedFade/stagger/staggerStep/typing/brandWave + 两条曲线 + spring），DESIGN.md §5/§6 已同步
+> - 动效归源 7 处（press_scale/typing_dots/brand_wave/row_actions_menu/message_list×3/chat_dashboard×2/diary reduced 分支）；计时器、防抖、滚动刻意保持字面量
+> - wiki 图谱色板：overview/selectedBorder 锚定 AppPalette（同值），其余 14 色确认是 web graphTheme 领域契约、注释写明"不是 chart 色环"
+> - 间距迁移：一期触碰的 4 个文件内 {4,8,12,16,20,24} 全部换 token（值不变）；三期清理 markdown_field `Colors.grey`→tone 色、wiki_graph `fontSize:12`→`AppType.caption`
+> - 验证：analyze 零新增；test 119/119；真机回归截图（`after/11-13`）与一期画面对齐，无回归
+> - 证据：`docs/ui-optimization/before/` 7 张、`docs/ui-optimization/after/` 13 张（含 08 通知条 warn 金色实证、09 亮色模式、10 深色恢复）
 
 ---
 
@@ -121,9 +128,11 @@ profile、system_settings、app_drawer 三处收敛到组件；图标色统一 `
 
 | 期 | 内容 | 性质 | 风险 | 状态 |
 |---|---|---|---|---|
-| 一期 | 决策一 + 二 + 三（顶栏、组件收敛、语义色） | 纯收敛，不改视觉风格 | 低 | ✅ 2026-10-08 完成 |
-| 二期 | 决策四（AppSpace、motion 档、wiki 色板归源） | token 增补 + 渐进迁移 | 低，量大但机械 | 待排期 |
-| 三期 | 零散清理（2 处单行硬编码） | 单行修改 | 极低 | 待排期 |
+| 一期 | 决策一 + 二 + 三（顶栏、组件收敛、语义色） | 纯收敛，不改视觉风格 | 低 | ✅ 完成（2aab083） |
+| 二期 | 决策四（AppSpace、AppMotion、wiki 色板归源） | token 增补 + 渐进迁移 | 低，值保持 | ✅ 完成（待提交） |
+| 三期 | 零散清理（2 处单行硬编码） | 单行修改 | 极低 | ✅ 完成（待提交） |
+
+三期全部完成。AppSpace 存量迁移按"随触碰"原则持续推进，不设终点。
 
 一期完成后即可看到全部可感知收益；二、三期是体系补完，可独立安排。
 

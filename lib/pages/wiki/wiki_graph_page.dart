@@ -368,7 +368,7 @@ class _WikiGraphPageState extends ConsumerState<WikiGraphPage>
                   selected: _selected,
                   neighbors: _neighbors,
                   labels: _labels,
-                  labelStyle: TextStyle(fontSize: 12, color: palette.label),
+                  labelStyle: TextStyle(fontSize: AppType.caption, color: palette.label),
                 ),
               ),
             ),

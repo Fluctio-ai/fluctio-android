@@ -185,7 +185,7 @@ class _DashInState extends State<_DashIn> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
+    Future.delayed(AppMotion.staggerStep * widget.index, () {
       if (mounted) _c.forward();
     });
   }
@@ -200,7 +200,7 @@ class _DashInState extends State<_DashIn> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final reduce = MediaQuery.disableAnimationsOf(context);
     _c.duration =
-        reduce ? const Duration(milliseconds: 120) : const Duration(milliseconds: 320);
+        reduce ? AppMotion.reducedFade : AppMotion.stagger;
     if (reduce) return FadeTransition(opacity: _c, child: widget.child);
     return AnimatedBuilder(
       animation: _c,
