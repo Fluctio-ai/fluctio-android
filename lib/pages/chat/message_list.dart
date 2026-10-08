@@ -725,6 +725,7 @@ class _NoticeChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
+    final palette = paletteOf(context);
     final label = switch (entry.kind) {
       NoticeKind.serverError => entry.text,
       NoticeKind.stopped => l.chatStopped,
@@ -735,15 +736,15 @@ class _NoticeChip extends StatelessWidget {
     };
     final (icon, color) = switch (entry.tone) {
       NoticeTone.error => (LucideIcons.circleAlert, theme.colorScheme.error),
-      NoticeTone.warn => (LucideIcons.triangleAlert, theme.colorScheme.outline),
-      NoticeTone.info => (LucideIcons.info, theme.colorScheme.outline),
+      NoticeTone.warn => (LucideIcons.triangleAlert, palette.warning),
+      NoticeTone.info => (LucideIcons.info, palette.info),
     };
     return Center(
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: theme.colorScheme.secondaryContainer,
+          color: color.withValues(alpha: 0.1),
           borderRadius: AppRadius.cardBorder,
         ),
         child: Row(
@@ -757,7 +758,7 @@ class _NoticeChip extends StatelessWidget {
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSecondaryContainer),
+                    ?.copyWith(color: color),
               ),
             ),
           ],

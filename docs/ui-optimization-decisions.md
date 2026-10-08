@@ -1,8 +1,13 @@
 # UI 优化 · 设计决策
 
-> 版本：v1 · 2026-10-08 · 状态：待评审（只读诊断已完成，未改任何代码）
+> 版本：v1.1 · 2026-10-08 · 状态：一期（决策 1+2+3）已实施并通过验证
 >
 > 本文档是 fluctio Android 客户端 UI 优化的完整决策记录。每条决策按"原则 → 现状证据 → 动作 → 影响面"组织，证据均标注源码位置，可逐项复核。
+>
+> **一期实施记录（2026-10-08）**：
+> - 改动：`lib/theme/app_theme.dart`（AppBarTheme.titleTextStyle=17px）、新增 `lib/ui/settings_list.dart`（SectionHeader/SettingsGroup/SettingsTile）、收敛 `lib/pages/profile_page.dart` / `lib/pages/settings/system_settings_page.dart` / `lib/pages/app_drawer.dart`、`lib/pages/chat/message_list.dart` 通知条接 `paletteOf()`（warn=金 / info=青，底色为同色 10% tint）
+> - 验证：`flutter analyze` 0 error；`flutter test` 119/119 通过；真机（23113RKC6C / Android 16）改前改后截图对比 + 独立评审一轮：**通过**
+> - 证据：`docs/ui-optimization/before/` 7 张、`docs/ui-optimization/after/` 10 张（含 08 通知条 warn 金色实证、09 亮色模式、10 深色恢复）
 
 ---
 
@@ -114,11 +119,11 @@ profile、system_settings、app_drawer 三处收敛到组件；图标色统一 `
 
 ## 4. 落地路线
 
-| 期 | 内容 | 性质 | 风险 | 预估量 |
+| 期 | 内容 | 性质 | 风险 | 状态 |
 |---|---|---|---|---|
-| 一期 | 决策一 + 二 + 三（顶栏、组件收敛、语义色） | 纯收敛，不改视觉风格 | 低，主要是回归确认 | ~6 文件改动 + 3 个新组件 |
-| 二期 | 决策四（AppSpace、motion 档、wiki 色板归源） | token 增补 + 渐进迁移 | 低，量大但机械 | tokens + wiki_models + 触碰页 |
-| 三期 | 零散清理（2 处单行硬编码） | 单行修改 | 极低 | 2 行 |
+| 一期 | 决策一 + 二 + 三（顶栏、组件收敛、语义色） | 纯收敛，不改视觉风格 | 低 | ✅ 2026-10-08 完成 |
+| 二期 | 决策四（AppSpace、motion 档、wiki 色板归源） | token 增补 + 渐进迁移 | 低，量大但机械 | 待排期 |
+| 三期 | 零散清理（2 处单行硬编码） | 单行修改 | 极低 | 待排期 |
 
 一期完成后即可看到全部可感知收益；二、三期是体系补完，可独立安排。
 

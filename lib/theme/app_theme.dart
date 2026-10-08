@@ -81,12 +81,21 @@ abstract final class AppTheme {
       // tracking). Roles sharing a step split by weight, not size.
       textTheme: _textTheme(),
       scaffoldBackgroundColor: colors.background,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         // Tight top-bar rhythm — the M3 defaults (leadingWidth 56,
         // titleSpacing 16) leave wide gutters between menu/back icon
-        // and title on a phone.
+        // and title on a phone. One title spec app-wide (design
+        // decision 1): the 17px title step. The M3 default (titleLarge,
+        // 22px) towers over a 15px body column; 22px stays reserved for
+        // display/headline surfaces (setup, empty states).
         titleSpacing: 8,
         leadingWidth: 48,
+        titleTextStyle: TextStyle(
+          fontSize: AppType.title,
+          fontWeight: FontWeight.w500,
+          height: 1.45,
+          color: colors.cardForeground,
+        ),
       ),
       splashFactory: InkSparkle.splashFactory,
       filledButtonTheme: FilledButtonThemeData(

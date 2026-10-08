@@ -10,6 +10,7 @@ import '../l10n/app_localizations.dart';
 import '../ui/form_editor_page.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
+import '../ui/settings_list.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import 'chat/panels.dart';
@@ -37,6 +38,8 @@ class AppDrawer extends ConsumerStatefulWidget {
 }
 
 class _AppDrawerState extends ConsumerState<AppDrawer> {
+  static const _sectionLabelPadding = EdgeInsets.fromLTRB(16, 12, 8, 4);
+
   final Set<String> _expandedProjects = {};
 
   @override
@@ -67,7 +70,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               child: ListView(
                 padding: const EdgeInsets.only(bottom: 8),
                 children: [
-                  _SectionLabel(l.drawerGroupAgent),
+                  SectionHeader(l.drawerGroupAgent, padding: _sectionLabelPadding),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                     // Full-width tile — the workflow shortcut moved into
@@ -78,12 +81,12 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                       onTap: () => _newChat(context),
                     ),
                   ),
-                  _SectionLabel(l.navTools),
+                  SectionHeader(l.navTools, padding: _sectionLabelPadding),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: _KbGrid(onTapNamed: _openKb),
                   ),
-                  _SectionLabel(l.navProjects, action: l.newProject, onAction: () => _createProject(context)),
+                  SectionHeader(l.navProjects, action: l.newProject, onAction: () => _createProject(context), padding: _sectionLabelPadding),
                   ...?projects?.when(
                     data: (list) => [
                       if (list.isEmpty)
@@ -109,7 +112,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     loading: () => const [Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: SkeletonList(itemCount: 3))],
                     error: (_, _) => const [SizedBox.shrink()],
                   ),
-                  _SectionLabel(l.drawerChats),
+                  SectionHeader(l.drawerChats, padding: _sectionLabelPadding),
                   if (loose.isEmpty)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
@@ -316,52 +319,6 @@ class _AgentHeader extends ConsumerWidget {
               Icon(LucideIcons.chevronsUpDown, size: 16, color: theme.colorScheme.outline),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text, {this.action, this.onAction});
-
-  final String text;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.outline,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          if (action != null)
-            InkWell(
-              onTap: onAction,
-              borderRadius: AppRadius.controlBorder,
-              child: Padding(
-                // ≥40px tall touch row around the small "＋ new" text.
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(LucideIcons.plus, size: 13),
-                    const SizedBox(width: 4),
-                    Text(action!, style: theme.textTheme.labelSmall),
-                  ],
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

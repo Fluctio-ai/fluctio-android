@@ -6,6 +6,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/form_editor_page.dart';
 import '../../ui/load_states.dart';
+import '../../ui/settings_list.dart';
 import '../../settings/json_form.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
@@ -54,15 +55,17 @@ class SystemSettingsPage extends ConsumerWidget {
   }
 
   Widget _group(BuildContext context, String title, IconData icon, WidgetBuilder screen) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      decoration: surfaceCardDecoration(theme.colorScheme),
-      child: ListTile(
-        leading: Icon(icon, size: 20, color: theme.colorScheme.primary),
-        title: Text(title),
-        trailing: const Icon(LucideIcons.chevronRight, size: 18),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: screen)),
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: SettingsGroup(
+        children: [
+          SettingsTile(
+            icon: icon,
+            label: title,
+            trailing: const Icon(LucideIcons.chevronRight, size: 18),
+            onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: screen)),
+          ),
+        ],
       ),
     );
   }
@@ -84,7 +87,7 @@ class SystemSettingsPage extends ConsumerWidget {
           ListTile(
             dense: true,
             contentPadding: EdgeInsets.zero,
-            leading: Icon(LucideIcons.bug, size: 18, color: theme.colorScheme.outline),
+            leading: Icon(LucideIcons.bug, size: 18, color: theme.colorScheme.primary),
             title: Text(l.settingsDiag, style: theme.textTheme.bodyMedium),
             trailing: const Icon(LucideIcons.chevronRight, size: 16),
             onTap: () =>
@@ -100,7 +103,7 @@ class SystemSettingsPage extends ConsumerWidget {
     return ListTile(
       dense: true,
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, size: 18, color: theme.colorScheme.outline),
+      leading: Icon(icon, size: 18, color: theme.colorScheme.primary),
       title: Text(title, style: theme.textTheme.bodyMedium),
       trailing: const Icon(LucideIcons.chevronRight, size: 16),
       onTap: () => Navigator.of(context).push(

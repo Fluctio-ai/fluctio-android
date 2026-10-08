@@ -12,7 +12,7 @@ import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/theme_mode.dart';
 import 'chat/chat_image.dart';
-import '../theme/tokens.dart';
+import '../ui/settings_list.dart';
 
 /// Me tab per the prototype: profile header + grouped settings. Absorbs
 /// the old settings page; agent management arrives with M3.
@@ -107,14 +107,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ),
           ),
-          _groupTitle(context, l.themeTitle),
-          _card(
-            context,
-            [
+          SectionHeader(l.themeTitle),
+          SettingsGroup(
+            children: [
               Consumer(builder: (context, ref, _) {
                 final mode = ref.watch(themeModeProvider);
-                return _item(
-                  context,
+                return SettingsTile(
                   icon: LucideIcons.palette,
                   label: l.themeTitle,
                   trailing: SegmentedButton<ThemeMode>(
@@ -135,19 +133,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               }),
             ],
           ),
-          _groupTitle(context, l.meAgents),
-          _card(
-            context,
-            [
-              _item(
-                context,
+          SectionHeader(l.meAgents),
+          SettingsGroup(
+            children: [
+              SettingsTile(
                 icon: LucideIcons.workflow,
                 label: l.navWorkflow,
                 onTap: () => context.push('/workflow'),
                 trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
-              _item(
-                context,
+              SettingsTile(
                 icon: LucideIcons.bot,
                 label: l.meAgentManage,
                 onTap: () => Navigator.of(context).push(
@@ -156,18 +151,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
             ],
           ),
-          _groupTitle(context, l.meGeneral),
-          _card(
-            context,
-            [
-              _item(
-                context,
+          SectionHeader(l.meGeneral),
+          SettingsGroup(
+            children: [
+              SettingsTile(
                 icon: LucideIcons.server,
                 label: l.currentServer,
                 value: auth.baseUrl,
               ),
-              _item(
-                context,
+              SettingsTile(
                 icon: LucideIcons.slidersHorizontal,
                 label: l.settingsCenter,
                 onTap: () => Navigator.of(context).push(
@@ -175,40 +167,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
               if (auth.allowSelfSigned)
-                _item(
-                  context,
+                SettingsTile(
                   icon: LucideIcons.shieldCheck,
                   label: l.allowSelfSigned,
                   trailing: Icon(LucideIcons.check,
                       size: 16, color: theme.colorScheme.primary),
                 ),
-              _item(
-                context,
+              SettingsTile(
                 icon: LucideIcons.arrowLeftRight,
                 label: l.switchServer,
                 onTap: () => ref.read(authControllerProvider.notifier).clearServer(),
                 trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
-              _item(
-                context,
+              SettingsTile(
                 icon: LucideIcons.logOut,
                 label: l.signOut,
                 onTap: () => _confirmSignOut(context, ref, l),
               ),
             ],
           ),
-          _groupTitle(context, l.meAbout),
-          _card(
-            context,
-            [
-              _item(
-                context,
+          SectionHeader(l.meAbout),
+          SettingsGroup(
+            children: [
+              SettingsTile(
                 icon: LucideIcons.info,
                 label: l.meVersion,
                 value: _version,
               ),
-              _item(
-                context,
+              SettingsTile(
                 icon: LucideIcons.download,
                 label: l.updateCheck,
                 onTap: _checkUpdate,
@@ -222,72 +208,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _groupTitle(BuildContext context, String text) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 6),
-      child: Text(
-        text,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: theme.colorScheme.outline,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _card(BuildContext context, List<Widget> children) {
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: surfaceCardDecoration(theme.colorScheme),
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 1, indent: 56, color: theme.colorScheme.outlineVariant),
-            children[i],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _item(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    String? value,
-    VoidCallback? onTap,
-    Widget? trailing,
-  }) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: theme.colorScheme.primary),
-            const SizedBox(width: 16),
-            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-            if (value != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-                ),
-              ),
-            if (trailing != null)
-              Padding(padding: const EdgeInsets.only(left: 4), child: trailing),
-          ],
-        ),
       ),
     );
   }
