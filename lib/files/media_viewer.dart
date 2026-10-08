@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_player/video_player.dart';
@@ -25,6 +27,15 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
   VideoPlayerController? _video;
   AudioPlayer? _audio;
   String? _error;
+  StreamSubscription<Duration>? _audioPosSub;
+  StreamSubscription<PlayerState>? _audioStateSub;
+  double _speed = 1.0;
+
+  /// While dragging the slider, stream position updates are ignored so the
+  /// thumb doesn't snap back mid-drag.
+  double? _dragValue;
+
+  static const _speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
 
   @override
   void initState() {
@@ -40,6 +51,8 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
           setState(() {
             c.play();
           });
+          // position/isPlaying live in controller.value; rebuild on tick.
+          c.addListener(_onTick);
         }
       }).catchError((e) {
         if (mounted) setState(() => _error = '$e');
@@ -52,6 +65,8 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
           setState(() {
             p.play();
           });
+          _audioPosSub = p.positionStream.listen((_) => _onTick());
+          _audioStateSub = p.playerStateStream.listen((_) => _onTick());
         }
       }).catchError((e) {
         if (mounted) setState(() => _error = '$e');
@@ -59,8 +74,14 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
     }
   }
 
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _audioPosSub?.cancel();
+    _audioStateSub?.cancel();
     _video?.dispose();
     _audio?.dispose();
     super.dispose();
@@ -153,17 +174,22 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: Slider(
-                  value: position.inMilliseconds
-                      .clamp(0, duration.inMilliseconds)
-                      .toDouble(),
+                  value: _dragValue ??
+                      position.inMilliseconds
+                          .clamp(0, duration.inMilliseconds)
+                          .toDouble(),
                   max: duration.inMilliseconds.toDouble(),
-                  onChanged: (v) {
+                  onChanged: (v) => setState(() => _dragValue = v),
+                  onChangeEnd: (v) {
+                    setState(() => _dragValue = null);
                     final target = Duration(milliseconds: v.toInt());
                     video?.seekTo(target);
                     audio?.seek(target);
                   },
                 ),
               ),
+              const SizedBox(width: 12),
+              _speedButton(theme),
             ],
           ),
           Text('${_fmt(position)} / ${_fmt(duration)}',
@@ -172,6 +198,35 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
       ),
     );
   }
+
+  /// Speed pill next to the slider — popup with common rates.
+  Widget _speedButton(ThemeData theme) {
+    return PopupMenuButton<double>(
+      initialValue: _speed,
+      onSelected: _applySpeed,
+      itemBuilder: (_) => [
+        for (final s in _speeds) PopupMenuItem(value: s, child: Text(_fmtSpeed(s))),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Text(_fmtSpeed(_speed),
+            style: theme.textTheme.labelMedium
+                ?.copyWith(color: theme.colorScheme.onSurface)),
+      ),
+    );
+  }
+
+  void _applySpeed(double s) {
+    setState(() => _speed = s);
+    _video?.setPlaybackSpeed(s);
+    _audio?.setSpeed(s);
+  }
+
+  String _fmtSpeed(double s) => '${s.toString().replaceAll(RegExp(r'\.0$'), '')}×';
 
   String _fmt(Duration d) =>
       d.inHours > 0 ? d.toString().split('.').first : d.toString().substring(2, 7);
