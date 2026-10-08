@@ -342,17 +342,17 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
       // 12 matches the ChevronListTile rhythm; the right edge sits at
       // 8 (user feedback: full-text rows shouldn't look boxed in).
       contentPadding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
-      // 36-wide leading + 6 gap ≈ the ChevronListTile rhythm (user
-      // feedback: 44-wide + 8 read as a wide gap around the checkbox);
-      // the 44px-tall hit box stays.
-      horizontalTitleGap: 6,
+      // 24-wide + 8 gap optically balances the gutters (user feedback:
+      // edge→glyph ≈ glyph→title — the 36-wide box parked dead space on
+      // the right); the 44px-tall hit box stays.
+      horizontalTitleGap: 8,
       leading: InkWell(
         onTap: () => _toggle(ref),
         // 44×44 hit target (ticket 14) — a bare 20px icon misses taps;
         // left-aligned so the glyph hugs the row edge, not the box's
         // center.
         child: SizedBox(
-          width: 36,
+          width: 24,
           height: 44,
           child: Align(
             alignment: Alignment.centerLeft,

@@ -82,7 +82,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: 'review', builder: (_, _) => const KbCardReviewPage()),
         ]),
         GoRoute(path: 'notes', builder: (_, _) => const KbNotesPage()),
-        GoRoute(path: 'diary', builder: (_, _) => const KbDiaryPage()),
+        // ?date= opens that diary day directly (card-source jumps).
+        GoRoute(
+          path: 'diary',
+          builder: (_, state) =>
+              KbDiaryPage(initialDate: state.uri.queryParameters['date']),
+        ),
       ]),
       // Native wiki module (list tabs → preview → graph); the old
       // WebView container kept only the workflow surface.

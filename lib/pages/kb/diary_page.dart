@@ -18,7 +18,10 @@ import '../../util/dates.dart';
 /// between the month's entries (nothing selected) and the selected
 /// day's content — never a page navigation, the calendar never moves.
 class KbDiaryPage extends ConsumerStatefulWidget {
-  const KbDiaryPage({super.key});
+  const KbDiaryPage({super.key, this.initialDate});
+
+  /// YYYY-MM-DD day to open directly (card-source jumps, ?date=).
+  final String? initialDate;
 
   @override
   ConsumerState<KbDiaryPage> createState() => _KbDiaryPageState();
@@ -41,19 +44,39 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
   /// cleared when the reader returns to the top or back to the list.
   bool _collapsed = false;
 
-  /// Fold/unfold driver for the day pane's scroll: a decisive upward
-  /// flick collapses; coming to rest at the top unfolds. The month list
-  /// (nothing selected) never folds — the calendar stays put there.
+  @override
+  void initState() {
+    super.initState();
+    // Deep-linked day (card-source jump): land on its month with it open.
+    final d = DateTime.tryParse('${widget.initialDate ?? ''}T00:00:00');
+    if (d != null) {
+      _month = DateTime(d.year, d.month, 1);
+      _genDate = _ymd(d);
+      _selected = _genDate;
+    }
+  }
+
+  /// Fold/unfold driver for the day pane's scroll: a downward read (finger
+  /// up) collapses once the gesture's accumulated travel passes a small
+  /// threshold — per-frame deltas never fire on a slow drag — and coming
+  /// to rest at the top unfolds. The month list (nothing selected) never
+  /// folds — the calendar stays put there.
+  double _readScroll = 0;
+
   bool _onDayPaneScroll(ScrollNotification n) {
     if (n.depth != 0 || _selected == null) return false;
-    if (n is ScrollUpdateNotification) {
-      if ((n.scrollDelta ?? 0) > 18 && !_collapsed) {
+    if (n is ScrollStartNotification) {
+      _readScroll = 0;
+    } else if (n is ScrollUpdateNotification) {
+      _readScroll += n.scrollDelta ?? 0;
+      if (_readScroll > 12 && !_collapsed) {
         setState(() => _collapsed = true);
       }
     } else if (n is ScrollEndNotification) {
       if (n.metrics.pixels <= 8 && _collapsed) {
         setState(() => _collapsed = false);
       }
+      _readScroll = 0;
     }
     return false;
   }

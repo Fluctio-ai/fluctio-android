@@ -19,8 +19,9 @@ import '../../ui/chevron_list_tile.dart';
 import '../../theme/tokens.dart';
 import '../../util/dates.dart';
 import '../../chat/markdown.dart';
+import 'card_source_link.dart';
 
-/// Cards dashboard: stats header, start-review CTA over the due queue,
+/// Cards dashboard: streak + review CTA on the title row, filter tabs,
 /// manual card creation.
 class KbCardsPage extends ConsumerStatefulWidget {
   const KbCardsPage({super.key});
@@ -151,8 +152,44 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
           title: Text(l.kbCards),
           // The stats numbers became filter tabs (user feedback): due /
           // active / mastered / archived with inline counts, evenly
-          // spread like the wiki tabs. Streak isn't a filter — it rides
-          // as a caption under the review CTA.
+          // spread like the wiki tabs. Streak isn't a filter — with the
+          // review CTA it rides the title row (user request), small,
+          // right of the title; the list starts right under the tabs.
+          actions: [
+            if (stats != null && stats.streakDays > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpace.sm),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.flame, size: 13, color: theme.colorScheme.tertiary),
+                    const SizedBox(width: 4),
+                    Text(l.dashCardsStreak(stats.streakDays),
+                        style: theme.textTheme.labelMedium
+                            ?.copyWith(color: theme.colorScheme.tertiary)),
+                  ],
+                ),
+              ),
+            if (_queueLength > 0)
+              Padding(
+                padding: const EdgeInsets.only(right: AppSpace.lg),
+                child: FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 44),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                    shape:
+                        RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
+                  ),
+                  onPressed: () async {
+                    await context.push('/kb/cards/review');
+                    _load();
+                  },
+                  icon: const Icon(LucideIcons.brain, size: 18),
+                  label: Text('${l.cardStart} ($_queueLength)'),
+                ),
+              ),
+          ],
           bottom: AdaptiveTabBar(
             onTap: (i) => _switchFilter(_filters[i]),
             tabs: [
@@ -171,116 +208,74 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
             ? ErrorPane(message: _error!)
             : stats == null
                 ? const SkeletonListView(itemCount: 5)
-                : Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                        child: _queueLength > 0
-                            ? FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: AppRadius.controlBorder),
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
-                                onPressed: () async {
-                                  await context.push('/kb/cards/review');
-                                  _load();
-                                },
-                                icon: const Icon(LucideIcons.brain, size: 18),
-                                label: Text('${l.cardStart} ($_queueLength)'),
-                              )
-                            : Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Center(
-                                  child: Text(
-                                    l.cardAllDone,
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(color: theme.colorScheme.outline),
-                                  ),
-                                ),
-                              ),
-                      ),
-                      if (stats.streakDays > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4, bottom: 4),
-                          child: Text(
-                            '${l.cardStreak} · ${stats.streakDays}',
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: theme.colorScheme.outline),
-                          ),
-                        ),
-                      Expanded(
-                        child: _cards.isEmpty
-                            ? EmptyState(icon: LucideIcons.layers, message: l.kbEmpty)
-                            // Card library filtered by the active tab
-                            // (GET /kb/cards?filter=).
-                            : ListView(
-                                // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
-                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                : _cards.isEmpty
+                    ? EmptyState(icon: LucideIcons.layers, message: l.kbEmpty)
+                    // Card library filtered by the active tab
+                    // (GET /kb/cards?filter=).
+                    : ListView(
+                        // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                        children: [
+                          for (final c in _cards)
+                            Slidable(
+                              key: ValueKey('card-${c.id}'),
+                              endActionPane: ActionPane(
+                                motion: const DrawerMotion(),
+                                extentRatio: 0.4,
                                 children: [
-                                  for (final c in _cards)
-                                    Slidable(
-                                      key: ValueKey('card-${c.id}'),
-                                      endActionPane: ActionPane(
-                                        motion: const DrawerMotion(),
-                                        extentRatio: 0.4,
-                                        children: [
-                                          SlidableAction(
-                                            onPressed: (_) => _archiveCard(c),
-                                            // Gold (warning) — distinct from the red
-                                            // delete block.
-                                            backgroundColor: paletteOf(context).warning,
-                                            foregroundColor: paletteOf(context).warningForeground,
-                                            icon: LucideIcons.archive,
-                                            label: l.kbArchive,
-                                          ),
-                                          SlidableAction(
-                                            onPressed: (_) => _deleteCard(c),
-                                            backgroundColor: theme.colorScheme.error,
-                                            foregroundColor: theme.colorScheme.onError,
-                                            icon: LucideIcons.trash2,
-                                            label: l.chatDelete,
-                                          ),
-                                        ],
-                                      ),
-                                      child: ChevronListTile(
-                                        padding: EdgeInsets.zero,
-                                        // Not dense — the 12px title read too small on
-                                        // device (user feedback); matches the wiki /
-                                        // article rows.
-                                        title: Text(c.question,
-                                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                                        subtitle: Text(c.answer,
-                                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                                        trailing: c.dueAt == null
-                                            ? null
-                                            : Text(formatShortDate(c.dueAt!.toLocal()),
-                                                style: theme.textTheme.labelSmall
-                                                    ?.copyWith(color: theme.colorScheme.outline)),
-                                        onTap: () => Navigator.of(context)
-                                            .push(MaterialPageRoute<void>(
-                                          builder: (_) => _CardViewPage(card: c),
-                                        )),
-                                        onLongPress: () => showRowActionsMenu(context, [
-                                          RowAction(
-                                            icon: LucideIcons.archive,
-                                            label: l.kbArchive,
-                                            onRun: () => _archiveCard(c),
-                                          ),
-                                          RowAction(
-                                            icon: LucideIcons.trash2,
-                                            label: l.chatDelete,
-                                            destructive: true,
-                                            onRun: () => _deleteCard(c),
-                                          ),
-                                        ]),
-                                      ),
-                                    ),
+                                  SlidableAction(
+                                    onPressed: (_) => _archiveCard(c),
+                                    // Gold (warning) — distinct from the red
+                                    // delete block.
+                                    backgroundColor: paletteOf(context).warning,
+                                    foregroundColor: paletteOf(context).warningForeground,
+                                    icon: LucideIcons.archive,
+                                    label: l.kbArchive,
+                                  ),
+                                  SlidableAction(
+                                    onPressed: (_) => _deleteCard(c),
+                                    backgroundColor: theme.colorScheme.error,
+                                    foregroundColor: theme.colorScheme.onError,
+                                    icon: LucideIcons.trash2,
+                                    label: l.chatDelete,
+                                  ),
                                 ],
                               ),
+                              child: ChevronListTile(
+                                padding: EdgeInsets.zero,
+                                // Not dense — the 12px title read too small on
+                                // device (user feedback); matches the wiki /
+                                // article rows.
+                                title: Text(c.question,
+                                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                                subtitle: Text(c.answer,
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                trailing: c.dueAt == null
+                                    ? null
+                                    : Text(formatShortDate(c.dueAt!.toLocal()),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(color: theme.colorScheme.outline)),
+                                onTap: () => Navigator.of(context)
+                                    .push(MaterialPageRoute<void>(
+                                  builder: (_) => _CardViewPage(card: c),
+                                )),
+                                onLongPress: () => showRowActionsMenu(context, [
+                                  RowAction(
+                                    icon: LucideIcons.archive,
+                                    label: l.kbArchive,
+                                    onRun: () => _archiveCard(c),
+                                  ),
+                                  RowAction(
+                                    icon: LucideIcons.trash2,
+                                    label: l.chatDelete,
+                                    destructive: true,
+                                    onRun: () => _deleteCard(c),
+                                  ),
+                                ]),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
       ),
     );
   }
@@ -328,7 +323,13 @@ class _CardViewPage extends StatelessWidget {
           // (manual cards have none).
           if (card.sourceExcerpt.isNotEmpty) ...[
             const SizedBox(height: 20),
-            section(l.cardSource, card.sourceExcerpt),
+            section(l.cardExcerpt, card.sourceExcerpt),
+          ],
+          // Origin jump — the diary day / wiki page this card came from.
+          if ((card.sourceType == 'diary' || card.sourceType == 'wiki') &&
+              card.sourceRef.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            CardSourceLink(sourceType: card.sourceType, sourceRef: card.sourceRef),
           ],
           const SizedBox(height: 24),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),

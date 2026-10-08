@@ -1232,6 +1232,30 @@ abstract class AppLocalizations {
   /// **'来源'**
   String get cardSource;
 
+  /// No description provided for @cardExcerpt.
+  ///
+  /// In zh, this message translates to:
+  /// **'原始内容'**
+  String get cardExcerpt;
+
+  /// No description provided for @cardExplanation.
+  ///
+  /// In zh, this message translates to:
+  /// **'解释'**
+  String get cardExplanation;
+
+  /// No description provided for @cardFromDiary.
+  ///
+  /// In zh, this message translates to:
+  /// **'来自 {date} 的日记'**
+  String cardFromDiary(Object date);
+
+  /// No description provided for @cardViewWiki.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看 Wiki 原文'**
+  String get cardViewWiki;
+
   /// No description provided for @cardDue.
   ///
   /// In zh, this message translates to:

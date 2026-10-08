@@ -94,10 +94,10 @@ class WikiGraphInfo {
 }
 
 /// Node fills mirror the web graphTheme (wiki/page.tsx) bit-for-bit —
-/// a wiki-domain contract, NOT the tokens.dart chart ring. The two
-/// brand-axis colors (overview / selectedBorder) anchor to AppPalette
-/// so the cyan axis stays single-sourced; the rest stay literal on
-/// purpose.
+/// a wiki-domain contract, NOT the tokens.dart chart ring. Values that
+/// ride the surge-cyan brand axis (selectedBorder, dark overview) anchor
+/// to AppPalette so the cyan stays single-sourced; the rest — including
+/// light overview, cyan-600 by the web contract — stay literal on purpose.
 class WikiGraphPalette {
   const WikiGraphPalette._(
     this._typeColors,
@@ -107,36 +107,38 @@ class WikiGraphPalette {
     this.selectedBorder,
   );
 
-  factory WikiGraphPalette.of(Brightness brightness) {
-    final p = brightness == Brightness.dark ? appPaletteDark : appPaletteLight;
-    return brightness == Brightness.dark
-        ? WikiGraphPalette._(
-            {
-              'overview': p.primary,
-              'entity': const Color(0xFF60A5FA),
-              'concept': const Color(0xFF2DD4BF),
-              'source': const Color(0xFFA78BFA),
-              'query': const Color(0xFFFB7185),
-            },
-            const Color(0xFF6B7280),
-            const Color(0xFFE5E7EB),
-            const Color(0xFF555555),
-            p.primary,
-          )
-        : WikiGraphPalette._(
-            {
-              'overview': p.chart1,
-              'entity': const Color(0xFF1D4ED8),
-              'concept': const Color(0xFF0D9488),
-              'source': const Color(0xFF7C3AED),
-              'query': const Color(0xFFE11D48),
-            },
-            const Color(0xFF6B7280),
-            const Color(0xFF1F2937),
-            const Color(0xFF9CA3AF),
-            p.primary,
-          );
-  }
+  factory WikiGraphPalette.of(Brightness brightness) =>
+      brightness == Brightness.dark ? _dark : _light;
+
+  // Built once, not per call — the graph page calls .of() inside build,
+  // which re-runs on every pan/zoom frame.
+  static final _dark = WikiGraphPalette._(
+    {
+      'overview': appPaletteDark.primary,
+      'entity': const Color(0xFF60A5FA),
+      'concept': const Color(0xFF2DD4BF),
+      'source': const Color(0xFFA78BFA),
+      'query': const Color(0xFFFB7185),
+    },
+    const Color(0xFF6B7280),
+    const Color(0xFFE5E7EB),
+    const Color(0xFF555555),
+    appPaletteDark.primary,
+  );
+
+  static final _light = WikiGraphPalette._(
+    {
+      'overview': const Color(0xFF0891B2),
+      'entity': const Color(0xFF1D4ED8),
+      'concept': const Color(0xFF0D9488),
+      'source': const Color(0xFF7C3AED),
+      'query': const Color(0xFFE11D48),
+    },
+    const Color(0xFF6B7280),
+    const Color(0xFF1F2937),
+    const Color(0xFF9CA3AF),
+    appPaletteLight.primary,
+  );
 
   final Map<String, Color> _typeColors;
   final Color fallbackNode;

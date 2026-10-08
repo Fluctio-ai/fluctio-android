@@ -587,6 +587,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cardSource => '来源';
 
   @override
+  String get cardExcerpt => '原始内容';
+
+  @override
+  String get cardExplanation => '解释';
+
+  @override
+  String cardFromDiary(Object date) {
+    return '来自 $date 的日记';
+  }
+
+  @override
+  String get cardViewWiki => '查看 Wiki 原文';
+
+  @override
   String get cardDue => '待复习';
 
   @override

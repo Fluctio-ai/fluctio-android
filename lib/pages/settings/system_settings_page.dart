@@ -258,8 +258,10 @@ class _ProvidersScreenState extends ConsumerState<ProvidersScreen> {
                               subtitle: Text('${p['model'] ?? p['apiBase'] ?? ''}', maxLines: 1),
                               trailing: _testing == '${p['id']}'
                                   ? const SizedBox(
-                                      width: AppSpace.lg,
-                                      height: AppSpace.lg,
+                                      // Component size, not spacing — the
+                                      // ladder owns EdgeInsets/gaps only.
+                                      width: 16,
+                                      height: 16,
                                       child: CircularProgressIndicator(strokeWidth: 2))
                                   : Row(
                                       mainAxisSize: MainAxisSize.min,

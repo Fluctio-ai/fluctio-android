@@ -594,6 +594,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cardSource => 'Source';
 
   @override
+  String get cardExcerpt => 'Original text';
+
+  @override
+  String get cardExplanation => 'Explanation';
+
+  @override
+  String cardFromDiary(Object date) {
+    return 'From the $date diary';
+  }
+
+  @override
+  String get cardViewWiki => 'View wiki page';
+
+  @override
   String get cardDue => 'Due';
 
   @override

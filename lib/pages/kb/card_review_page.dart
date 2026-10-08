@@ -8,6 +8,7 @@ import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../theme/tokens.dart';
+import 'card_source_link.dart';
 
 /// Spaced-repetition review session: flip-card over the due queue, one
 /// grade per card (forgot / fuzzy / remembered), ends with a summary.
@@ -143,61 +144,28 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: surfaceCardDecoration(theme.colorScheme),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          card.question,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
-                        ),
-                        if (_revealed) ...[
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Divider(),
+                    // Flip side swaps the centered question for the
+                    // three-segment reading column — 原始内容 / 解释 /
+                    // 来源 — top-aligned and scrollable (a long excerpt
+                    // must not clip inside the fixed card).
+                    child: _revealed
+                        ? SingleChildScrollView(child: _revealedBody(theme, l, card))
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                card.question,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 24),
+                                child: Text(l.cardTapToReveal,
+                                    style: theme.textTheme.labelSmall
+                                        ?.copyWith(color: theme.colorScheme.outline)),
+                              ),
+                            ],
                           ),
-                          Text(
-                            card.answer,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                                height: 1.6, color: theme.colorScheme.primary),
-                          ),
-                          // Origin excerpt once revealed — "where did this
-                          // card come from" aids recall; manual cards have
-                          // none.
-                          if (card.sourceExcerpt.isNotEmpty) ...[
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(LucideIcons.quote,
-                                    size: 12, color: theme.colorScheme.outline),
-                                const SizedBox(width: 4),
-                                Text(
-                                  l.cardSource,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                      color: theme.colorScheme.outline,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              card.sourceExcerpt,
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(height: 1.5, color: theme.colorScheme.outline),
-                            ),
-                          ],
-                        ] else
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24),
-                            child: Text(l.cardTapToReveal,
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: theme.colorScheme.outline)),
-                          ),
-                      ],
-                    ),
                   ),
                 ),
               ),
@@ -241,6 +209,48 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Flip side: the question echoed small at the top (what was asked),
+  /// then the three segments — 原始内容 (the origin excerpt), 解释 (the
+  /// answer), 来源 (jump to the diary day / wiki page). Manual cards
+  /// keep only the explanation segment.
+  Widget _revealedBody(ThemeData theme, AppLocalizations l, KbCard card) {
+    final outline = theme.colorScheme.outline;
+    Widget label(String text) => Text(text,
+        style: theme.textTheme.labelSmall
+            ?.copyWith(color: outline, fontWeight: FontWeight.w600));
+    Widget segment(String text, Widget body) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [label(text), const SizedBox(height: 6), body],
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(card.question,
+            style: theme.textTheme.bodySmall?.copyWith(color: outline)),
+        const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12), child: Divider()),
+        if (card.sourceExcerpt.isNotEmpty) ...[
+          segment(
+              l.cardExcerpt,
+              Text(card.sourceExcerpt,
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6))),
+          const SizedBox(height: 16),
+        ],
+        segment(
+            l.cardExplanation,
+            Text(card.answer,
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(height: 1.6, color: theme.colorScheme.primary))),
+        if ((card.sourceType == 'diary' || card.sourceType == 'wiki') &&
+            card.sourceRef.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          label(l.cardSource),
+          CardSourceLink(sourceType: card.sourceType, sourceRef: card.sourceRef),
+        ],
       ],
     );
   }
