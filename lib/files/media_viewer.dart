@@ -29,6 +29,11 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
   String? _error;
   StreamSubscription<Duration>? _audioPosSub;
   StreamSubscription<PlayerState>? _audioStateSub;
+
+  /// video_player: position advances inside value.position WITHOUT
+  /// notifyListeners (official VideoProgressIndicator polls with a
+  /// Timer too), so the video path needs a periodic tick.
+  Timer? _videoTick;
   double _speed = 1.0;
 
   /// While dragging the slider, stream position updates are ignored so the
@@ -51,8 +56,11 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
           setState(() {
             c.play();
           });
-          // position/isPlaying live in controller.value; rebuild on tick.
+          // position/isPlaying live in controller.value; events rebuild,
+          // and a timer keeps position moving during playback.
           c.addListener(_onTick);
+          _videoTick = Timer.periodic(
+              const Duration(milliseconds: 250), (_) => _onTick());
         }
       }).catchError((e) {
         if (mounted) setState(() => _error = '$e');
@@ -80,6 +88,7 @@ class _MediaViewerPageState extends State<MediaViewerPage> {
 
   @override
   void dispose() {
+    _videoTick?.cancel();
     _audioPosSub?.cancel();
     _audioStateSub?.cancel();
     _video?.dispose();
