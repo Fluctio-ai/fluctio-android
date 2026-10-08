@@ -57,6 +57,10 @@ class SessionTile extends ConsumerWidget {
         session.title.isEmpty ? l.chatNew : session.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        // Same size as the transcript body (web runs sidebar text-sm 14
+        // next to chat-md 13.5) — the dense ListTile default ran ~2px
+        // smaller and the sidebar read disconnected from the chat.
+        style: const TextStyle(fontSize: AppType.transcript),
       ),
       subtitle: switch ((session.preview, time)) {
         ('', '') => null,

@@ -156,6 +156,13 @@ abstract final class AppType {
   static const docH2 = 18.0;
   static const docH3 = 16.0;
   static const docH5 = 14.0;
+
+  /// Chat transcript scale (web chat-markdown.tsx `chat-md
+  /// text-[13.5px]`, headings capped at 15/14 and descending into the
+  /// body) — one notch under the doc ladder the KB/wiki readers keep.
+  static const transcript = 13.5;
+  static const chatH1 = 15.0;
+  static const chatH2 = 14.0;
 }
 
 /// Radius families pinned like the web (globals.css @theme): 4px nested,

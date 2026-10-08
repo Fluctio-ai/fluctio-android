@@ -556,7 +556,7 @@ class _AssistantBubble extends ConsumerWidget {
               ),
               border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
-            child: transcriptMarkdown(
+            child: chatTranscript(
               context,
               entry.text,
               onTapLink: (href) {

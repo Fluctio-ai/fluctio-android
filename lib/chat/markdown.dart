@@ -112,3 +112,37 @@ GptMarkdown transcriptMarkdown(
     style: config.style,
   );
 }
+
+/// Chat-bubble variant: the web's chat-md scale (chat-markdown.tsx) —
+/// body 13.5 with headings capped at 15/14 — while KB/wiki readers
+/// keep the doc ladder from the global theme.
+Widget chatTranscript(
+  BuildContext context,
+  String data, {
+  void Function(String href)? onTapLink,
+  ImageBuilder? imageBuilder,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  TextStyle heading(double size, FontWeight weight, double? height) => TextStyle(
+      fontSize: size, fontWeight: weight, height: height, color: scheme.onSurface);
+  final config = markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder);
+  return GptMarkdownTheme(
+    gptThemeData: GptMarkdownTheme.of(context).copyWith(
+      h1: heading(AppType.chatH1, FontWeight.w600, 1.4),
+      h2: heading(AppType.chatH2, FontWeight.w600, 1.4),
+      h3: heading(AppType.transcript, FontWeight.w600, 1.45),
+      h4: heading(AppType.transcript, FontWeight.w600, null),
+      h5: heading(AppType.transcript, FontWeight.w600, null),
+      h6: heading(AppType.transcript, FontWeight.w500, null),
+    ),
+    child: GptMarkdown(
+      data,
+      useDollarSignsForLatex: true,
+      onLinkTap: config.onLinkTap,
+      imageBuilder: config.imageBuilder,
+      latexWorkaround: config.latexWorkaround,
+      blockComponents: config.blockComponents,
+      style: config.style?.copyWith(fontSize: AppType.transcript),
+    ),
+  );
+}
