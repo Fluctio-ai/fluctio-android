@@ -7,6 +7,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../ui/labeled_section.dart';
 import '../../theme/tokens.dart';
 import 'card_source_link.dart';
 
@@ -219,13 +220,6 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
   /// keep only the explanation segment.
   Widget _revealedBody(ThemeData theme, AppLocalizations l, KbCard card) {
     final outline = theme.colorScheme.outline;
-    Widget label(String text) => Text(text,
-        style: theme.textTheme.labelSmall
-            ?.copyWith(color: outline, fontWeight: FontWeight.w600));
-    Widget segment(String text, Widget body) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [label(text), const SizedBox(height: 6), body],
-        );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -234,22 +228,23 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
         const Padding(
             padding: EdgeInsets.symmetric(vertical: 12), child: Divider()),
         if (card.sourceExcerpt.isNotEmpty) ...[
-          segment(
-              l.cardExcerpt,
-              Text(card.sourceExcerpt,
+          LabeledSection(
+              label: l.cardExcerpt,
+              child: Text(card.sourceExcerpt,
                   style: theme.textTheme.bodyMedium?.copyWith(height: 1.6))),
           const SizedBox(height: 16),
         ],
-        segment(
-            l.cardExplanation,
-            Text(card.answer,
+        LabeledSection(
+            label: l.cardExplanation,
+            child: Text(card.answer,
                 style: theme.textTheme.bodyLarge
                     ?.copyWith(height: 1.6, color: theme.colorScheme.primary))),
-        if ((card.sourceType == 'diary' || card.sourceType == 'wiki') &&
-            card.sourceRef.isNotEmpty) ...[
+        if (CardSourceLink.navigable(card.sourceType, card.sourceRef)) ...[
           const SizedBox(height: 16),
-          label(l.cardSource),
-          CardSourceLink(sourceType: card.sourceType, sourceRef: card.sourceRef),
+          LabeledSection(
+              label: l.cardSource,
+              child: CardSourceLink(
+                  sourceType: card.sourceType, sourceRef: card.sourceRef)),
         ],
       ],
     );

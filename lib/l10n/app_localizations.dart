@@ -1172,6 +1172,30 @@ abstract class AppLocalizations {
   /// **'外观'**
   String get themeTitle;
 
+  /// No description provided for @fontSizeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'字体大小'**
+  String get fontSizeTitle;
+
+  /// No description provided for @fontSmall.
+  ///
+  /// In zh, this message translates to:
+  /// **'小'**
+  String get fontSmall;
+
+  /// No description provided for @fontMedium.
+  ///
+  /// In zh, this message translates to:
+  /// **'中'**
+  String get fontMedium;
+
+  /// No description provided for @fontLarge.
+  ///
+  /// In zh, this message translates to:
+  /// **'大'**
+  String get fontLarge;
+
   /// No description provided for @themeSystem.
   ///
   /// In zh, this message translates to:
@@ -1231,6 +1255,102 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'来源'**
   String get cardSource;
+
+  /// No description provided for @shareTargetTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享到'**
+  String get shareTargetTitle;
+
+  /// No description provided for @shareToNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'存为笔记'**
+  String get shareToNote;
+
+  /// No description provided for @shareToNoteHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'全文存入知识库笔记'**
+  String get shareToNoteHint;
+
+  /// No description provided for @shareToChat.
+  ///
+  /// In zh, this message translates to:
+  /// **'发送到对话'**
+  String get shareToChat;
+
+  /// No description provided for @shareToChatHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'新对话或选择会话'**
+  String get shareToChatHint;
+
+  /// No description provided for @shareToArticle.
+  ///
+  /// In zh, this message translates to:
+  /// **'存为文章'**
+  String get shareToArticle;
+
+  /// No description provided for @shareToArticleHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'抓取原文入库'**
+  String get shareToArticleHint;
+
+  /// No description provided for @shareToBookmark.
+  ///
+  /// In zh, this message translates to:
+  /// **'存为书签'**
+  String get shareToBookmark;
+
+  /// No description provided for @shareToBookmarkHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存链接到书签'**
+  String get shareToBookmarkHint;
+
+  /// No description provided for @shareText.
+  ///
+  /// In zh, this message translates to:
+  /// **'文本'**
+  String get shareText;
+
+  /// No description provided for @shareLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'链接'**
+  String get shareLink;
+
+  /// No description provided for @shareFiles.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 个文件'**
+  String shareFiles(Object n);
+
+  /// No description provided for @shareArticleDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已入库为文章，稍后可在知识库查看'**
+  String get shareArticleDone;
+
+  /// No description provided for @shareNoteDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已存为笔记'**
+  String get shareNoteDone;
+
+  /// No description provided for @shareBookmarkDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已加入书签'**
+  String get shareBookmarkDone;
+
+  /// No description provided for @shareImages.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 张图片'**
+  String shareImages(Object n);
 
   /// No description provided for @cardExcerpt.
   ///
@@ -1292,23 +1412,11 @@ abstract class AppLocalizations {
   /// **'失败 {count} 次'**
   String cardLapseCount(Object count);
 
-  /// No description provided for @cardStreak.
-  ///
-  /// In zh, this message translates to:
-  /// **'连续天数'**
-  String get cardStreak;
-
   /// No description provided for @cardStart.
   ///
   /// In zh, this message translates to:
   /// **'开始复习'**
   String get cardStart;
-
-  /// No description provided for @cardAllDone.
-  ///
-  /// In zh, this message translates to:
-  /// **'今日复习已清空'**
-  String get cardAllDone;
 
   /// No description provided for @cardReview.
   ///

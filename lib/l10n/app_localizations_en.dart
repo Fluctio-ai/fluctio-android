@@ -564,6 +564,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeTitle => 'Appearance';
 
   @override
+  String get fontSizeTitle => 'Font size';
+
+  @override
+  String get fontSmall => 'Small';
+
+  @override
+  String get fontMedium => 'Medium';
+
+  @override
+  String get fontLarge => 'Large';
+
+  @override
   String get themeSystem => 'System';
 
   @override
@@ -592,6 +604,59 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cardSource => 'Source';
+
+  @override
+  String get shareTargetTitle => 'Share to';
+
+  @override
+  String get shareToNote => 'Save as note';
+
+  @override
+  String get shareToNoteHint => 'Full text into a KB note';
+
+  @override
+  String get shareToChat => 'Send to chat';
+
+  @override
+  String get shareToChatHint => 'New or existing conversation';
+
+  @override
+  String get shareToArticle => 'Save as article';
+
+  @override
+  String get shareToArticleHint => 'Fetch & ingest the page';
+
+  @override
+  String get shareToBookmark => 'Save as bookmark';
+
+  @override
+  String get shareToBookmarkHint => 'Save the link to bookmarks';
+
+  @override
+  String get shareText => 'Text';
+
+  @override
+  String get shareLink => 'Link';
+
+  @override
+  String shareFiles(Object n) {
+    return '$n files';
+  }
+
+  @override
+  String get shareArticleDone =>
+      'Saved as an article — see it in the knowledge base';
+
+  @override
+  String get shareNoteDone => 'Note saved';
+
+  @override
+  String get shareBookmarkDone => 'Bookmark added';
+
+  @override
+  String shareImages(Object n) {
+    return '$n images';
+  }
 
   @override
   String get cardExcerpt => 'Original text';
@@ -630,13 +695,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get cardStreak => 'Streak';
-
-  @override
   String get cardStart => 'Start review';
-
-  @override
-  String get cardAllDone => 'Today\'s review is clear';
 
   @override
   String get cardReview => 'Card review';

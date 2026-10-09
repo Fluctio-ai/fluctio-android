@@ -17,6 +17,7 @@ import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../theme/tokens.dart';
+import '../../ui/labeled_section.dart';
 import '../../util/dates.dart';
 import '../../chat/markdown.dart';
 import 'card_source_link.dart';
@@ -300,15 +301,9 @@ class _CardViewPage extends StatelessWidget {
       'archived' => l.cardArchived,
       _ => l.cardActive,
     };
-    Widget section(String label, String body) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.outline, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            transcriptMarkdown(context, body),
-          ],
+    Widget section(String label, String body) => LabeledSection(
+          label: label,
+          child: transcriptMarkdown(context, body),
         );
     return Scaffold(
       appBar: AppBar(
@@ -326,8 +321,7 @@ class _CardViewPage extends StatelessWidget {
             section(l.cardExcerpt, card.sourceExcerpt),
           ],
           // Origin jump — the diary day / wiki page this card came from.
-          if ((card.sourceType == 'diary' || card.sourceType == 'wiki') &&
-              card.sourceRef.isNotEmpty) ...[
+          if (CardSourceLink.navigable(card.sourceType, card.sourceRef)) ...[
             const SizedBox(height: 20),
             CardSourceLink(sourceType: card.sourceType, sourceRef: card.sourceRef),
           ],

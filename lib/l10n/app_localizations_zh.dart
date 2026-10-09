@@ -557,6 +557,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeTitle => '外观';
 
   @override
+  String get fontSizeTitle => '字体大小';
+
+  @override
+  String get fontSmall => '小';
+
+  @override
+  String get fontMedium => '中';
+
+  @override
+  String get fontLarge => '大';
+
+  @override
   String get themeSystem => '跟随系统';
 
   @override
@@ -585,6 +597,58 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cardSource => '来源';
+
+  @override
+  String get shareTargetTitle => '分享到';
+
+  @override
+  String get shareToNote => '存为笔记';
+
+  @override
+  String get shareToNoteHint => '全文存入知识库笔记';
+
+  @override
+  String get shareToChat => '发送到对话';
+
+  @override
+  String get shareToChatHint => '新对话或选择会话';
+
+  @override
+  String get shareToArticle => '存为文章';
+
+  @override
+  String get shareToArticleHint => '抓取原文入库';
+
+  @override
+  String get shareToBookmark => '存为书签';
+
+  @override
+  String get shareToBookmarkHint => '保存链接到书签';
+
+  @override
+  String get shareText => '文本';
+
+  @override
+  String get shareLink => '链接';
+
+  @override
+  String shareFiles(Object n) {
+    return '$n 个文件';
+  }
+
+  @override
+  String get shareArticleDone => '已入库为文章，稍后可在知识库查看';
+
+  @override
+  String get shareNoteDone => '已存为笔记';
+
+  @override
+  String get shareBookmarkDone => '已加入书签';
+
+  @override
+  String shareImages(Object n) {
+    return '$n 张图片';
+  }
 
   @override
   String get cardExcerpt => '原始内容';
@@ -623,13 +687,7 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get cardStreak => '连续天数';
-
-  @override
   String get cardStart => '开始复习';
-
-  @override
-  String get cardAllDone => '今日复习已清空';
 
   @override
   String get cardReview => '卡片复习';

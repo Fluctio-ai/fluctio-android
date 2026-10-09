@@ -48,7 +48,8 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
   void initState() {
     super.initState();
     // Deep-linked day (card-source jump): land on its month with it open.
-    final d = DateTime.tryParse('${widget.initialDate ?? ''}T00:00:00');
+    final initial = widget.initialDate;
+    final d = initial == null ? null : DateTime.tryParse('${initial}T00:00:00');
     if (d != null) {
       _month = DateTime(d.year, d.month, 1);
       _genDate = _ymd(d);

@@ -15,9 +15,14 @@ class CardSourceLink extends StatelessWidget {
   final String sourceType;
   final String sourceRef;
 
+  /// The one place that knows which sources can deep-link — call sites
+  /// gate their surrounding spacers/headers on the same predicate.
+  static bool navigable(String sourceType, String sourceRef) =>
+      (sourceType == 'diary' || sourceType == 'wiki') && sourceRef.isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
-    if (sourceRef.isEmpty || (sourceType != 'diary' && sourceType != 'wiki')) {
+    if (!navigable(sourceType, sourceRef)) {
       return const SizedBox.shrink();
     }
     final l = AppLocalizations.of(context)!;
