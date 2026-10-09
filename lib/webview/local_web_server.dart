@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -133,7 +132,7 @@ class LocalWebServer {
         headers: {
           if (_cookie != null && _cookie!.isNotEmpty)
             'cookie': 'fluctio_session=$_cookie',
-          if (ct != null) HttpHeaders.contentTypeHeader: ct,
+          HttpHeaders.contentTypeHeader: ?ct,
         },
       ),
     );
