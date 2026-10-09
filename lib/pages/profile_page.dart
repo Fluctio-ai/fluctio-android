@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:go_router/go_router.dart';
 
 import '../auth/auth_controller.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../update/update_service.dart';
 import 'agents/agent_settings_page.dart';
-import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/font_scale.dart';
 import '../theme/theme_mode.dart';
@@ -148,12 +146,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           SettingsGroup(
             children: [
               SettingsTile(
-                icon: LucideIcons.workflow,
-                label: l.navWorkflow,
-                onTap: () => context.push('/workflow'),
-                trailing: const Icon(LucideIcons.chevronRight, size: 18),
-              ),
-              SettingsTile(
                 icon: LucideIcons.bot,
                 label: l.meAgentManage,
                 onTap: () => Navigator.of(context).push(
@@ -169,13 +161,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 icon: LucideIcons.server,
                 label: l.currentServer,
                 value: auth.baseUrl,
-              ),
-              SettingsTile(
-                icon: LucideIcons.slidersHorizontal,
-                label: l.settingsCenter,
-                onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const SystemSettingsPage())),
-                trailing: const Icon(LucideIcons.chevronRight, size: 18),
               ),
               if (auth.allowSelfSigned)
                 SettingsTile(

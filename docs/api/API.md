@@ -136,7 +136,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 | 端点 | 说明 |
 |---|---|
 | `GET /api/agents` / `POST /api/agents` | 列表（`?all=true` 仅管理员）/ 创建。列表响应 `{"agents":[{id,name,description,model,avatarUrl,createdAt,userId,role}]}`（`handlers_agents.go:256`） |
-| `GET/PUT/DELETE /api/agents/{id}` | 配置读/写/删（model/provider/promptMode/thinking 等） |
+| `GET/PUT/DELETE /api/agents/{id}` | 配置读/写/删（name/description/promptMode/guidance/mcpServers/kb/…）。**模型覆盖 = `"<provider名>/<模型id>"` 字符串**，写入 agent 作用域 `agents.defaults` 行（`handlers_agents.go:620`）；provider 段即 provider 行 `name`，后端按首个 `/` 前缀反查（`provider_models.go:64`、`scope.go:83`）；`""` 清除覆盖、回落系统默认（`handlers_agents.go:620-627`）。没有独立的 provider 字段 |
 | `GET /api/agents/{id}/config` | 配置视图 |
 | `GET /api/agents/{id}/tools/registered` | 活跃工具注册表（Tools 页勾选） |
 | recall 系 | `GET/PUT .../recall-tuning`、`GET .../recall-events`、`POST .../recall-test` |
@@ -145,7 +145,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 | system-files | `GET/PUT/DELETE .../system-files/{name}` |
 | 频道绑定 | `GET .../channels` + 各 IM 的 connect/status/retry/disconnect |
 | usage | `GET .../usage`、`GET /api/usage`（管理员） |
-| 模型 | `GET /api/models/builtin`、`POST /api/models/fetch`、`POST .../models/fetch` |
+| 模型 | `GET /api/models/builtin` → 对象 `{modelId:{contextWindow,maxTokens}}`（`handlers.go:709`，**不是数组**）；`POST /api/models/fetch`（global 表单）；`POST /api/agents/{id}/models/fetch` → `[{id,contextWindow,maxTokens}]`，上游不可达/不支持 501（`handlers.go:723`） |
 | 上下文 | `GET .../compaction/preview` |
 
 ## 7. 知识库（KB）
@@ -219,7 +219,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 ## 9. 设置面（system settings）
 
 - `GET/POST /api/config` — 用户级系统设置（providers/channels scope 内）
-- providers：`/api/providers` CRUD + `/{id}/test`
+- providers：`/api/providers` CRUD + `/{id}/test`。列表行 `{id,scope,scopeId,name,apiBase,apiKey(打码),apiType,authType,models:[{id,name,contextWindow,maxTokens,…}],updatedAt}`（`handlers_scoped.go:161`）；`models[]` 即该 provider 的预设模型清单（`config.go:448` ModelEntry）
 - scoped-channels：`/api/scoped-channels` CRUD
 - memory/向量化/隐私：`/api/memory/test-embedding|test-reranker`、`.../memory`、`.../vectorization`、`/api/vectorization`、`.../privacy`、`/api/privacy`
 - 备份：`/api/backup` 系列（get/update/list/now/download/delete）

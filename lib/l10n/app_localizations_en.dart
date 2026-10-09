@@ -806,6 +806,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabModel => 'Model';
 
   @override
+  String get settingsProvider => 'Provider';
+
+  @override
+  String get settingsModelInherit => 'Follow system default';
+
+  @override
   String get tabCustomizeHint => 'Toggles take effect once saved';
 
   @override

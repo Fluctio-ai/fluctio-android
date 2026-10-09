@@ -266,6 +266,8 @@
   "tabName": "名称",
   "tabDescription": "描述",
   "tabModel": "模型",
+  "settingsProvider": "服务商",
+  "settingsModelInherit": "跟随系统默认",
   "tabCustomizeHint": "开关保存后立即生效",
   "settingsSave": "保存",
   "settingsReload": "重载",

@@ -28,8 +28,13 @@ class SettingsRepo {
   Future<List<String>> builtinModels() async {
     final data = (await _dio.get('/api/models/builtin')).data;
     if (data is List) return data.whereType<String>().toList();
-    if (data is Map && data['models'] is List) {
-      return (data['models'] as List).whereType<String>().toList();
+    // The endpoint answers an object keyed by model id —
+    // {modelId: {contextWindow, maxTokens}} (handlers.go:709), not a list.
+    if (data is Map) {
+      if (data['models'] is List) {
+        return (data['models'] as List).whereType<String>().toList();
+      }
+      return data.keys.whereType<String>().toList();
     }
     return [];
   }

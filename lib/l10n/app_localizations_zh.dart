@@ -798,6 +798,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tabModel => '模型';
 
   @override
+  String get settingsProvider => '服务商';
+
+  @override
+  String get settingsModelInherit => '跟随系统默认';
+
+  @override
   String get tabCustomizeHint => '开关保存后立即生效';
 
   @override

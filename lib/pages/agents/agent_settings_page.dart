@@ -54,8 +54,11 @@ class _TabDef {
   final String Function(AppLocalizations l) labelKey;
 }
 
-/// Full-screen agent settings with a horizontally scrolling tab strip —
-/// the mobile shape of the web's 15-tab dialog (ticket 08).
+/// Agent settings, trimmed to what a phone should do: switch the agent's
+/// model (server presets only) and manage MCP / skills / plugins / regex /
+/// scheduled jobs. The rest of the web's 15-tab dialog (context, tools,
+/// privacy, usage, channels…) is server-side configuration done in the
+/// web UI.
 class AgentSettingsPage extends ConsumerStatefulWidget {
   const AgentSettingsPage({super.key, required this.agentId, required this.agentName});
 
@@ -69,7 +72,7 @@ class AgentSettingsPage extends ConsumerStatefulWidget {
 class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   Map<String, dynamic>? _scope;
   Map<String, dynamic>? _config;
-  String _tab = 'profile';
+  String _tab = 'models';
   bool _saving = false;
 
   // Field-tab controllers owned by the page state (a fresh controller
@@ -77,27 +80,15 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   // keystroke / spinner toggle).
   late final _name = TextEditingController();
   late final _description = TextEditingController();
-  late final _maxTokens = TextEditingController();
-  late final _temperature = TextEditingController();
-  late final _iterations = TextEditingController();
-  late final _threshold = TextEditingController();
 
   static final _tabs = [
+    _TabDef('models', (l) => l.tabModel),
     _TabDef('profile', (l) => l.tabProfile),
-    _TabDef('models', (l) => l.tabModels),
-    _TabDef('context', (l) => l.tabContext),
-    _TabDef('customize', (l) => l.tabCustomize),
-    _TabDef('knowledge', (l) => l.tabKnowledge),
-    _TabDef('skills', (l) => l.tabSkills),
     _TabDef('mcp', (l) => l.tabMcp),
+    _TabDef('skills', (l) => l.tabSkills),
     _TabDef('plugins', (l) => l.tabPlugins),
-    _TabDef('scheduler', (l) => l.tabScheduler),
     _TabDef('regex', (l) => l.tabRegexHooks),
-    _TabDef('recall', (l) => l.tabRecall),
-    _TabDef('vectorization', (l) => l.tabVectorization),
-    _TabDef('privacy', (l) => l.tabPrivacy),
-    _TabDef('usage', (l) => l.tabUsage),
-    _TabDef('channels', (l) => l.tabChannels),
+    _TabDef('scheduler', (l) => l.tabScheduler),
   ];
 
   @override
@@ -108,7 +99,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _maxTokens, _temperature, _iterations, _threshold]) {
+    for (final c in [_name, _description]) {
       c.dispose();
     }
     super.dispose();
@@ -134,10 +125,6 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
   void _syncControllers(Map<String, dynamic> scope, Map<String, dynamic> config) {
     _name.text = '${scope['name'] ?? ''}';
     _description.text = '${scope['description'] ?? ''}';
-    _maxTokens.text = '${scope['maxTokens'] ?? ''}';
-    _temperature.text = '${scope['temperature'] ?? ''}';
-    _iterations.text = '${scope['maxToolIterations'] ?? ''}';
-    _threshold.text = '${config['compactionThreshold'] ?? ''}';
   }
 
   Future<void> _savePatch(Map<String, dynamic> patch) async {
@@ -181,27 +168,11 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
     );
   }
 
-  /// `/api/agents/<id>/<leaf>` for the blob subresources.
-  String _scopedPath(String leaf) => '/api/agents/${widget.agentId}/$leaf';
-
   Widget _tabBody(BuildContext context) {
     final agentId = widget.agentId;
     return switch (_tab) {
       'profile' => _profileTab(),
-      'models' => _modelsTab(),
-      'context' => _contextTab(),
-      'customize' => _customizeTab(),
-      'knowledge' => _knowledgeTab(),
-      'recall' => BlobEditor(
-          load: () => _repo.scopedGet(_scopedPath('recall-tuning')),
-          save: (blob) => _repo.scopedPut(_scopedPath('recall-tuning'), blob)),
-      'vectorization' => BlobEditor(
-          load: () => _repo.scopedGet(_scopedPath('vectorization')),
-          save: (blob) => _repo.scopedPut(_scopedPath('vectorization'), blob)),
-      'privacy' => BlobEditor(
-          load: () => _repo.scopedGet(_scopedPath('privacy')),
-          save: (blob) => _repo.scopedPut(_scopedPath('privacy'), blob)),
-      'usage' => _UsageTab(path: _scopedPath('usage')),
+      'models' => _ModelTab(current: '${_scope!['model'] ?? ''}', onSaved: _savePatch),
       'skills' => _SkillsTab(agentId: agentId),
       'mcp' => _McpTab(config: _config!, onSaved: _savePatch),
       'plugins' => _PluginsTab(scope: _scope!, onSaved: _savePatch),
@@ -218,9 +189,6 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
               context,
               row,
               () => _repo.deleteRegexHook(agentId, '${row['id']}').then((_) => reload()))),
-      'channels' => _RepoListTab(
-          fetch: () => _repo.channels(agentId),
-          tileBuilder: (context, row, _) => _channelTile(context, row)),
       _ => const SizedBox.shrink(),
     };
   }
@@ -242,221 +210,188 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
     );
   }
 
-  Widget _modelsTab() {
-    final l = AppLocalizations.of(context)!;
-    return _FieldCard(
-      onSave: () => _savePatch({
-        'model': '${_scope!['model'] ?? ''}',
-        'maxTokens': int.tryParse(_maxTokens.text) ?? 0,
-        'temperature': double.tryParse(_temperature.text) ?? 0,
-        'maxToolIterations': int.tryParse(_iterations.text) ?? 0,
-      }),
-      saving: _saving,
-      children: [
-        labeledField(
-          context,
-          l.tabModel,
-          _ModelField(
-            current: '${_scope!['model'] ?? ''}',
-            onChanged: (m) => setState(() => _scope!['model'] = m),
-          ),
-        ),
-        labeledField(
-            context,
-            l.settingsMaxTokens,
-            TextField(controller: _maxTokens, keyboardType: TextInputType.number)),
-        labeledField(
-            context,
-            l.settingsTemperature,
-            TextField(
-                controller: _temperature,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-        labeledField(
-            context,
-            l.settingsMaxToolIterations,
-            TextField(controller: _iterations, keyboardType: TextInputType.number)),
-      ],
-    );
-  }
-
-  Widget _contextTab() {
-    final l = AppLocalizations.of(context)!;
-    final cfg = _config!;
-    return _FieldCard(
-      onSave: () => _savePatch({
-        'promptMode': '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}',
-        'guidance': '${_scope!['guidance'] ?? ''}',
-        'compactionMode': '${cfg['compactionMode'] ?? ''}',
-        'compactionThreshold': int.tryParse(_threshold.text) ?? 0,
-        'language': '${cfg['language'] ?? ''}',
-      }),
-      saving: _saving,
-      children: [
-        labeledField(
-            context,
-            l.settingsPromptMode,
-            _dropdown(['agent', 'chatbot', 'customize'],
-                '${_scope!['promptMode'] ?? cfg['promptMode'] ?? ''}',
-                (v) => setState(() => _scope!['promptMode'] = v))),
-        labeledField(
-            context,
-            l.settingsGuidance,
-            _dropdown(['autonomous', 'guided'], '${_scope!['guidance'] ?? ''}',
-            (v) => setState(() => _scope!['guidance'] = v))),
-        labeledField(
-            context,
-            l.settingsCompactionMode,
-            _dropdown(['conservative', 'balanced', 'aggressive'], '${cfg['compactionMode'] ?? ''}',
-                (v) => setState(() => _config!['compactionMode'] = v))),
-        labeledField(
-            context,
-            l.settingsCompactionThreshold,
-            TextField(controller: _threshold, keyboardType: TextInputType.number)),
-        labeledField(
-            context,
-            l.settingsLanguage,
-            _dropdown(['zh-CN', 'en'], '${cfg['language'] ?? ''}',
-                (v) => setState(() => _config!['language'] = v),
-                // Show the human name, persist the locale code.
-                labelOf: (v) => v == 'zh-CN' ? l.settingsLangZh : l.settingsLangEn)),
-      ],
-    );
-  }
-
-  Widget _customizeTab() {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    final scope = _scope!;
-    bool b(String key) => scope[key] == true || scope[key] == 'true';
-    return _FieldCard(
-      onSave: () => _savePatch({
-        'splitReplies': b('splitReplies'),
-        'autoPersist': b('autoPersist'),
-        'sharedIdentity': b('sharedIdentity'),
-      }),
-      saving: _saving,
-      children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.settingsSplitReplies),
-          value: b('splitReplies'),
-          onChanged: (v) => setState(() => scope['splitReplies'] = v),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.settingsAutoPersist),
-          value: b('autoPersist'),
-          onChanged: (v) => setState(() => scope['autoPersist'] = v),
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.settingsSharedIdentity),
-          value: b('sharedIdentity'),
-          onChanged: (v) => setState(() => scope['sharedIdentity'] = v),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(l.tabCustomizeHint,
-              style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
-        ),
-      ],
-    );
-  }
-
-  Widget _knowledgeTab() {
-    final cfg = _config!;
-    final kb = Map<String, dynamic>.from((cfg['kb'] as Map?) ?? {});
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        JsonForm(
-          value: kb,
-          onChanged: (next) => setState(() => cfg['kb'] = next),
-        ),
-        const SizedBox(height: 8),
-        BlobSaveBar(
-          dirty: true,
-          saving: _saving,
-          onSave: () => _savePatch({'kb': cfg['kb']}),
-        ),
-      ],
-    );
-  }
-
-  Widget _dropdown(List<String> options, String current, ValueChanged<String> onChanged,
-      {String Function(String value)? labelOf}) {
-    // Empty/unlisted current values must fall back to a real option —
-    // an initialValue not present in items trips the DropdownButton
-    // assertion (seen with fresh agents whose context fields are "").
-    final selected = options.contains(current) && current.isNotEmpty ? current : options.first;
-    return DropdownButtonFormField<String>(
-      initialValue: selected,
-      decoration: const InputDecoration(isDense: true),
-      items: [
-        for (final o in options)
-          DropdownMenuItem(
-              value: o, child: Text(labelOf?.call(o) ?? o, style: const TextStyle(fontSize: AppType.secondary))),
-      ],
-      onChanged: (v) => v == null ? null : onChanged(v),
-    );
-  }
 }
 
-/// Text field + builtin-model suggestions for the model tab.
-class _ModelField extends ConsumerStatefulWidget {
-  const _ModelField({required this.current, required this.onChanged});
+/// Model + provider switch — the phone's only agent-level LLM control.
+/// The agent's `model` override is a `"<providerName>/<modelId>"` string
+/// (handlers_agents.go:620; the backend resolves the prefix against the
+/// provider rows, provider_models.go:64). Providers and their preset
+/// model lists come from the server (GET /api/providers) — the phone only
+/// switches; an empty provider clears the override (follow system
+/// default).
+class _ModelTab extends ConsumerStatefulWidget {
+  const _ModelTab({required this.current, required this.onSaved});
 
   final String current;
-  final ValueChanged<String> onChanged;
+  final Future<void> Function(Map<String, dynamic> patch) onSaved;
 
   @override
-  ConsumerState<_ModelField> createState() => _ModelFieldState();
+  ConsumerState<_ModelTab> createState() => _ModelTabState();
 }
 
-class _ModelFieldState extends ConsumerState<_ModelField> {
-  late final TextEditingController _controller = TextEditingController(text: widget.current);
-  List<String> _models = const [];
+class _ModelTabState extends ConsumerState<_ModelTab> {
+  /// Sentinel for "no provider override" — an empty selection clears the
+  /// agent's model override server-side.
+  static const _inherit = '';
+
+  List<Map<String, dynamic>>? _providers;
+  List<String> _builtin = const [];
+  bool _failed = false;
+  bool _saving = false;
+
+  String _provider = _inherit;
+  String? _model;
 
   @override
   void initState() {
     super.initState();
-    ref.read(settingsRepoProvider).builtinModels().then((models) {
-      if (mounted) setState(() => _models = models);
-    }).catchError((_) {});
+    _load();
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void didUpdateWidget(_ModelTab old) {
+    super.didUpdateWidget(old);
+    // Re-parse once the parent's reload-after-save lands a new value.
+    if (old.current != widget.current && _providers != null) {
+      setState(_parseCurrent);
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final repo = ref.read(settingsRepoProvider);
+      final (providers, builtin) = await (repo.providers(), repo.builtinModels()).wait;
+      if (!mounted) return;
+      setState(() {
+        _providers = providers;
+        _builtin = builtin;
+        _parseCurrent();
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _failed = true);
+        showApiError(context, e);
+      }
+    }
+  }
+
+  /// Split the stored `<provider>/<model>` back into the two selections.
+  void _parseCurrent() {
+    final cur = widget.current.trim();
+    final i = cur.indexOf('/');
+    if (i <= 0) {
+      _provider = _inherit;
+      _model = null;
+      return;
+    }
+    _provider = cur.substring(0, i);
+    _model = cur.substring(i + 1);
+  }
+
+  List<String> get _providerNames => [
+        for (final p in _providers ?? const <Map<String, dynamic>>[])
+          if ('${p['name'] ?? ''}'.isNotEmpty) '${p['name']}'
+      ];
+
+  /// Preset model ids for [provider]; builtin table keys are the fallback
+  /// when the provider row carries no models[].
+  List<String> _modelsFor(String provider) {
+    for (final p in _providers ?? const <Map<String, dynamic>>[]) {
+      if ('${p['name'] ?? ''}' != provider) continue;
+      final ids = [
+        for (final m in (p['models'] as List?) ?? const [])
+          if (m is Map && '${m['id'] ?? ''}'.isNotEmpty) '${m['id']}'
+      ];
+      return ids.isEmpty ? _builtin : ids;
+    }
+    return _builtin;
+  }
+
+  void _onProviderChanged(String? value) {
+    final p = value ?? _inherit;
+    setState(() {
+      _provider = p;
+      if (p == _inherit) {
+        _model = null;
+        return;
+      }
+      final opts = _modelsFor(p);
+      if (_model == null || !opts.contains(_model)) {
+        _model = opts.isEmpty ? null : opts.first;
+      }
+    });
+  }
+
+  Future<void> _save() async {
+    final model = _provider == _inherit || (_model ?? '').isEmpty ? '' : '$_provider/$_model';
+    setState(() => _saving = true);
+    try {
+      await widget.onSaved({'model': model});
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    if (_failed) return ErrorPane(message: l.errorNetwork);
+    if (_providers == null) return const SkeletonList(itemCount: 2, leading: false);
+
+    // A dropdown value absent from its items trips the assertion — carry
+    // the current provider/model through as extra options.
+    final providerOptions = [_inherit, ..._providerNames];
+    if (_provider != _inherit && !providerOptions.contains(_provider)) {
+      providerOptions.add(_provider);
+    }
+    final modelOptions = _provider == _inherit ? <String>[] : [..._modelsFor(_provider)];
+    if (_provider != _inherit && (_model ?? '').isNotEmpty && !modelOptions.contains(_model)) {
+      modelOptions.add(_model!);
+    }
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(controller: _controller, onChanged: widget.onChanged),
-        if (_models.isNotEmpty)
-          SizedBox(
-            height: 36,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (final m in _models)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ActionChip(
-                      label: Text(m, style: const TextStyle(fontSize: AppType.caption)),
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () {
-                        _controller.text = m;
-                        widget.onChanged(m);
-                      },
-                    ),
-                  ),
-              ],
-            ),
+        labeledField(
+          context,
+          l.settingsProvider,
+          DropdownButtonFormField<String>(
+            // Recreated when the selection is set programmatically
+            // (parse / clear) — initialValue only seeds the form state.
+            key: ValueKey('provider-$_provider'),
+            initialValue: _provider,
+            isExpanded: true,
+            decoration: const InputDecoration(isDense: true),
+            items: [
+              for (final p in providerOptions)
+                DropdownMenuItem(
+                  value: p,
+                  child: Text(p == _inherit ? l.settingsModelInherit : p,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: _onProviderChanged,
           ),
+        ),
+        labeledField(
+          context,
+          l.tabModel,
+          DropdownButtonFormField<String>(
+            key: ValueKey('model-$_provider-$_model'),
+            initialValue: modelOptions.contains(_model) ? _model : null,
+            isExpanded: true,
+            decoration: const InputDecoration(isDense: true),
+            hint: Text(_provider == _inherit ? l.settingsModelInherit : l.settingsEmpty),
+            items: [
+              for (final m in modelOptions)
+                DropdownMenuItem(
+                    value: m, child: Text(m, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: _provider == _inherit ? null : (m) => setState(() => _model = m),
+          ),
+        ),
+        const SizedBox(height: 8),
+        BlobSaveBar(dirty: true, saving: _saving, onSave: _save),
       ],
     );
   }
@@ -479,44 +414,6 @@ class _FieldCard extends StatelessWidget {
         const SizedBox(height: 8),
         BlobSaveBar(dirty: true, saving: saving, onSave: onSave),
       ],
-    );
-  }
-}
-
-/// Read-only usage blob in a card.
-class _UsageTab extends ConsumerStatefulWidget {
-  const _UsageTab({required this.path});
-
-  final String path;
-
-  @override
-  ConsumerState<_UsageTab> createState() => _UsageTabState();
-}
-
-class _UsageTabState extends ConsumerState<_UsageTab> {
-  Map<String, dynamic>? _data;
-
-  @override
-  void initState() {
-    super.initState();
-    ref.read(settingsRepoProvider).scopedGet(widget.path).then((d) {
-      if (mounted) setState(() => _data = d);
-    }).catchError((_) {
-      if (mounted) setState(() => _data = {});
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final data = _data;
-    if (data == null) {
-      return const SkeletonList(itemCount: 3, leading: false);
-    }
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: surfaceCardDecoration(theme.colorScheme),
-      child: JsonView(value: data),
     );
   }
 }
@@ -689,22 +586,6 @@ Widget _regexTile(BuildContext context, Map<String, dynamic> row, VoidCallback o
                 onDelete();
               },
             ),
-  );
-}
-
-Widget _channelTile(BuildContext context, Map<String, dynamic> row) {
-  final theme = Theme.of(context);
-  return ListTile(
-    contentPadding: EdgeInsets.zero,
-    dense: true,
-    leading: Icon(LucideIcons.radio, size: 18, color: theme.colorScheme.primary),
-    title: Text('${row['type'] ?? row['channel'] ?? row['name'] ?? ''}'),
-    subtitle: row['account'] is Map
-        ? Text('${(row['account'] as Map)['name'] ?? row['account']}', maxLines: 1)
-        : null,
-    trailing: row['connected'] == true || row['status'] == 'connected'
-        ? Icon(LucideIcons.checkCircle2, size: 16, color: theme.colorScheme.primary)
-        : null,
   );
 }
 

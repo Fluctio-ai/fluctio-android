@@ -1634,6 +1634,18 @@ abstract class AppLocalizations {
   /// **'模型'**
   String get tabModel;
 
+  /// No description provided for @settingsProvider.
+  ///
+  /// In zh, this message translates to:
+  /// **'服务商'**
+  String get settingsProvider;
+
+  /// No description provided for @settingsModelInherit.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随系统默认'**
+  String get settingsModelInherit;
+
   /// No description provided for @tabCustomizeHint.
   ///
   /// In zh, this message translates to:

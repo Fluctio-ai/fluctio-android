@@ -266,6 +266,8 @@
   "tabName": "Name",
   "tabDescription": "Description",
   "tabModel": "Model",
+  "settingsProvider": "Provider",
+  "settingsModelInherit": "Follow system default",
   "tabCustomizeHint": "Toggles take effect once saved",
   "settingsSave": "Save",
   "settingsReload": "Reload",
