@@ -85,6 +85,44 @@ class SettingsGroup extends StatelessWidget {
   }
 }
 
+/// [SettingsTile] with a compact segmented control in the trailing
+/// slot — the appearance rows (theme mode, font scale); the button
+/// plumbing lives here so each row stays a segments list + wiring.
+class SettingsSegmentedTile<T> extends StatelessWidget {
+  const SettingsSegmentedTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.segments,
+    required this.selected,
+    required this.onSelectionChanged,
+  });
+
+  final IconData icon;
+  final String label;
+  final List<ButtonSegment<T>> segments;
+  final T selected;
+  final ValueChanged<Set<T>> onSelectionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsTile(
+      icon: icon,
+      label: label,
+      trailing: SegmentedButton<T>(
+        style: const ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        showSelectedIcon: false,
+        segments: segments,
+        selected: {selected},
+        onSelectionChanged: onSelectionChanged,
+      ),
+    );
+  }
+}
+
 /// Standard row inside a [SettingsGroup]: icon in `primary` (the app's
 /// "actionable" signal) + label + optional value + optional trailing.
 class SettingsTile extends StatelessWidget {

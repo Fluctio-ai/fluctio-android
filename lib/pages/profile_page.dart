@@ -10,6 +10,7 @@ import '../update/update_service.dart';
 import 'agents/agent_settings_page.dart';
 import 'settings/system_settings_page.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/font_scale.dart';
 import '../theme/theme_mode.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
@@ -113,23 +114,32 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             children: [
               Consumer(builder: (context, ref, _) {
                 final mode = ref.watch(themeModeProvider);
-                return SettingsTile(
+                return SettingsSegmentedTile<ThemeMode>(
                   icon: LucideIcons.palette,
                   label: l.themeTitle,
-                  trailing: SegmentedButton<ThemeMode>(
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    showSelectedIcon: false,
-                    segments: [
-                      ButtonSegment(value: ThemeMode.system, tooltip: l.themeSystem, icon: const Icon(LucideIcons.monitor, size: 16)),
-                      ButtonSegment(value: ThemeMode.light, tooltip: l.themeLight, icon: const Icon(LucideIcons.sun, size: 16)),
-                      ButtonSegment(value: ThemeMode.dark, tooltip: l.themeDark, icon: const Icon(LucideIcons.moon, size: 16)),
-                    ],
-                    selected: {mode},
-                    onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
-                  ),
+                  segments: [
+                    ButtonSegment(value: ThemeMode.system, tooltip: l.themeSystem, icon: const Icon(LucideIcons.monitor, size: 16)),
+                    ButtonSegment(value: ThemeMode.light, tooltip: l.themeLight, icon: const Icon(LucideIcons.sun, size: 16)),
+                    ButtonSegment(value: ThemeMode.dark, tooltip: l.themeDark, icon: const Icon(LucideIcons.moon, size: 16)),
+                  ],
+                  selected: mode,
+                  onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
+                );
+              }),
+              // Same surface as the theme picker — a local appearance
+              // preference, not a server blob.
+              Consumer(builder: (context, ref, _) {
+                final level = ref.watch(fontScaleProvider);
+                return SettingsSegmentedTile<FontScaleLevel>(
+                  icon: LucideIcons.type,
+                  label: l.fontSizeTitle,
+                  segments: [
+                    ButtonSegment(value: FontScaleLevel.mini, label: Text(l.fontSmall)),
+                    ButtonSegment(value: FontScaleLevel.medium, label: Text(l.fontMedium)),
+                    ButtonSegment(value: FontScaleLevel.max, label: Text(l.fontLarge)),
+                  ],
+                  selected: level,
+                  onSelectionChanged: (s) => ref.read(fontScaleProvider.notifier).set(s.first),
                 );
               }),
             ],
