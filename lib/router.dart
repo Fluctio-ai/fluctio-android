@@ -17,10 +17,16 @@ import 'pages/kb/todos_page.dart';
 import 'pages/profile_page.dart';
 import 'pages/session_list_page.dart';
 import 'pages/setup_page.dart';
+import 'pages/share_target_page.dart';
 import 'pages/wiki/wiki_graph_page.dart';
 import 'pages/wiki/wiki_home_page.dart';
 import 'pages/wiki/wiki_page_detail.dart';
 import 'pages/workflow_page.dart';
+
+/// Page-route observer — ChatPage subscribes as RouteAware so a pop
+/// back onto the chat surface (from todos / wiki / any pushed page)
+/// can re-anchor the live connection (contract §4 reconnect).
+final routeObserver = RouteObserver<PageRoute<void>>();
 
 /// Web-parity navigation: no bottom bar — the chat surface IS the app
 /// root (a fresh conversation, like `/agents/<id>/chat/`), everything
@@ -36,6 +42,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     refreshListenable: refresh,
+    observers: [routeObserver],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final onSetup = state.matchedLocation == '/setup';
@@ -104,6 +111,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ]),
       GoRoute(path: '/workflow', builder: (_, _) => const WorkflowPage()),
+      // Inbound-share destination picker (pushed; back = cancel).
+      GoRoute(
+          path: '/share-target', builder: (_, _) => const ShareTargetPage()),
       GoRoute(path: '/me', builder: (_, _) => const ProfilePage()),
     ],
   );

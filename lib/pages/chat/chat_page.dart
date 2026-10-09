@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
@@ -15,6 +17,8 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../theme/tokens.dart';
 import '../app_drawer.dart';
+import '../../router.dart';
+import '../../share/share_receiver.dart';
 import 'chat_dashboard.dart';
 import 'composer.dart';
 import 'message_list.dart';
@@ -39,7 +43,8 @@ class ChatPage extends ConsumerStatefulWidget {
   ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver {
+class _ChatPageState extends ConsumerState<ChatPage>
+    with WidgetsBindingObserver, RouteAware {
   final _input = TextEditingController();
   final List<String> _pendingImages = [];
   final List<PendingAttachment> _pendingFiles = [];
@@ -65,7 +70,38 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // RouteAware registration needs the route, which only exists here.
+    routeObserver.subscribe(this, ModalRoute.of(context) as PageRoute<void>);
+    // Catch up on a share that arrived while this page wasn't listening
+    // (build's ref.listen only fires on changes, never replays current
+    // state).
+    _checkPendingShare();
+  }
+
+  /// Gatekeeper for inbound shares: one still awaiting a choice goes to
+  /// the picker; one targeted at the open session is absorbed into the
+  /// composer here (exactly once). Only fires on a genuine entry to this
+  /// page — a go_router rebuild re-creates a stale ChatPage beneath a
+  /// pushed route, and that instance must not push the picker again.
+  void _checkPendingShare() {
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isCurrent) return;
+    final share = ref.read(pendingShareProvider);
+    if (share == null) return;
+    if (share.targetKey == null) {
+      // Awaiting a destination (e.g. login just completed under a share
+      // that arrived while logged out) — hand it to the picker.
+      context.push('/share-target');
+      return;
+    }
+    _absorbShare(share);
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _input.dispose();
     super.dispose();
@@ -80,6 +116,12 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
       ref.read(chatStoreProvider.notifier).onAppResumed();
     }
   }
+
+  /// Popped back onto the chat surface (todos / wiki / any pushed page
+  /// above) — a turn that was still streaming gets its subscribe
+  /// connection re-anchored; a settled transcript re-enters as-is.
+  @override
+  void didPopNext() => ref.read(chatStoreProvider.notifier).resumeIfTurning();
 
   /// Chat-only local overrides (web chatOnlyLocal parity): the chip is
   /// flippable on a brand-new chat before any session row exists; the
@@ -214,6 +256,54 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     }
   }
 
+  /// Inbound share from another app (share_receiver): images/files join
+  /// the pending strip under the same caps as the file picker, text
+  /// joins the input. Matches on the share's own [PendingShare.targetKey]
+  /// against the currently-open session; the picker drives openSession
+  /// itself, so by absorb time the active session is already the target.
+  void _absorbShare(PendingShare? share) {
+    if (share == null || share.targetKey == null) return;
+    if (share.targetKey != ref.read(chatStoreProvider).activeKey) return;
+    ref.read(pendingShareProvider.notifier).clear();
+    // The store's activeKey is this share's target — latch so a reused
+    // element with a stale widget.openSid doesn't re-open a different
+    // session on the next build (keeps the transcript in sync with the
+    // just-absorbed share).
+    _routeSessionOpened = true;
+    final l = AppLocalizations.of(context);
+    String? notice;
+    setState(() {
+      for (final img in share.images) {
+        if (_pendingImages.length + _pendingFiles.length >= _maxAttachments) {
+          notice = l?.chatAttachLimit;
+          break;
+        }
+        _pendingImages.add(img);
+      }
+      for (final f in share.files) {
+        if (_pendingImages.length + _pendingFiles.length >= _maxAttachments) {
+          notice = l?.chatAttachLimit;
+          break;
+        }
+        if (f.url.length * 3 ~/ 4 > _maxFileBytes) {
+          notice = l?.chatFileTooLarge(f.name);
+          continue;
+        }
+        if (_pendingBytes() + f.url.length * 3 ~/ 4 > _maxTotalBytes) {
+          notice = l?.chatAttachTotalTooLarge;
+          continue;
+        }
+        _pendingFiles.add(f);
+      }
+      if (share.text.isNotEmpty) {
+        _input.text = _input.text.isEmpty ? share.text : '${_input.text}\n${share.text}';
+      }
+    });
+    if (notice != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(notice!)));
+    }
+  }
+
   /// Approximate bytes held by the pending file strip (base64 length ×
   /// 3/4 — the constant inflation ratio makes it exact enough for a cap).
   int _pendingBytes() =>
@@ -271,6 +361,10 @@ class _ChatPageState extends ConsumerState<ChatPage> with WidgetsBindingObserver
     final theme = Theme.of(context);
     final agents = ref.watch(agentsProvider);
     final active = ref.watch(chatStoreProvider).active;
+    // Shares resolved to a session land in its composer. A reused element
+    // (same route) absorbs here; a freshly-built one (page swap) covers it
+    // in didChangeDependencies — together they catch both paths.
+    ref.listen(pendingShareProvider, (_, next) => _absorbShare(next));
     // Session rows landing (first send persisted) drive the chat-only
     // override sync — the listener pattern from the Riverpod race notes.
     ref.listen(sessionsProvider, (_, _) => _syncChatOnly());

@@ -432,15 +432,32 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   /// App foregrounded: backgrounding reaps the subscribe socket, and
   /// nothing else re-opens it for an already-open session — live events
-  /// would stop until a restart. Reconnect here; `since=lastSeq` replay
+  /// would stop until a restart. Reconnect unconditionally (ambient
+  /// events too: cron replies, title changes); `since=lastSeq` replay
   /// picks up everything missed while backgrounded.
   void onAppResumed() {
     final key = state.activeKey;
     if (key == null || _disposed) return;
     final parts = splitSessionKey(key);
     if (parts == null) return;
-    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
-    _ensureSubscribe(agentId, sessionId);
+    _ensureSubscribe(parts.agentId, parts.sessionId);
+  }
+
+  /// Popped back onto the chat surface (todos / wiki / any pushed page
+  /// above): if a turn is still in flight, re-anchor the subscribe
+  /// connection so it keeps streaming — `since=lastSeq` replay backfills
+  /// the gap, and the seq dedup absorbs any overlap with a still-alive
+  /// connection. No in-flight turn → nothing to resume: the settled
+  /// transcript is already on screen, so treat the entry as fresh and
+  /// leave the ambient subscribe lifecycle alone.
+  void resumeIfTurning() {
+    final key = state.activeKey;
+    if (key == null || _disposed) return;
+    final engine = _engines[key];
+    if (engine == null || engine.phase == TurnPhase.idle) return;
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    _ensureSubscribe(parts.agentId, parts.sessionId);
   }
 
   // ---- sending ----

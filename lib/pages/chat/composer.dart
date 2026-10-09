@@ -348,7 +348,11 @@ class _ActionButton extends StatelessWidget {
               ),
               child: Icon(
                 icon,
-                size: 16,
+                // Material's stop square is a bare filled square — at
+                // the shared 16px it reads undersized against the 36px
+                // button; 25px ≈ 0.7 of it balances the glyph (user
+                // feedback, twice).
+                size: icon == Icons.stop ? 25 : 16,
                 color: enabled
                     ? theme.colorScheme.onPrimary
                     : theme.colorScheme.outline,
