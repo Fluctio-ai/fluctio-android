@@ -78,7 +78,8 @@ class KbRepo {
         if (title.isNotEmpty) 'title': title,
       });
 
-  Future<void> deleteSource(String agentId, String sourceId) async {    await _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
+  Future<void> deleteSource(String agentId, String sourceId) async {
+    await _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
     _todoWritten();
   }
 
