@@ -1352,6 +1352,36 @@ abstract class AppLocalizations {
   /// **'{n} 张图片'**
   String shareImages(Object n);
 
+  /// No description provided for @shareFileOut.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享'**
+  String get shareFileOut;
+
+  /// No description provided for @sharePreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备分享…'**
+  String get sharePreparing;
+
+  /// No description provided for @downloadFile.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载'**
+  String get downloadFile;
+
+  /// No description provided for @downloadPreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在下载…'**
+  String get downloadPreparing;
+
+  /// No description provided for @downloadDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'已保存到系统下载目录'**
+  String get downloadDone;
+
   /// No description provided for @cardExcerpt.
   ///
   /// In zh, this message translates to:

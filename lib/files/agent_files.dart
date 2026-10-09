@@ -183,4 +183,11 @@ class AgentFilesRepo {
               queryParameters: _query(sessionId),
               options: Options(responseType: ResponseType.bytes)))
           .data as List<int>;
+
+  /// Streams a file straight to disk (share-out) — big media shouldn't
+  /// round-trip through memory.
+  Future<void> downloadTo(String agentId, String path, String savePath,
+          {String? sessionId}) =>
+      _dio.download('/api/agents/$agentId/files/$path', savePath,
+          queryParameters: _query(sessionId));
 }

@@ -7,6 +7,10 @@
          no per-user Settings trip needed (flutter_local_notifications README). -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Local download of workspace files into the shared Download/ folder
+         (file_saver): MediaStore needs no permission on Android 10+; API
+         28 and below require a manual grant in Settings. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
     <application
         android:label="fluctio"
         android:name="${applicationName}"

@@ -651,6 +651,21 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get shareFileOut => '分享';
+
+  @override
+  String get sharePreparing => '正在准备分享…';
+
+  @override
+  String get downloadFile => '下载';
+
+  @override
+  String get downloadPreparing => '正在下载…';
+
+  @override
+  String get downloadDone => '已保存到系统下载目录';
+
+  @override
   String get cardExcerpt => '原始内容';
 
   @override

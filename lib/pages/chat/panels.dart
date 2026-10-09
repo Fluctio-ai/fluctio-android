@@ -1,8 +1,13 @@
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../kb/kb_editor_page.dart';
 
@@ -13,6 +18,7 @@ import '../../files/agent_files.dart';
 import '../../files/file_preview.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../share/share_out.dart';
 import '../../theme/tokens.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
@@ -433,6 +439,81 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
         agentId: agentId, path: f.path, sessionId: _sessionId, displayName: f.name);
   }
 
+  /// In-sheet feedback line — snackbars from inside a modal sheet route
+  /// never surface (they render behind the sheet), so progress/errors
+  /// show here instead. [busy] swaps the icon for a spinner.
+  String? _notice;
+  bool _noticeBusy = false;
+  Timer? _noticeTimer;
+
+  void _setNotice(String? text, {bool busy = false, Duration? autoClear}) {
+    _noticeTimer?.cancel();
+    _noticeTimer = null;
+    setState(() {
+      _notice = text;
+      _noticeBusy = busy;
+    });
+    if (text != null && autoClear != null) {
+      _noticeTimer = Timer(autoClear, () => _setNotice(null));
+    }
+  }
+
+  @override
+  void dispose() {
+    _noticeTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Streams the file into the temp dir and returns the staged copy.
+  /// Shared by share-out and local download — big media never round-trips
+  /// through memory. [AgentFile.path] is server-sourced from the sheet's
+  /// own listing, so it downloads as-is (same as delete).
+  Future<File> _stage(AgentFile f) async {
+    final repo = ref.read(agentFilesRepoProvider);
+    final safeName = f.name.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
+    final dir = Directory('${(await getTemporaryDirectory()).path}/share');
+    await dir.create(recursive: true);
+    final target = File('${dir.path}/$safeName');
+    await repo.downloadTo(_agentId!, f.path, target.path, sessionId: _sessionId);
+    return target;
+  }
+
+  /// Share-out: stage the file, then hand it to the system share sheet.
+  /// A gateway link would be useless outside the app (cookie auth), so
+  /// receivers always get the bytes.
+  Future<void> _share(AgentFile f) async {
+    if (_agentId == null) return;
+    final l = AppLocalizations.of(context)!;
+    _setNotice(l.sharePreparing, busy: true);
+    try {
+      final staged = await _stage(f);
+      _setNotice(null);
+      if (!mounted) return;
+      await shareLocalFile(staged);
+    } catch (e) {
+      _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
+    }
+  }
+
+  /// Local download: stage the file, then copy it into the shared
+  /// Download/ folder via MediaStore (system download manager visible).
+  /// Completion surfaces as a system toast (WeChat-style — visible even
+  /// if the user leaves the sheet), busy/errors stay on the in-sheet strip.
+  Future<void> _download(AgentFile f) async {
+    if (_agentId == null) return;
+    final l = AppLocalizations.of(context)!;
+    _setNotice(l.downloadPreparing, busy: true);
+    try {
+      final staged = await _stage(f);
+      if (!mounted) return;
+      await saveLocalFileToDownloads(staged);
+      _setNotice(null);
+      await Fluttertoast.showToast(msg: l.downloadDone);
+    } catch (e) {
+      _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
+    }
+  }
+
   String _fmtSize(int bytes) => bytes < 1024
       ? '${bytes}B'
       : bytes < 1024 * 1024
@@ -447,7 +528,34 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
       child: ConstrainedBox(
         constraints:
             BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-        child: FutureBuilder<AgentFileListing>(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_notice != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: _noticeBusy
+                          ? const CircularProgressIndicator(strokeWidth: 2)
+                          : Icon(LucideIcons.check,
+                              size: 14, color: theme.colorScheme.primary),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_notice!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall),
+                    ),
+                  ],
+                ),
+              ),
+            Flexible(
+              child: FutureBuilder<AgentFileListing>(
           future: _future,
           builder: (context, snap) => snap.connectionState == ConnectionState.waiting
               ? const Padding(
@@ -506,8 +614,19 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                                       subtitle: Text(
                                         '${_fmtSize(node.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(node.modTimeMs))}',
                                         maxLines: 1),
+                                      trailing: IconButton(
+                                        tooltip: l.shareFileOut,
+                                        icon: Icon(LucideIcons.share2,
+                                            size: 18, color: theme.colorScheme.outline),
+                                        onPressed: () => _share(node.file!),
+                                      ),
                                       onTap: () => _open(context, node.file!),
                                       onLongPress: () => showRowActionsMenu(context, [
+                                        RowAction(
+                                          icon: LucideIcons.download,
+                                          label: l.downloadFile,
+                                          onRun: () => _download(node.file!),
+                                        ),
                                         RowAction(
                                           icon: LucideIcons.trash2,
                                           label: l.chatDelete,
@@ -520,6 +639,9 @@ class _FilesSheetState extends ConsumerState<_FilesSheet> {
                             ],
                           );
                         }),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -659,6 +659,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get shareFileOut => 'Share';
+
+  @override
+  String get sharePreparing => 'Preparing to share…';
+
+  @override
+  String get downloadFile => 'Download';
+
+  @override
+  String get downloadPreparing => 'Downloading…';
+
+  @override
+  String get downloadDone => 'Saved to Downloads';
+
+  @override
   String get cardExcerpt => 'Original text';
 
   @override
