@@ -70,8 +70,15 @@ class KbRepo {
               .data,
           fromJson: KbSearchResult.fromJson);
 
-  Future<void> deleteSource(String agentId, String sourceId) async {
-    await _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
+  /// Fetch + ingest a URL as an article source (contract §7
+  /// POST /kb/ingest/url) — the share target's "save as article".
+  Future<void> ingestUrl(String agentId, String url, {String title = ''}) =>
+      _dio.post('/api/agents/$agentId/kb/ingest/url', data: {
+        'url': url,
+        if (title.isNotEmpty) 'title': title,
+      });
+
+  Future<void> deleteSource(String agentId, String sourceId) async {    await _dio.delete('/api/agents/$agentId/kb/sources/$sourceId');
     _todoWritten();
   }
 
