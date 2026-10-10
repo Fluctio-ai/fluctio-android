@@ -15,6 +15,7 @@ import '../../ui/chevron_list_tile.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import '../../util/open_url.dart';
+import '../../util/app_toast.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
 /// so the link survives rot), edit metadata, promote into a full KB
@@ -222,10 +223,7 @@ class _BookmarkActions {
           await ref.read(kbRepoProvider).promoteBookmark(agentId, bookmark.id);
           ref.invalidate(kbBookmarksProvider(agentId));
           ref.invalidate(kbSourcesProvider(agentId));
-          if (context.mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(l.kbPromoted)));
-          }
+          AppToast.show(l.kbPromoted);
         case 'delete':
           final yes = await showDialog<bool>(
             context: context,

@@ -3,12 +3,14 @@ package ai.fluctio.fluctio_android
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.widget.Toast
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val channelName = "fluctio/share"
+    private val toastChannelName = "fluctio/toast"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -17,6 +19,22 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     // Cold start: the launch intent already carries the share.
                     "consume" -> result.success(consumeShare(intent))
+                    else -> result.notImplemented()
+                }
+            }
+        // Fire-and-forget confirmations; the system renders the pill.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, toastChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "show" -> {
+                        val message = call.argument<String>("message") ?: ""
+                        val long = call.argument<Boolean>("long") ?: false
+                        Toast.makeText(
+                            applicationContext, message,
+                            if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
+                        ).show()
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

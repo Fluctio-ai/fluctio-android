@@ -14,6 +14,7 @@ import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
+import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
 
@@ -178,8 +179,8 @@ class KbFlashPage extends ConsumerWidget {
         onSave: (text, _, _, _, {status}) async {
           try {
             final deduped = await repo.saveFlash(agentId, text.trim());
-            if (deduped && context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.kbDeduped)));
+            if (deduped) {
+              AppToast.show(l.kbDeduped);
             }
             ref.invalidate(kbSourcesProvider(agentId));
             return true;

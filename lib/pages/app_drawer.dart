@@ -11,6 +11,7 @@ import '../ui/form_editor_page.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
 import '../ui/settings_list.dart';
+import '../util/app_toast.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import 'chat/panels.dart';
@@ -383,11 +384,9 @@ class _KbGrid extends StatelessWidget {
     ];
     Widget tileAt(int j) => _KbTile(label: entries[j].$1, icon: entries[j].$2, onTap: () {
           if (entries[j].$3.isEmpty) {
-            // Close the drawer first — a snackbar behind the open
-            // drawer scrim is invisible.
-            final messenger = ScaffoldMessenger.of(context);
-            Navigator.of(context).pop();
-            messenger.showSnackBar(SnackBar(content: Text(l.comingSoon)));
+            // System toast renders above the drawer scrim — no need to
+            // close the drawer just to reveal the hint.
+            AppToast.show(l.comingSoon);
           } else {
             onTapNamed(context, entries[j].$3);
           }

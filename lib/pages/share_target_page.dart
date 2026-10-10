@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../share/share_receiver.dart';
 import '../theme/tokens.dart';
 import '../ui/load_states.dart';
+import '../util/app_toast.dart';
 import 'chat/panels.dart';
 
 /// Share-target picker: an inbound share lands here before anything is
@@ -55,7 +56,9 @@ class _ShareTargetPageState extends ConsumerState<ShareTargetPage> {
       await action();
       ref.read(pendingShareProvider.notifier).clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(doneMessage)));
+        // System toast: this page pops back to the sender app right
+        // after, and the toast survives that transition.
+        AppToast.show(doneMessage);
         Navigator.of(context).pop();
       }
     } catch (e) {

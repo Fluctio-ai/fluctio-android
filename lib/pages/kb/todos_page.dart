@@ -16,6 +16,7 @@ import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
+import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
 import 'todo_views.dart';
 
@@ -251,8 +252,8 @@ Future<void> _edit(BuildContext context, WidgetRef ref, String agentId,
             if (existing == null) {
               final deduped =
                   await repo.saveTodo(agentId, content, status: nextStatus, startAt: date, endAt: endDate);
-              if (deduped && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.kbDeduped)));
+              if (deduped) {
+                AppToast.show(l.kbDeduped);
               }
             } else {
               await repo.updateTodo(

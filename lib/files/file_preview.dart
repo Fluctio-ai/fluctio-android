@@ -11,6 +11,7 @@ import '../pages/chat/chat_image.dart';
 import '../pages/chat/image_viewer.dart';
 import '../l10n/app_localizations.dart';
 import '../util/open_url.dart';
+import '../util/app_toast.dart';
 import 'media_proxy.dart';
 import 'media_viewer.dart';
 import '../pages/kb/kb_text_view_page.dart';
@@ -115,8 +116,7 @@ Future<void> openWorkspaceFilePreview(
       return;
     }
     if (context.mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.fileNoPreview)));
+      AppToast.show(AppLocalizations.of(context)!.fileNoPreview);
     }
   } catch (e) {
     if (context.mounted) {

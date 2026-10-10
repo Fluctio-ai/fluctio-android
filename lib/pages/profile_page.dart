@@ -13,6 +13,7 @@ import '../theme/theme_mode.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import '../ui/settings_list.dart';
+import '../util/app_toast.dart';
 
 /// Me tab per the prototype: profile header + grouped settings. Absorbs
 /// the old settings page; agent management arrives with M3.
@@ -42,8 +43,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final update = await ref.read(updateServiceProvider).check();
       if (!mounted) return;
       if (update == null) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.updateNone)));
+        AppToast.show(l.updateNone);
         return;
       }
       final go = await showDialog<bool>(

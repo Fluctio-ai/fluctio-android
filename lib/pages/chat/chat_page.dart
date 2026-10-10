@@ -15,6 +15,7 @@ import '../../chat/models.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../util/app_toast.dart';
 import '../../theme/tokens.dart';
 import '../app_drawer.dart';
 import '../../router.dart';
@@ -444,8 +445,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
           return;
         }
         _lastBackAt = now;
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(l.exitAgain), duration: const Duration(seconds: 2)));
+        AppToast.show(l.exitAgain);
       },
       child: Scaffold(
         drawer: const AppDrawer(),
