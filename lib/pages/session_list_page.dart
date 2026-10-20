@@ -24,14 +24,14 @@ class SessionListPage extends ConsumerWidget {
 
     if (!agents.loaded) {
       return Scaffold(
-        drawer: const AppDrawer(),
+        drawer: AppDrawer.adaptive(context),
         appBar: AppBar(title: Text(l.navChat)),
         body: const SkeletonListView(),
       );
     }
     if (agents.agents.isEmpty) {
       return Scaffold(
-        drawer: const AppDrawer(),
+        drawer: AppDrawer.adaptive(context),
         appBar: AppBar(title: Text(l.navChat)),
         body: EmptyState(
           icon: LucideIcons.bot,
@@ -46,7 +46,7 @@ class SessionListPage extends ConsumerWidget {
 
     final selected = agents.selected!;
     return Scaffold(
-      drawer: const AppDrawer(),
+      drawer: AppDrawer.adaptive(context),
       appBar: AppBar(
         title: PopupMenuButton<String>(
           // Same gate as the drawer's agent header — a single agent has

@@ -4,6 +4,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 
+/// Agent identity files live at the workspace ROOT (no "/") and are never
+/// turn output — web SYSTEM_FILES parity (chat-screen.tsx:228). Shared by
+/// the files listing filter and the produced-file extractor.
+const systemWorkspaceFileNames = {
+  'SOUL.md', 'IDENTITY.md', 'USER.md', 'BOOTSTRAP.md',
+  'MEMORY.md', 'HEARTBEAT.md', 'AGENTS.md', 'TOOLS.md', 'agent.json',
+};
+
+bool isSystemWorkspaceFile(String path) =>
+    !path.contains('/') && systemWorkspaceFileNames.contains(path);
+
+/// Segment-by-segment encoding for workspace paths handed to URL
+/// consumers (WebView / NetworkImage need legal URIs; "/" separators
+/// survive).
+String encodeWorkspacePath(String p) =>
+    [for (final s in p.split('/')) Uri.encodeComponent(s)].join('/');
+
 /// One agent workspace file (GET /api/agents/{id}/files →
 /// {"files":[{path,size,modTime}], "scopePrefixes":[...]};
 /// handlers_agents.go — the key is "path", scopePrefixes are peeled off
@@ -46,10 +63,17 @@ class AgentFile {
 /// (last entry) is the workspace root /workspace/ links resolve against
 /// (web chat-screen parity).
 class AgentFileListing {
-  const AgentFileListing(this.files, this.scopePrefixes);
+  // Non-const: the lazy pathSet cache below can't live on a const class.
+  AgentFileListing(this.files, this.scopePrefixes);
 
   final List<AgentFile> files;
   final List<String> scopePrefixes;
+
+  /// Full paths as a set — the exists-oracle for produced-file
+  /// resolution. Computed once per listing instance (the provider shares
+  /// it across the panel, sheet, and every tool card) instead of per
+  /// consumer per build.
+  late final Set<String> pathSet = {for (final f in files) f.path};
 
   String get workspaceRoot =>
       scopePrefixes.isNotEmpty ? scopePrefixes.last : '';

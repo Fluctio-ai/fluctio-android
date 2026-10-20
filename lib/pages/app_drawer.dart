@@ -13,6 +13,7 @@ import '../ui/row_actions_menu.dart';
 import '../ui/settings_list.dart';
 import '../util/app_toast.dart';
 import '../theme/tokens.dart';
+import '../ui/breakpoints.dart';
 import 'chat/chat_image.dart';
 import 'chat/panels.dart';
 
@@ -21,8 +22,20 @@ import 'chat/panels.dart';
 /// 项目 with their child chats, 对话 (loose chats) with a see-all link,
 /// and 设置 in the footer. One navigation surface instead of the old
 /// bottom tab bar.
+///
+/// [embedded] drops the Drawer chrome: the tablet landscape layout hosts
+/// the same content as a permanent left sidebar (web app-shell parity),
+/// where "close the drawer" before navigating makes no sense.
 class AppDrawer extends ConsumerStatefulWidget {
-  const AppDrawer({super.key});
+  const AppDrawer({super.key, this.embedded = false});
+
+  final bool embedded;
+
+  /// The modal drawer for phone layouts; null on wide layouts where the
+  /// AppShell's permanent sidebar already provides navigation — a null
+  /// drawer also suppresses the Scaffold's hamburger.
+  static Widget? adaptive(BuildContext context) =>
+      hasPermanentSidebar(context) ? null : const AppDrawer();
 
   /// The drawer gesture zone every surface shares (ticket 13, revised
   /// per user feedback): a quarter of the screen width. The original
@@ -59,11 +72,9 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       byProject.putIfAbsent(s.projectId, () => []).add(s);
     }
 
-    return Drawer(
-      shape: const RoundedRectangleBorder(),
-      child: SafeArea(
-        right: false,
-        child: Column(
+    final body = SafeArea(
+      right: false,
+      child: Column(
           children: [
             _AgentHeader(agent: agent),
             Divider(height: 1, color: theme.colorScheme.outlineVariant),
@@ -128,7 +139,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     leading: const Icon(LucideIcons.ellipsis, size: 18),
                     title: Text(l.seeAllChats),
                     onTap: () {
-                      Navigator.of(context).pop();
+                      _closeIfModal(context);
                       context.push('/chats');
                     },
                   ),
@@ -141,23 +152,30 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
               leading: const Icon(LucideIcons.settings, size: 20),
               title: Text(l.navSettings),
               onTap: () {
-                Navigator.of(context).pop();
+                _closeIfModal(context);
                 context.push('/me');
               },
             ),
           ],
         ),
-      ),
     );
+    if (widget.embedded) return body;
+    return Drawer(shape: const RoundedRectangleBorder(), child: body);
+  }
+
+  /// Modal-drawer hosts close before navigating; the embedded tablet
+  /// sidebar has nothing to close (a pop there would pop the page).
+  void _closeIfModal(BuildContext context) {
+    if (!widget.embedded) Navigator.of(context).pop();
   }
 
   void _openKb(BuildContext context, String route) {
-    Navigator.of(context).pop();
+    _closeIfModal(context);
     context.push(route);
   }
 
   Future<void> _newChat(BuildContext context) async {
-    Navigator.of(context).pop();
+    _closeIfModal(context);
     final sid = await ref.read(chatStoreProvider.notifier).newChat();
     if (sid.isNotEmpty && context.mounted) {
       context.go('/c/${Uri.encodeComponent(sid)}');
@@ -165,7 +183,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   }
 
   Future<void> _newChatInProject(BuildContext context, String projectId) async {
-    Navigator.of(context).pop();
+    _closeIfModal(context);
     final sid = await ref.read(chatStoreProvider.notifier).newChatInProject(projectId);
     if (sid.isNotEmpty && context.mounted) {
       context.go('/c/${Uri.encodeComponent(sid)}');
@@ -175,7 +193,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
   void _openSession(BuildContext context, String sid) {
     final agentId = ref.read(agentsProvider).selectedId;
     if (agentId == null) return;
-    Navigator.of(context).pop();
+    _closeIfModal(context);
     ref.read(chatStoreProvider.notifier).openSession(agentId, sid);
     context.go('/c/${Uri.encodeComponent(sid)}');
   }

@@ -8,6 +8,7 @@ import '../../auth/auth_controller.dart';
 import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../chat/markdown.dart';
+import '../../chat/produced_files.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../ui/row_actions_menu.dart';
@@ -15,8 +16,10 @@ import '../../util/dates.dart';
 import 'typing_dots.dart';
 import '../../theme/tokens.dart';
 import '../../files/file_preview.dart';
+import '../../files/workspace_files.dart';
 import 'chat_image.dart';
 import 'image_viewer.dart';
+import 'workspace_panel.dart';
 
 /// Reverse transcript list: newest pinned at the bottom, the older page
 /// fetched on approach to the top (reverse list — maxScrollExtent is the
@@ -629,11 +632,33 @@ class _ToolCard extends ConsumerWidget {
 
   final ToolEntry entry;
 
+  /// Files this call deliberately produced (web FilesPanel parity,
+  /// extractProducedFiles): write_file / deliver_file / image_gen records
+  /// only. The live listing supplies the real scopePrefixes AND the
+  /// exists-oracle — without it the only fallback would be a loose-chat
+  /// `sessions/<sid>/` guess, wrong for project chats, so cards simply
+  /// don't render until the listing lands.
+  List<ProducedFile> _produced(WidgetRef ref) {
+    // Running tools carry no result yet — nothing could have landed.
+    if (entry.result == null || !toolCallProducesFiles(entry.name)) {
+      return const [];
+    }
+    final parts = splitSessionKey(ref.read(chatStoreProvider).activeKey);
+    if (parts == null) return const [];
+    final listing =
+        ref.watch(workspaceFilesProvider((parts.agentId, parts.sessionId))).value;
+    if (listing == null) return const [];
+    return extractProducedFiles(
+        entry.name, entry.arguments, entry.result, listing.scopePrefixes,
+        exists: listing.pathSet.contains);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     final running = entry.result == null;
+    final produced = _produced(ref);
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
@@ -679,6 +704,16 @@ class _ToolCard extends ConsumerWidget {
               ),
             ),
           ),
+          if (produced.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final f in produced) _ProducedFileRow(file: f),
+                ],
+              ),
+            ),
           if (entry.expanded)
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
@@ -711,6 +746,51 @@ class _ToolCard extends ConsumerWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// One produced-file row under a tool card (web FilesPanel row parity):
+/// icon + name + size; tap opens the docked workspace panel preview on
+/// the tablet split layout, the full-screen previewer everywhere else.
+class _ProducedFileRow extends ConsumerWidget {
+  const _ProducedFileRow({required this.file});
+
+  final ProducedFile file;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final name = file.path.split('/').last;
+    return InkWell(
+      onTap: () {
+        // The one routing policy (openWorkspaceFileSmart): tablet split →
+        // docked panel preview; everything else → push previewer.
+        final agentId = splitSessionKey(ref.read(chatStoreProvider).activeKey)?.agentId;
+        if (agentId == null) return;
+        openWorkspaceFileSmart(context, ref,
+            agentId: agentId, path: file.path, displayName: name);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Icon(isImageFileName(name) ? LucideIcons.image : LucideIcons.fileText,
+                size: 15, color: theme.colorScheme.primary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
+            ),
+            if (file.size != null)
+              Text(formatWorkspaceSize(file.size!),
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+          ],
+        ),
       ),
     );
   }

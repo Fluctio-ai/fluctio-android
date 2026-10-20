@@ -465,6 +465,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbEmpty => 'Nothing here yet';
 
   @override
+  String get kbSelectToView => 'Select an item on the left';
+
+  @override
   String get kbTomorrow => 'Tomorrow';
 
   @override
@@ -553,6 +556,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatFiles => 'Files';
+
+  @override
+  String get chatWorkspace => 'Workspace';
+
+  @override
+  String get chatRefresh => 'Refresh';
 
   @override
   String get fileNoPreview => 'Preview not supported for this type';

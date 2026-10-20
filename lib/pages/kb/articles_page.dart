@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
-import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
@@ -15,8 +14,10 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
+import 'article_detail_page.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
 /// base, plain list otherwise.
@@ -33,11 +34,30 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
   List<KbSearchResult>? _results;
   bool _searching = false;
 
+  /// Wide-layout selection: the article showing in the detail pane. Null
+  /// = placeholder. Phone layouts never set this (rows push the detail
+  /// route instead).
+  String? _selectedId;
+  String _selectedTitle = '';
+
   @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  /// Row tap: wide selects into the detail pane, phone pushes the route.
+  void _open(String id, String title) {
+    if (MasterDetailScaffold.isSplit(context)) {
+      setState(() {
+        _selectedId = id;
+        _selectedTitle = title;
+      });
+    } else {
+      context.push(
+          '/kb/articles/${Uri.encodeComponent(id)}?title=${Uri.encodeComponent(title)}');
+    }
   }
 
   void _onQuery(String query) {
@@ -71,12 +91,20 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
         ? null
         : ref.watch(kbSourcesProvider(agentId));
 
-    return Scaffold(
-      // Drawer on every list surface — same gesture zone as chat.
-      drawer: const AppDrawer(),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+    return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbArticles)),
-      body: Column(
+      placeholderIcon: LucideIcons.newspaper,
+      placeholderText: l.kbSelectToView,
+      detail: _selectedId == null
+          ? null
+          : KbArticleDetailPage(
+              // Rebuild on selection change (fresh load per article).
+              key: ValueKey(_selectedId),
+              sourceId: _selectedId!,
+              title: _selectedTitle,
+              embedded: true,
+            ),
+      listPane: Column(
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -125,6 +153,11 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   try {
                                     await ref.read(kbRepoProvider).deleteSource(agentId!, s.id);
                                     ref.invalidate(kbSourcesProvider(agentId));
+                                    // A deleted article can't stay open in
+                                    // the detail pane.
+                                    if (_selectedId == s.id) {
+                                      setState(() => _selectedId = null);
+                                    }
                                   } catch (e) {
                                     if (context.mounted) showApiError(context, e);
                                   }
@@ -145,14 +178,14 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                     ],
                                   ),
                                   child: ChevronListTile(
+                                  selected: _selectedId == s.id,
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
                                   subtitle: Text(
                                     '$chars · ${DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))}',
                                     maxLines: 1,
                                   ),
-                                  onTap: () => context.push(
-                                      '/kb/articles/${Uri.encodeComponent(s.id)}?title=${Uri.encodeComponent(s.title)}'),
+                                  onTap: () => _open(s.id, s.title),
                                   onLongPress: () => showRowActionsMenu(context, [
                                     RowAction(
                                       icon: LucideIcons.trash2,
@@ -190,8 +223,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
         return ChevronListTile(
           title: Text(r.sourceTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text(r.snippet, maxLines: 2, overflow: TextOverflow.ellipsis),
-          onTap: () => context.push(
-              '/kb/articles/${Uri.encodeComponent(r.sourceId)}?title=${Uri.encodeComponent(r.sourceTitle)}'),
+          onTap: () => _open(r.sourceId, r.sourceTitle),
         );
       },
     );

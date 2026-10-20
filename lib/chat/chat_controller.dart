@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/sse.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
+import '../files/workspace_files.dart';
 import 'chat_engine.dart';
 import 'chat_repo.dart';
 import 'models.dart';
@@ -733,6 +734,10 @@ class ChatStoreController extends Notifier<ChatStore> {
   void _onTurnDone(String agentId, String sessionId) {
     ref.read(sessionsProvider.notifier).reload();
     ref.invalidate(todoProvider((agentId, sessionId)));
+    // The turn may have written workspace files (write_file /
+    // deliver_file / image_gen) — refresh the files surfaces (sheet /
+    // docked panel / inline produced-file cards).
+    ref.invalidate(workspaceFilesProvider((agentId, sessionId)));
   }
 
   void _startSubscribe(String agentId, String sessionId) {

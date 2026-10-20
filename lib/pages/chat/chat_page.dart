@@ -14,6 +14,7 @@ import '../../chat/chat_engine.dart';
 import '../../chat/models.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/breakpoints.dart';
 import '../../ui/load_states.dart';
 import '../../util/app_toast.dart';
 import '../../theme/tokens.dart';
@@ -24,6 +25,7 @@ import 'chat_dashboard.dart';
 import 'composer.dart';
 import 'message_list.dart';
 import 'panels.dart';
+import 'workspace_panel.dart';
 
 /// Chat tab: agent picker in the app bar, transcript, composer, and the
 /// sessions / todo sheets. The transcript state lives in
@@ -63,6 +65,19 @@ class _ChatPageState extends ConsumerState<ChatPage>
   static const _maxTotalBytes = 110 * 1024 * 1024;
   bool _routeSessionOpened = false;
   DateTime? _lastBackAt;
+
+  /// Docked workspace panel width (tablet split layout). Right-anchored;
+  /// the drag handle adjusts it. A ValueNotifier keeps per-frame drag
+  /// rebuilds scoped to the panel box — the transcript/composer subtree
+  /// doesn't rebuild per pointer-move.
+  final ValueNotifier<double> _panelWidth = ValueNotifier(380);
+
+  void _onPanelDrag(double dx) {
+    // Right-anchored: dragging left (negative dx) grows the panel.
+    final size = MediaQuery.sizeOf(context);
+    final maxW = (size.width * 0.5).clamp(300.0, 640.0);
+    _panelWidth.value = (_panelWidth.value - dx).clamp(300.0, maxW);
+  }
 
   @override
   void initState() {
@@ -105,6 +120,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     routeObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     _input.dispose();
+    _panelWidth.dispose();
     super.dispose();
   }
 
@@ -432,34 +448,20 @@ class _ChatPageState extends ConsumerState<ChatPage>
         : (sessionTitle == null || sessionTitle.isEmpty ? l.chatNew : sessionTitle);
     final subText =
         '${selected.name}${selected.model.isEmpty ? '' : ' · ${selected.model}'}';
-    return PopScope(
-      // Double-back-to-exit on the root: one stray tap shouldn't kill
-      // the transcript mid-session. A drawer open consumes back first
-      // (Navigator local history), so this only sees the bare root.
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        final now = DateTime.now();
-        if (_lastBackAt != null && now.difference(_lastBackAt!) < const Duration(seconds: 2)) {
-          SystemNavigator.pop();
-          return;
-        }
-        _lastBackAt = now;
-        AppToast.show(l.exitAgain);
-      },
-      child: Scaffold(
-        drawer: const AppDrawer(),
-        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
-        // per user feedback): the default ~20px left-edge zone is hard to
-        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
-        // start zone lets a right thumb drag from the middle — clear of
-        // both system back edges. The arena still awards vertical-dominant
-        // scrolls to the transcript.
-        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
-        appBar: AppBar(
-          // The session title leads (user preference); agent switching
-          // lives in the drawer header. Title gutters come from the
-          // global AppBarTheme.
+    // Tablet landscape (breakpoints.dart): the AppShell mounts the
+    // permanent sidebar ABOVE this page (web app-shell parity), so the
+    // page only owns its own chrome — modal drawer off, header inline in
+    // the chat column, workspace panel docked right of the transcript.
+    final wide = hasPermanentSidebar(context);
+    final split = isChatSplit(context);
+    final panelOpen = ref.watch(workspacePanelProvider.select((s) => s.open));
+    // The session title leads (user preference); agent switching lives in
+    // the drawer/sidebar header. Title gutters come from the global
+    // AppBarTheme. Inline (wide) use: no status-bar padding, no leading
+    // (the permanent sidebar replaces the drawer hamburger).
+    AppBar chatHeader({required bool inline}) => AppBar(
+          primary: !inline,
+          automaticallyImplyLeading: !inline,
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -478,7 +480,12 @@ class _ChatPageState extends ConsumerState<ChatPage>
               : [
                   IconButton(
                     tooltip: l.chatFiles,
-                    onPressed: () => showFilesSheet(context),
+                    // Split layout: toggle the docked panel (highlighted
+                    // while open); elsewhere: the modal sheet.
+                    isSelected: split && panelOpen,
+                    onPressed: () => split
+                        ? ref.read(workspacePanelProvider.notifier).toggle()
+                        : showFilesSheet(context),
                     icon: const Icon(LucideIcons.folderOpen),
                   ),
                   IconButton(
@@ -487,11 +494,47 @@ class _ChatPageState extends ConsumerState<ChatPage>
                     icon: const Icon(LucideIcons.listTodo),
                   ),
                 ],
-        ),
-        body: active == null
-            ? const SkeletonListView(itemCount: 4)
-            : Column(
+        );
+    return PopScope(
+      // Double-back-to-exit on the root: one stray tap shouldn't kill
+      // the transcript mid-session. A drawer open consumes back first
+      // (Navigator local history), so this only sees the bare root.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final now = DateTime.now();
+        if (_lastBackAt != null && now.difference(_lastBackAt!) < const Duration(seconds: 2)) {
+          SystemNavigator.pop();
+          return;
+        }
+        _lastBackAt = now;
+        AppToast.show(l.exitAgain);
+      },
+      child: Scaffold(
+        // The shell's permanent sidebar replaces the modal drawer on wide
+        // layouts.
+        drawer: AppDrawer.adaptive(context),
+        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
+        // per user feedback): the default ~20px left-edge zone is hard to
+        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
+        // start zone lets a right thumb drag from the middle — clear of
+        // both system back edges. The arena still awards vertical-dominant
+        // scrolls to the transcript.
+        drawerEdgeDragWidth: wide ? 0 : AppDrawer.edgeDragWidth(context),
+        // Wide: no global appBar — the header renders inside the chat
+        // column (chatHeader below) so it never spans the sidebar/panel.
+        appBar: wide ? null : chatHeader(inline: false),
+        // SafeArea only on wide (no Scaffold appBar to absorb the status
+        // bar); the phone path keeps its exact pre-shell layout.
+        body: (() {
+          final content = active == null
+              ? const SkeletonListView(itemCount: 4)
+              : Row(
                 children: [
+                  Expanded(
+                    child: Column(
+                children: [
+                  if (wide) chatHeader(inline: true),
                   if (active.phase == TurnPhase.reconnecting) _ReconnectBanner(hint: active.statusHint),
                   Expanded(
                     // Keyed by session: entrance-animation bookkeeping lives
@@ -574,8 +617,55 @@ class _ChatPageState extends ConsumerState<ChatPage>
                     ],
                   ),
                 ],
-              ),
-            ),
+                    ),
+                  ),
+                  if (split && panelOpen) ...[
+                    _PanelDragHandle(onDrag: _onPanelDrag),
+                    ValueListenableBuilder<double>(
+                      valueListenable: _panelWidth,
+                      // The panel builds once; only the sizing box
+                      // re-layouts around it per drag frame.
+                      child: WorkspacePanel(
+                          agentId: selected.id,
+                          sessionId: activeSessionId ?? ''),
+                      builder: (context, w, child) =>
+                          SizedBox(width: w, child: child),
+                    ),
+                  ],
+                ],
+              );
+          return wide
+              ? SafeArea(top: true, bottom: false, child: content)
+              : content;
+        })(),
+      ),
+    );
+  }
+}
+
+/// The drag strip between transcript and docked workspace panel (tablet
+/// split). It IS the 1px separator — the panel draws no left border.
+class _PanelDragHandle extends StatelessWidget {
+  const _PanelDragHandle({required this.onDrag});
+
+  /// Horizontal drag delta in px; the parent converts it to a width delta.
+  final ValueChanged<double> onDrag;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        child: SizedBox(
+          width: 9,
+          child: Center(
+            child: Container(
+                width: 1, color: Theme.of(context).colorScheme.outlineVariant),
+          ),
+        ),
+      ),
     );
   }
 }

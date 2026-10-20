@@ -458,6 +458,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbEmpty => '暂无内容';
 
   @override
+  String get kbSelectToView => '选择左侧条目查看';
+
+  @override
   String get kbTomorrow => '明天';
 
   @override
@@ -546,6 +549,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get chatFiles => '文件';
+
+  @override
+  String get chatWorkspace => '工作区';
+
+  @override
+  String get chatRefresh => '刷新';
 
   @override
   String get fileNoPreview => '该类型暂不支持预览';

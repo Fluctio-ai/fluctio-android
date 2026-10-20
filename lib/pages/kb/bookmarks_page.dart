@@ -32,7 +32,7 @@ class KbBookmarksPage extends ConsumerWidget {
 
     return Scaffold(
       // Drawer on every list surface — same gesture zone as chat.
-      drawer: const AppDrawer(),
+      drawer: AppDrawer.adaptive(context),
       drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       appBar: AppBar(title: Text(l.kbBookmarks)),
       floatingActionButton: FloatingActionButton(

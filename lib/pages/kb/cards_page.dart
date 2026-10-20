@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
-import '../app_drawer.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
@@ -16,6 +15,7 @@ import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/chevron_list_tile.dart';
+import '../../ui/master_detail.dart';
 import '../../theme/tokens.dart';
 import '../../ui/labeled_section.dart';
 import '../../util/dates.dart';
@@ -44,6 +44,10 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
   /// Library filter of the active tab; tab switching refetches only the
   /// list; stats stay.
   String _filter = _filters[1];
+
+  /// Wide-layout selection: the card showing in the detail pane. Phones
+  /// never set this — rows push the card view there.
+  KbCard? _selected;
 
   @override
   void initState() {
@@ -91,6 +95,8 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     if (agentId == null) return;
     try {
       await ref.read(kbRepoProvider).archiveCard(agentId, c.id, true);
+      // An archived card leaves the due/active lists — close its pane.
+      if (_selected?.id == c.id) _selected = null;
       _load();
     } catch (e) {
       if (mounted) showApiError(context, e);
@@ -103,6 +109,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
     if (agentId == null) return;
     try {
       await ref.read(kbRepoProvider).deleteCard(agentId, c.id);
+      if (_selected?.id == c.id) _selected = null;
       _load();
     } catch (e) {
       if (mounted) showApiError(context, e);
@@ -145,10 +152,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
       // initialIndex matches the default filter (active).
       initialIndex: _filters.indexOf(_filter),
       length: 4,
-      child: Scaffold(
-        // Drawer on every list surface — same gesture zone as chat.
-        drawer: const AppDrawer(),
-        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      child: MasterDetailScaffold(
         appBar: AppBar(
           title: Text(l.kbCards),
           // The stats numbers became filter tabs (user feedback): due /
@@ -205,7 +209,10 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
           onPressed: _addCard,
           child: const Icon(LucideIcons.plus),
         ),
-        body: _error != null
+        placeholderIcon: LucideIcons.layers,
+        placeholderText: l.kbSelectToView,
+        detail: _selected == null ? null : CardViewBody(card: _selected!),
+        listPane: _error != null
             ? ErrorPane(message: _error!)
             : stats == null
                 ? const SkeletonListView(itemCount: 5)
@@ -244,6 +251,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                               ),
                               child: ChevronListTile(
                                 padding: EdgeInsets.zero,
+                                selected: _selected?.id == c.id,
                                 // Not dense — the 12px title read too small on
                                 // device (user feedback); matches the wiki /
                                 // article rows.
@@ -256,10 +264,18 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                     : Text(formatShortDate(c.dueAt!.toLocal()),
                                         style: theme.textTheme.labelSmall
                                             ?.copyWith(color: theme.colorScheme.outline)),
-                                onTap: () => Navigator.of(context)
-                                    .push(MaterialPageRoute<void>(
-                                  builder: (_) => _CardViewPage(card: c),
-                                )),
+                                onTap: () {
+                                  // Wide: select into the detail pane;
+                                  // phone: push the read-only card view.
+                                  if (MasterDetailScaffold.isSplit(context)) {
+                                    setState(() => _selected = c);
+                                  } else {
+                                    Navigator.of(context)
+                                        .push(MaterialPageRoute<void>(
+                                      builder: (_) => _CardViewPage(card: c),
+                                    ));
+                                  }
+                                },
                                 onLongPress: () => showRowActionsMenu(context, [
                                   RowAction(
                                     icon: LucideIcons.archive,
@@ -286,9 +302,28 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
 }
 
 /// Read-only card view: question / answer rendered as markdown plus the
-/// schedule metadata row.
+/// schedule metadata row. The pushed page wraps [CardViewBody] in a
+/// Scaffold; the master-detail pane renders the body directly.
 class _CardViewPage extends StatelessWidget {
   const _CardViewPage({required this.card});
+
+  final KbCard card;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(card.question, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      body: CardViewBody(card: card),
+    );
+  }
+}
+
+/// The card view body (question / answer / excerpt / source / schedule
+/// meta) without page chrome — shared by the pushed page and the
+/// master-detail pane.
+class CardViewBody extends StatelessWidget {
+  const CardViewBody({super.key, required this.card});
 
   final KbCard card;
 
@@ -305,10 +340,7 @@ class _CardViewPage extends StatelessWidget {
           label: label,
           child: transcriptMarkdown(context, body),
         );
-    return Scaffold(
-      appBar: AppBar(
-          title: Text(card.question, maxLines: 1, overflow: TextOverflow.ellipsis)),
-      body: ListView(
+    return ListView(
         padding: const EdgeInsets.all(16),
         children: [
           section(l.cardQuestion, card.question),
@@ -334,7 +366,6 @@ class _CardViewPage extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline),
           ),
         ],
-      ),
-    );
+      );
   }
 }

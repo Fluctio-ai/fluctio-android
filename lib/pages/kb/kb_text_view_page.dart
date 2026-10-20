@@ -64,50 +64,68 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
             ),
         ],
       ),
-      body: Column(
-        children: [
-          if (widget.pathLine != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SelectableText(
-                  widget.pathLine!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: Theme.of(context).colorScheme.outline),
-                ),
+      body: KbTextView(future: _future, pathLine: widget.pathLine),
+    );
+  }
+}
+
+/// The chromeless body of [KbTextViewPage] — content FutureBuilder +
+/// markdown scroll view, no Scaffold/AppBar. Also embedded by the chat
+/// page's docked workspace panel for inline text/markdown preview.
+class KbTextView extends StatelessWidget {
+  const KbTextView({super.key, required this.future, this.pathLine});
+
+  /// The (already-started) content fetch.
+  final Future<String>? future;
+
+  /// Optional small source-path line above the content.
+  final String? pathLine;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (pathLine != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SelectableText(
+                pathLine!,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: Theme.of(context).colorScheme.outline),
               ),
             ),
-          Expanded(
-            child: FutureBuilder<String>(
-        future: _future,
-        builder: (context, snap) => snap.connectionState == ConnectionState.waiting
-            ? const SkeletonProse()
-            : snap.hasError
-                ? ErrorPane(message: AppLocalizations.of(context)!.chatHistoryError)
-                // SliverGptMarkdown splits the document at top-level
-                // blank lines (fences and $$ blocks stay whole — the
-                // package rewrites them to \[...\] first) and lazily
-                // builds only the visible segments: formula-heavy
-                // documents no longer parse TeX for off-screen formulas.
-                : CustomScrollView(
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.all(16),
-                        sliver: SliverGptMarkdown(
-                          snap.data ?? '',
-                          config: markdownConfig(context),
-                          useDollarSignsForLatex: true,
-                        ),
-                      ),
-                    ],
-                  ),
-            ),
           ),
-        ],
-      ),
+        Expanded(
+          child: FutureBuilder<String>(
+            future: future,
+            builder: (context, snap) => snap.connectionState == ConnectionState.waiting
+                ? const SkeletonProse()
+                : snap.hasError
+                    ? ErrorPane(message: AppLocalizations.of(context)!.chatHistoryError)
+                    // SliverGptMarkdown splits the document at top-level
+                    // blank lines (fences and $$ blocks stay whole — the
+                    // package rewrites them to \[...\] first) and lazily
+                    // builds only the visible segments: formula-heavy
+                    // documents no longer parse TeX for off-screen formulas.
+                    : CustomScrollView(
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.all(16),
+                            sliver: SliverGptMarkdown(
+                              normalizeMarkdownBlocks(snap.data ?? ''),
+                              config: markdownConfig(context),
+                              useDollarSignsForLatex: true,
+                            ),
+                          ),
+                        ],
+                      ),
+          ),
+        ),
+      ],
     );
   }
 }

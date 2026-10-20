@@ -18,10 +18,35 @@ import '../pages/kb/kb_text_view_page.dart';
 import '../webview/web_container.dart';
 import 'agent_files.dart';
 
-/// Re-encodes a decoded path segment-by-segment (keeping "/" separators)
-/// for URLs handed to WebView/NetworkImage, which need legal URIs.
-String _encodePath(String p) =>
-    [for (final s in p.split('/')) Uri.encodeComponent(s)].join('/');
+/// Lowercased extension of a file name/path ('' when none). The single
+/// classifier every preview surface (push previews, docked panel,
+/// produced-file cards) keys off.
+String workspaceFileExt(String name) =>
+    name.contains('.') ? name.split('.').last.toLowerCase() : '';
+
+/// Authenticated gateway URL for one workspace file — the panel's inline
+/// image preview needs the same URL the pushed previews build.
+String workspaceFileGatewayUrl(String baseUrl, String agentId, String path) =>
+    '$baseUrl/api/agents/$agentId/files/${encodeWorkspacePath(path)}';
+
+const _imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
+const _textExts = {
+  'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
+  'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
+  'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
+};
+
+/// Image files by extension (file rows' icon choice, inline preview
+/// routing).
+bool isImageFileName(String name) => _imgExts.contains(workspaceFileExt(name));
+
+/// Extensions the docked workspace panel renders INLINE (image / text /
+/// pdf). Everything else (html → WebView, audio/video → player) still
+/// routes to the full-screen push previews.
+bool canInlinePreview(String name) {
+  final ext = workspaceFileExt(name);
+  return _imgExts.contains(ext) || _textExts.contains(ext) || ext == 'pdf';
+}
 
 /// Opens one workspace file for preview, routed by extension — the one
 /// shared path behind the files sheet rows and chat-message file links.
@@ -36,26 +61,20 @@ Future<void> openWorkspaceFilePreview(
   String? displayName,
 }) async {
   final name = displayName ?? path.split('/').last;
-  final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
-  const imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
+  final ext = workspaceFileExt(name);
   const htmlExts = {'html', 'htm'};
   const videoExts = {'mp4', 'mov', 'm4v', 'mkv', 'webm'};
   const audioExts = {'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'};
-  const textExts = {
-    'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
-    'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
-    'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
-  };
   final repo = ref.read(agentFilesRepoProvider);
   // Message links are relative to the AI's sandbox mount — which is the
   // DEEP scope prefix (projects/<pid>/<sid>/), not the project root —
   // so a shallow-rooted guess can miss. Probe the original path, then
   // prefix-swap candidates, and use the first that exists.
   path = await _resolveExisting(repo, agentId, path, sessionId);
-  String gatewayUrl(String path) =>
-      '${ref.read(authControllerProvider).baseUrl}/api/agents/$agentId/files/${_encodePath(path)}';
+  String gatewayUrl(String path) => workspaceFileGatewayUrl(
+      ref.read(authControllerProvider).baseUrl, agentId, path);
   try {
-    if (imgExts.contains(ext)) {
+    if (_imgExts.contains(ext)) {
       final auth = ref.read(authControllerProvider);
       if (!context.mounted) return;
       openImageViewer(
@@ -88,7 +107,7 @@ Future<void> openWorkspaceFilePreview(
       // URL-showing snackbar below.
       await repo.fetchBytes(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
-      openWebContainer(context, name, gatewayUrl(path));
+      openWebContainer(context, name, WebRoutes.agentFile(agentId, path));
       return;
     }
     if (ext == 'pdf') {
@@ -103,7 +122,7 @@ Future<void> openWorkspaceFilePreview(
       ));
       return;
     }
-    if (textExts.contains(ext)) {
+    if (_textExts.contains(ext)) {
       final text = await repo.fetchText(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
@@ -122,11 +141,10 @@ Future<void> openWorkspaceFilePreview(
     if (context.mounted) {
       // Show the resolved path + full URL (selectable) — link-resolution
       // bugs are only diagnosable when the actual request is visible.
-      final auth = ref.read(authControllerProvider);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         duration: const Duration(seconds: 8),
         content: SelectableText(
-          '$e\npath: $path\nurl: ${auth.baseUrl}/api/agents/$agentId/files/${_encodePath(path)}',
+          '$e\npath: $path\nurl: ${gatewayUrl(path)}',
         ),
       ));
     }

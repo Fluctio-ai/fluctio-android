@@ -974,6 +974,12 @@ abstract class AppLocalizations {
   /// **'暂无内容'**
   String get kbEmpty;
 
+  /// No description provided for @kbSelectToView.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择左侧条目查看'**
+  String get kbSelectToView;
+
   /// No description provided for @kbTomorrow.
   ///
   /// In zh, this message translates to:
@@ -1153,6 +1159,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'文件'**
   String get chatFiles;
+
+  /// No description provided for @chatWorkspace.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作区'**
+  String get chatWorkspace;
+
+  /// No description provided for @chatRefresh.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get chatRefresh;
 
   /// No description provided for @fileNoPreview.
   ///

@@ -28,9 +28,14 @@ final wikiPageProvider =
 /// (MarkdownField + title row); "view in graph" opens the native graph
 /// focused on this page.
 class WikiPageDetail extends ConsumerStatefulWidget {
-  const WikiPageDetail({super.key, required this.pageId});
+  const WikiPageDetail({super.key, required this.pageId, this.embedded = false});
 
   final String pageId;
+
+  /// Master-detail pane mode: no back leading, and delete just clears
+  /// the pane's selection (the caller owns it) instead of popping a
+  /// route the pane doesn't have.
+  final bool embedded;
 
   @override
   ConsumerState<WikiPageDetail> createState() => _WikiPageDetailState();
@@ -69,7 +74,9 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
 
   Future<void> _delete(WikiPageInfo page) async {
     final ok = await deleteWikiPageWithConfirm(context, ref, page);
-    if (ok && mounted) context.pop();
+    if (ok && mounted && !widget.embedded) context.pop();
+    // Embedded: the home page clears its selection via its own delete
+    // flow / provider watch; nothing to pop here.
   }
 
   void _onLink(String href) {
@@ -95,6 +102,7 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         title: loaded != null
             ? Text(loaded.title, maxLines: 1, overflow: TextOverflow.ellipsis)
             : Text(l.navWiki),
@@ -181,7 +189,8 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
         SliverPadding(
           padding: const EdgeInsets.all(16),
           sliver: SliverGptMarkdown(
-            rewriteWikiLinks(p.body ?? '', (id) => titles[id] ?? id),
+            normalizeMarkdownBlocks(
+                rewriteWikiLinks(p.body ?? '', (id) => titles[id] ?? id)),
             config: markdownConfig(context, onTapLink: _onLink),
             useDollarSignsForLatex: true,
           ),

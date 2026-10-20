@@ -17,10 +17,14 @@ import '../../chat/markdown.dart';
 /// an article with no reading yet is just 原文 + the generate action in
 /// the app bar.
 class KbArticleDetailPage extends ConsumerStatefulWidget {
-  const KbArticleDetailPage({super.key, required this.sourceId, this.title = ''});
+  const KbArticleDetailPage({super.key, required this.sourceId, this.title = '', this.embedded = false});
 
   final String sourceId;
   final String title;
+
+  /// Master-detail pane mode: no back leading (the pane has no route to
+  /// pop — popping would dismiss the whole list page).
+  final bool embedded;
 
   @override
   ConsumerState<KbArticleDetailPage> createState() => _KbArticleDetailPageState();
@@ -79,6 +83,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
     final tabCount = hasInsights ? 6 : 1;
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: !widget.embedded,
         title: Text(widget.title.isEmpty ? l.kbArticles : widget.title),
         actions: [
           if (_generating)

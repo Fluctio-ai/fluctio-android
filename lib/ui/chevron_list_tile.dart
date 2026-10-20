@@ -16,6 +16,7 @@ class ChevronListTile extends StatelessWidget {
     this.trailing,
     this.dense = false,
     this.padding,
+    this.selected = false,
     this.onTap,
     this.onLongPress,
   });
@@ -25,6 +26,9 @@ class ChevronListTile extends StatelessWidget {
   final Widget? trailing;
   final bool dense;
   final EdgeInsetsGeometry? padding;
+
+  /// Master-detail split: marks the row whose detail is showing.
+  final bool selected;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -35,6 +39,7 @@ class ChevronListTile extends StatelessWidget {
       contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 12),
       horizontalTitleGap: 8,
       dense: dense,
+      selected: selected,
       leading: Icon(LucideIcons.chevronRight, size: 16, color: scheme.outline),
       title: title,
       subtitle: subtitle,

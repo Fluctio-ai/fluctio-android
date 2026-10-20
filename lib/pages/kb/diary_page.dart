@@ -10,6 +10,7 @@ import '../../kb/diary_repo.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
+import '../../ui/master_detail.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
 
@@ -108,6 +109,7 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
     }
     final ym = _ymd(_month).substring(0, 7);
     final diaries = ref.watch(diaryMonthProvider((agentId, ym)));
+    final split = MasterDetailScaffold.isSplit(context);
 
     // A run that just finished → reload the month (and the selected
     // day's entry, if shown).
@@ -120,125 +122,158 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
       }
     });
 
-    return Scaffold(
-      // Drawer on every list surface — same gesture zone as chat.
-      drawer: const AppDrawer(),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
-      appBar: AppBar(title: Text(l.kbDiary)),
-      body: diaries.when(
-        loading: () => const SkeletonListView(itemCount: 6),
-        error: (e, _) => ErrorPane(message: l.chatHistoryError),
-        data: (list) {
-          final byDate = {for (final d in list) d.date: d};
-          final entries =
-              list.where((d) => !d.isEmptyDay).toList()..sort((a, b) => b.date.compareTo(a.date));
-          final genRunning =
-              ref.watch(diaryGeneratingProvider.select((s) => s.contains(_genDate)));
-          // An already-empty day yields nothing on regeneration — the
-          // server had no summaries for it (web genDateIsEmpty).
-          final genDateEmpty = byDate[_genDate]?.isEmptyDay ?? false;
-          // The fold applies only with a day open — one boolean, three
-          // readers (calendar, generate row, scroll listener's gate).
-          final folded = _collapsed && _selected != null;
-          return Column(
+    // Wide (tablet landscape): the left column keeps month nav + heat
+    // calendar + generate row + the month entries ALWAYS visible; the
+    // selected day's pane docks right (no fold, no swap). Phone keeps the
+    // original fold-on-scroll swap behavior.
+    final body = diaries.when(
+      loading: () => const SkeletonListView(itemCount: 6),
+      error: (e, _) => ErrorPane(message: l.chatHistoryError),
+      data: (list) {
+        final byDate = {for (final d in list) d.date: d};
+        final entries =
+            list.where((d) => !d.isEmptyDay).toList()..sort((a, b) => b.date.compareTo(a.date));
+        final genRunning =
+            ref.watch(diaryGeneratingProvider.select((s) => s.contains(_genDate)));
+        // An already-empty day yields nothing on regeneration — the
+        // server had no summaries for it (web genDateIsEmpty).
+        final genDateEmpty = byDate[_genDate]?.isEmptyDay ?? false;
+        // The fold applies only with a day open — one boolean, three
+        // readers (calendar, generate row, scroll listener's gate).
+        // Phone-only: the wide layout never folds (nothing swaps).
+        final folded = !split && _collapsed && _selected != null;
+        final head = Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+          child: Column(
             children: [
-              // Pinned head: month nav + heatmap + generate row. With a
-              // day open, an upward scroll folds the heatmap down to
-              // that day's week (AnimatedSize) and drops the generate
-              // row — reading space wins; returning to the top unfolds.
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              _MonthNav(month: _month, onShift: _shiftMonth),
+              AnimatedSize(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? AppMotion.reducedFade
+                    : const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    _MonthNav(month: _month, onShift: _shiftMonth),
-                    AnimatedSize(
-                      duration: MediaQuery.disableAnimationsOf(context)
-                          ? AppMotion.reducedFade
-                          : const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _HeatCalendar(
-                            month: _month,
-                            byDate: byDate,
-                            selected: _selected ?? _genDate,
-                            collapsed: folded,
-                            onTapDay: (date) => setState(() {
-                              _genDate = date;
-                              _selected = date;
-                            }),
-                          ),
-                          if (!folded) ...[
-                            const SizedBox(height: 6),
-                            _GenerateRow(
-                              date: _genDate,
-                              running: genRunning,
-                              disabled: genRunning || genDateEmpty,
-                              onPick: _pickDate,
-                              onGenerate: () => ref
-                                  .read(diaryGeneratingProvider.notifier)
-                                  .start(agentId, _genDate),
-                            ),
-                          ],
-                        ],
-                      ),
+                    _HeatCalendar(
+                      month: _month,
+                      byDate: byDate,
+                      selected: _selected ?? _genDate,
+                      collapsed: folded,
+                      onTapDay: (date) => setState(() {
+                        _genDate = date;
+                        _selected = date;
+                      }),
                     ),
+                    if (!folded) ...[
+                      const SizedBox(height: 6),
+                      _GenerateRow(
+                        date: _genDate,
+                        running: genRunning,
+                        disabled: genRunning || genDateEmpty,
+                        onPick: _pickDate,
+                        onGenerate: () => ref
+                            .read(diaryGeneratingProvider.notifier)
+                            .start(agentId, _genDate),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-              // Swap area: the selected day's content, or the month list.
-              Expanded(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: _onDayPaneScroll,
-                  child: _selected != null
-                      ? _DayPane(agentId: agentId, date: _selected!,
-                          onClose: () => setState(() {
-                                _selected = null;
-                                _collapsed = false;
-                              }))
-                      : entries.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Text(l.diaryNoDiaryMonth,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                          color: Theme.of(context).colorScheme.outline)),
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: () =>
-                                ref.refresh(diaryMonthProvider((agentId, ym)).future),
-                            child: ListView.builder(
-                              itemCount: entries.length,
-                              itemBuilder: (context, i) {
-                                final d = entries[i];
-                                return ChevronListTile(
-                                  title: Text(d.overview.isNotEmpty ? d.overview : d.date,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  subtitle: Text(
-                                      l.diaryListMeta(
-                                          d.date, d.themes.length, d.blindspots.length),
-                                      maxLines: 1),
-                                  onTap: () => setState(() {
-                                    _genDate = d.date;
-                                    _selected = d.date;
-                                  }),
-                                );
-                              },
-                            ),
-                          ),
+            ],
+          ),
+        );
+        final entriesPane = entries.isEmpty
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l.diaryNoDiaryMonth,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                              color: Theme.of(context).colorScheme.outline)),
                 ),
-              ),
+              )
+            : RefreshIndicator(
+                onRefresh: () =>
+                    ref.refresh(diaryMonthProvider((agentId, ym)).future),
+                child: ListView.builder(
+                  itemCount: entries.length,
+                  itemBuilder: (context, i) {
+                    final d = entries[i];
+                    return ChevronListTile(
+                      selected: _selected == d.date,
+                      title: Text(d.overview.isNotEmpty ? d.overview : d.date,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Text(
+                          l.diaryListMeta(
+                              d.date, d.themes.length, d.blindspots.length),
+                          maxLines: 1),
+                      onTap: () => setState(() {
+                        _genDate = d.date;
+                        _selected = d.date;
+                      }),
+                    );
+                  },
+                ),
+              );
+        if (split) {
+          // Left column only — the detail pane lives outside this builder.
+          return Column(
+            children: [
+              head,
+              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+              Expanded(child: entriesPane),
             ],
           );
-        },
-      ),
+        }
+        return Column(
+          children: [
+            head,
+            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+            // Swap area: the selected day's content, or the month list.
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onDayPaneScroll,
+                child: _selected != null
+                    ? _DayPane(agentId: agentId, date: _selected!,
+                        onClose: () => setState(() {
+                              _selected = null;
+                              _collapsed = false;
+                            }))
+                    : entriesPane,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (split) {
+      return MasterDetailScaffold(
+        appBar: AppBar(title: Text(l.kbDiary)),
+        placeholderIcon: LucideIcons.calendarDays,
+        placeholderText: l.kbSelectToView,
+        listPane: body,
+        detail: _selected == null
+            ? null
+            : _DayPane(
+                agentId: agentId,
+                date: _selected!,
+                onClose: () => setState(() {
+                      _selected = null;
+                      _collapsed = false;
+                    })),
+      );
+    }
+    return Scaffold(
+      // Drawer on every list surface — same gesture zone as chat.
+      drawer: AppDrawer.adaptive(context),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      appBar: AppBar(title: Text(l.kbDiary)),
+      body: body,
     );
   }
 }

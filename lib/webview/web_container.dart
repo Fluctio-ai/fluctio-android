@@ -7,6 +7,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../auth/session_cookie.dart';
+import '../files/agent_files.dart';
 import '../l10n/app_localizations.dart';
 import '../pages/app_drawer.dart';
 import 'local_web_server.dart';
@@ -19,6 +20,11 @@ abstract final class WebRoutes {
   static String workflows(String agentId) => '/agents/$agentId/workflows';
   static String noteEditor(String agentId) => '/agents/$agentId/knowledge/notes';
   static String diagnostics() => '/settings/diag';
+
+  /// Workspace html preview — an /api file route the container proxies
+  /// (the one non-web-page path the container legitimately loads).
+  static String agentFile(String agentId, String path) =>
+      '/api/agents/$agentId/files/${encodeWorkspacePath(path)}';
 }
 
 /// Generic WebView fallback container (ticket 10): expensive features
@@ -30,6 +36,11 @@ class WebContainerPage extends ConsumerStatefulWidget {
   const WebContainerPage({super.key, required this.title, required this.path, this.showTitle = true, this.showDrawer = false});
 
   final String title;
+
+  /// ROOT-RELATIVE only (`/agents/…`, `/api/…`) — the container prepends
+  /// the base URL itself, and the bundled-webui local server routes only
+  /// `/api/*` to the gateway. An absolute URL becomes a bogus web route
+  /// and SPA-falls-back to the new-chat page.
   final String path;
 
   /// False hides the app bar entirely — for web pages that carry their
@@ -132,6 +143,10 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
   s.id='fluctio-hide-sidebar';
   s.textContent='[data-sidebar="trigger"]{display:none!important}'
     +'[data-slot="sidebar-container"]{display:none!important}'
+    // The desktop sidebar is gap-spacer + fixed panel: hiding only the
+    // panel leaves the w-(--sidebar-width) gap holding ~256px of blank
+    // at the left edge (symptom: workflow editor not filling the width).
+    +'[data-slot="sidebar-gap"]{display:none!important}'
     +'[data-slot="sidebar-inset"]{margin:0!important;min-width:0!important}';
   if(!document.getElementById('fluctio-hide-sidebar')) document.head.appendChild(s);
 })();
@@ -191,7 +206,7 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       },
       child: Scaffold(
       appBar: widget.showTitle ? AppBar(title: Text(widget.title)) : null,
-      drawer: widget.showDrawer ? const AppDrawer() : null,
+      drawer: widget.showDrawer ? AppDrawer.adaptive(context) : null,
       drawerEdgeDragWidth: widget.showDrawer ? AppDrawer.edgeDragWidth(context) : null,
       body: IndexedStack(
         index: _stackIndex,
@@ -267,6 +282,12 @@ class _ErrorView extends StatelessWidget {
 }
 
 /// Push helper used by the five fallback entry points.
+///
+/// [path] is ROOT-RELATIVE only (`/agents/…`, `/api/…`) — never an
+/// absolute URL: the container prepends the base URL itself, and with the
+/// bundled webui the local server routes only `/api/*` to the gateway.
+/// An absolute URL becomes a bogus web route and the SPA fallback renders
+/// the new-chat page instead of the content.
 void openWebContainer(BuildContext context, String title, String path) {
   Navigator.of(context).push(
     MaterialPageRoute<void>(builder: (_) => WebContainerPage(title: title, path: path)),

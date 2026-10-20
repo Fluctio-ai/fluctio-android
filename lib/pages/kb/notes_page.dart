@@ -1,4 +1,3 @@
-import '../app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,6 +10,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
@@ -18,26 +18,52 @@ import 'kb_text_view_page.dart';
 
 /// Notes: markdown list + plain-text editor (upsert on save), read-only
 /// attachment listing.
-class KbNotesPage extends ConsumerWidget {
+class KbNotesPage extends ConsumerStatefulWidget {
   const KbNotesPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KbNotesPage> createState() => _KbNotesPageState();
+}
+
+class _KbNotesPageState extends ConsumerState<KbNotesPage> {
+  /// Wide-layout selection: the note previewing in the detail pane.
+  /// Phones never set this — rows push the read-only viewer there.
+  String? _selectedId;
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     final notes = agentId == null ? null : ref.watch(kbNotesProvider(agentId));
+    final split = MasterDetailScaffold.isSplit(context);
+    KbNote? selected;
+    final list = notes?.value;
+    if (split && _selectedId != null && list != null) {
+      for (final n in list) {
+        if (n.id == _selectedId) selected = n;
+      }
+    }
+    // Final alias: closures capture it with promotion intact.
+    final sel = selected;
 
-    return Scaffold(
-      // Drawer on every list surface — same gesture zone as chat.
-      drawer: const AppDrawer(),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+    return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbNotes)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _new(context, ref, agentId),
         child: const Icon(LucideIcons.plus),
       ),
-      body: notes == null
+      placeholderIcon: LucideIcons.notebookPen,
+      placeholderText: l.kbSelectToView,
+      detail: sel == null
+          ? null
+          : _NotePane(
+              // Rebuild (fresh read) when the note's content changes.
+              key: ValueKey('${sel.id}-${sel.updatedAt}'),
+              note: sel,
+              onEdit: () => _edit(context, ref, agentId!, sel),
+            ),
+      listPane: notes == null
           ? const SizedBox.shrink()
           : notes.when(
               loading: () => const SkeletonListView(),
@@ -90,6 +116,7 @@ class KbNotesPage extends ConsumerWidget {
                           ],
                         ),
                         child: ChevronListTile(
+                        selected: _selectedId == n.id,
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(n.updatedAt, maxLines: 1),
@@ -117,10 +144,14 @@ class KbNotesPage extends ConsumerWidget {
     );
   }
 
-  /// Tap opens the note read-only (markdown, transcript look); the
-  /// pencil edits on a full-screen surface (DESIGN.md §4) instead of
-  /// the old alert-box dialog.
+  /// Tap opens the note: wide selects it into the pane, phone pushes the
+  /// read-only viewer (markdown, transcript look) whose pencil edits on
+  /// a full-screen surface (DESIGN.md §4).
   Future<void> _view(BuildContext context, WidgetRef ref, String agentId, KbNote n) async {
+    if (MasterDetailScaffold.isSplit(context)) {
+      setState(() => _selectedId = n.id);
+      return;
+    }
     final l = AppLocalizations.of(context)!;
     await Navigator.of(context).push(MaterialPageRoute<void>(
       builder: (_) => KbTextViewPage(
@@ -187,8 +218,55 @@ class KbNotesPage extends ConsumerWidget {
     try {
       await ref.read(kbRepoProvider).deleteNote(agentId, n.id);
       ref.invalidate(kbNotesProvider(agentId));
+      // A deleted note can't stay open in the detail pane.
+      if (_selectedId == n.id && mounted) setState(() => _selectedId = null);
     } catch (e) {
       if (context.mounted) showApiError(context, e);
     }
+  }
+}
+
+/// The wide-layout detail pane for a note: pane header (title + edit
+/// pencil) above the read-only markdown body (KbTextView). Editing stays
+/// a full-screen push in v1 — the pane header's pencil drives it.
+class _NotePane extends StatelessWidget {
+  const _NotePane({super.key, required this.note, required this.onEdit});
+
+  final KbNote note;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  note.title.isEmpty ? l.noteUntitled : note.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                tooltip: l.kbEdit,
+                icon: const Icon(LucideIcons.penLine, size: 20),
+                onPressed: onEdit,
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+        Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        // The note list row already carries the full markdown body.
+        Expanded(child: KbTextView(future: Future.value(note.contentMd))),
+      ],
+    );
   }
 }

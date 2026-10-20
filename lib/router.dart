@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'auth/auth_controller.dart';
 import 'auth/auth_state.dart';
+import 'pages/app_shell.dart';
 import 'pages/chat/chat_page.dart';
 import 'pages/kb/article_detail_page.dart';
 import 'pages/kb/articles_page.dart';
@@ -25,7 +26,8 @@ import 'pages/workflow_page.dart';
 
 /// Page-route observer — ChatPage subscribes as RouteAware so a pop
 /// back onto the chat surface (from todos / wiki / any pushed page)
-/// can re-anchor the live connection (contract §4 reconnect).
+/// can re-anchor the live connection (contract §4 reconnect). Registered
+/// on the SHELL navigator (all app pages live inside the ShellRoute).
 final routeObserver = RouteObserver<PageRoute<void>>();
 
 /// Web-parity navigation: no bottom bar — the chat surface IS the app
@@ -42,7 +44,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     refreshListenable: refresh,
-    observers: [routeObserver],
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final onSetup = state.matchedLocation == '/setup';
@@ -57,6 +58,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
     },
     routes: [
+      // One shell around every route: on wide layouts it embeds the
+      // permanent sidebar (web AppShell parity); on phones it passes the
+      // page through untouched. The route observer moves here — the
+      // shell's Navigator is the one these pages live on now.
+      ShellRoute(
+        observers: [routeObserver],
+        builder: (context, state, child) =>
+            AppShell(path: state.matchedLocation, child: child),
+        routes: [
       GoRoute(path: '/setup', builder: (_, _) => const SetupPage()),
       GoRoute(path: '/', builder: (_, _) => const ChatPage()),
       // ?seq=N deep-links into the transcript (diary segment chips).
@@ -115,6 +125,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/share-target', builder: (_, _) => const ShareTargetPage()),
       GoRoute(path: '/me', builder: (_, _) => const ProfilePage()),
+        ],
+      ),
     ],
   );
 });

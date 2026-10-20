@@ -9,11 +9,12 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
+import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
 import '../../wiki/wiki_actions.dart';
-import '../app_drawer.dart';
+import 'wiki_page_detail.dart';
 
 /// Native wiki tab (replaces the WebView container): the web's
 /// three-pane wiki browser distilled for touch — type tabs
@@ -33,8 +34,25 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
   /// overview pages stay graph-only there and here.
   static const _tabs = ['entity', 'concept', 'source'];
 
+  /// Wide-layout selection: the page showing in the detail pane. Phones
+  /// never set this — rows push the page route there.
+  String? _selectedId;
+
   Future<void> _delete(WikiPageInfo page) async {
     await deleteWikiPageWithConfirm(context, ref, page);
+    // A deleted page can't stay open in the detail pane.
+    if (_selectedId == page.id && mounted) {
+      setState(() => _selectedId = null);
+    }
+  }
+
+  /// Row tap: wide selects into the detail pane, phone pushes the route.
+  void _open(String pageId) {
+    if (MasterDetailScaffold.isSplit(context)) {
+      setState(() => _selectedId = pageId);
+    } else {
+      context.push('/wiki/page/${Uri.encodeComponent(pageId)}');
+    }
   }
 
   @override
@@ -46,10 +64,7 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
 
     return DefaultTabController(
       length: _tabs.length,
-      child: Scaffold(
-        // Drawer on every list surface — same gesture zone as chat/KB.
-        drawer: const AppDrawer(),
-        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      child: MasterDetailScaffold(
         appBar: AppBar(
           title: Text(l.navWiki),
           actions: [
@@ -67,7 +82,14 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
             ],
           ),
         ),
-        body: Column(
+        placeholderIcon: LucideIcons.bookMarked,
+        placeholderText: l.kbSelectToView,
+        detail: _selectedId == null
+            ? null
+            // Keyed by page: detail holds pageId-scoped state (provider
+            // family + Future loads), so switching selection rebuilds it.
+            : WikiPageDetail(key: ValueKey(_selectedId), pageId: _selectedId!),
+        listPane: Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -170,12 +192,13 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
               ],
             ),
             child: ChevronListTile(
+              selected: _selectedId == p.id,
               title: Text(p.title, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: p.summary.isEmpty
                   ? null
                   : Text(p.summary,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
-              onTap: () => context.push('/wiki/page/${Uri.encodeComponent(p.id)}'),
+              onTap: () => _open(p.id),
               onLongPress: () => showRowActionsMenu(context, [
                 RowAction(
                   icon: LucideIcons.trash2,

@@ -68,6 +68,71 @@ final List<MarkdownBlockComponent> markdownBlockComponents = [
 /// engines — `\,` renders cleanly (ticket 07).
 String _normalizeTex(String tex) => tex.replaceAll('\\ ', '\\, ');
 
+/// Is this line a table separator row (`| --- | :---: |`)? Mirrors the
+/// package's `_isTableSeparator` semantics so the two never disagree.
+bool _isTableSeparator(String line) {
+  final t = line.trim();
+  if (!t.contains('-') || !t.contains('|')) return false;
+  final cells = t.split('|').where((c) => c.trim().isNotEmpty).toList();
+  if (cells.isEmpty) return false;
+  for (final cell in cells) {
+    final c = cell.trim();
+    if (c.isEmpty || !c.contains('-')) return false;
+    for (final ch in c.runes) {
+      if (ch != 0x2D && ch != 0x3A) return false; // '-' and ':'
+    }
+  }
+  return true;
+}
+
+/// Pre-render normalization for LLM output shapes gpt_markdown's parser
+/// rejects (plusparse follows GFM: tables can't interrupt a paragraph;
+/// setext headings aren't implemented):
+/// - a table glued to the preceding text line gets a blank line inserted
+///   — the most common LLM table shape (`结论：\n| a | b |\n| --- |`)
+/// - `Title\n=====` setext H1 becomes `# Title`
+/// Fenced code blocks are tracked and never touched (inserting a line
+/// inside one would corrupt the payload). One linear scan — cheap even
+/// per streaming frame.
+String normalizeMarkdownBlocks(String md) {
+  if (!md.contains('|') && !md.contains('=')) return md;
+  final lines = md.split('\n');
+  final out = <String>[];
+  var inFence = false;
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    final fenceMarker = line.trimLeft();
+    if (fenceMarker.startsWith('```') || fenceMarker.startsWith('~~~')) {
+      inFence = !inFence;
+      out.add(line);
+      continue;
+    }
+    if (inFence) {
+      out.add(line);
+      continue;
+    }
+    final t = line.trim();
+    if (t.contains('|') &&
+        i + 1 < lines.length &&
+        _isTableSeparator(lines[i + 1]) &&
+        out.isNotEmpty &&
+        out.last.trim().isNotEmpty &&
+        !out.last.contains('|')) {
+      // Table glued to a paragraph line — GFM needs the blank line.
+      out.add('');
+    } else if (RegExp(r'^={2,}$').hasMatch(t) &&
+        out.isNotEmpty &&
+        out.last.trim().isNotEmpty &&
+        !RegExp(r'^[=\s]*$').hasMatch(out.last)) {
+      // Setext H1 → ATX (the package lacks setext support).
+      out.last = '# ${out.last.trim()}';
+      continue;
+    }
+    out.add(line);
+  }
+  return out.join('\n');
+}
+
 double _zhBodyHeight(BuildContext context) =>
     Localizations.localeOf(context).languageCode == 'zh' ? 1.7 : 1.5;
 
@@ -101,7 +166,7 @@ GptMarkdown transcriptMarkdown(
 }) {
   final config = markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder);
   return GptMarkdown(
-    data,
+    normalizeMarkdownBlocks(data),
     // The backend's math dialect is the web's @streamdown/math:
     // `$...$` inline, `$$ ... $$` block (KaTeX style).
     useDollarSignsForLatex: true,
@@ -136,7 +201,7 @@ Widget chatTranscript(
       h6: heading(AppType.transcript, FontWeight.w500, null),
     ),
     child: GptMarkdown(
-      data,
+      normalizeMarkdownBlocks(data),
       useDollarSignsForLatex: true,
       onLinkTap: config.onLinkTap,
       imageBuilder: config.imageBuilder,

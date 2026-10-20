@@ -1,26 +1,19 @@
 
-import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../kb/kb_editor_page.dart';
 
 
 import '../../chat/chat_controller.dart';
 import '../../chat/models.dart';
-import '../../files/agent_files.dart';
 import '../../files/file_preview.dart';
+import '../../files/workspace_files.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
-import '../../share/share_out.dart';
 import '../../theme/tokens.dart';
-import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
@@ -346,7 +339,9 @@ class _TodoSheet extends ConsumerWidget {
 }
 
 /// Agent workspace files (where a turn's attachments land): list +
-/// delete, per GET/DELETE /api/agents/{id}/files.
+/// delete, per GET/DELETE /api/agents/{id}/files. The phone surface is a
+/// modal sheet over the shared [WorkspaceFilesView]; the tablet split
+/// layout docks the same view in the chat page's right panel instead.
 Future<void> showFilesSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
@@ -356,345 +351,35 @@ Future<void> showFilesSheet(BuildContext context) {
   );
 }
 
-class _FilesSheet extends ConsumerStatefulWidget {
+class _FilesSheet extends ConsumerWidget {
   const _FilesSheet();
 
   @override
-  ConsumerState<_FilesSheet> createState() => _FilesSheetState();
-}
-
-class _FilesSheetState extends ConsumerState<_FilesSheet> {
-  Future<AgentFileListing>? _future;
-  String? _agentId;
-
-  /// Expanded folder keys (relative paths — stable across refreshes,
-  /// web FileTreeView parity). Seeded once when the tree first lands:
-  /// root folders open, deeper levels collapsed.
-  final Set<String> _expanded = {};
-  bool _expandedSeeded = false;
-
-  /// The open chat's session — files scope to that conversation's
-  /// workspace subtree, not the whole agent (fileScopeForRequest).
-  String? get _sessionId =>
-      splitSessionKey(ref.read(chatStoreProvider).activeKey)?.sessionId;
-
-  @override
-  void initState() {
-    super.initState();
-    _agentId = ref.read(agentsProvider).selectedId;
-    _reload();
-  }
-
-  void _reload() {
-    final agentId = _agentId;
-    final sessionId = _sessionId;
-    if (agentId == null || sessionId == null || sessionId.isEmpty) {
-      // No session open — nothing to scope to; show the empty state
-      // rather than falling back to the agent-wide listing.
-      setState(() {
-        _future = null;
-      });
-      return;
-    }
-    final future = ref.read(agentFilesRepoProvider).list(agentId, sessionId: sessionId);
-    // Block body on purpose: an arrow closure would return the assigned
-    // Future and trip setState's callback-returned-a-Future assertion —
-    // exactly the crash seen on device (sheet dies in initState).
-    setState(() {
-      _future = future;
-    });
-  }
-
-  /// Depth-tagged visible rows: expanded folders' children inline,
-  /// collapsed ones hidden (one flat list, no nested scroll views).
-  List<(WsFileNode, int)> _flatten(List<WsFileNode> nodes, int depth) => [
-        for (final n in nodes) ...[
-          (n, depth),
-          if (n.isDir && _expanded.contains(n.relPath)) ..._flatten(n.children, depth + 1),
-        ],
-      ];
-
-  void _seedExpansion(List<WsFileNode> roots) {
-    if (_expandedSeeded) return;
-    _expandedSeeded = true;
-    _expanded.addAll([for (final n in roots) if (n.isDir) n.relPath]);
-  }
-
-  Future<void> _delete(AgentFile f) async {
-    if (!await confirmDelete(context)) return;
-    try {
-      await ref.read(agentFilesRepoProvider).delete(_agentId!, f, sessionId: _sessionId);
-      if (mounted) _reload();
-    } catch (e) {
-      if (mounted) showApiError(context, e);
-    }
-  }
-
-  /// Tap previews route through the shared workspace previewer (same
-  /// path as chat-message file links).
-  Future<void> _open(BuildContext context, AgentFile f) async {
-    final agentId = _agentId;
-    if (agentId == null) return;
-    await openWorkspaceFilePreview(context, ref,
-        agentId: agentId, path: f.path, sessionId: _sessionId, displayName: f.name);
-  }
-
-  /// In-sheet feedback line — snackbars from inside a modal sheet route
-  /// never surface (they render behind the sheet), so progress/errors
-  /// show here instead. [busy] swaps the icon for a spinner.
-  String? _notice;
-  bool _noticeBusy = false;
-  Timer? _noticeTimer;
-
-  void _setNotice(String? text, {bool busy = false, Duration? autoClear}) {
-    _noticeTimer?.cancel();
-    _noticeTimer = null;
-    setState(() {
-      _notice = text;
-      _noticeBusy = busy;
-    });
-    if (text != null && autoClear != null) {
-      _noticeTimer = Timer(autoClear, () => _setNotice(null));
-    }
-  }
-
-  @override
-  void dispose() {
-    _noticeTimer?.cancel();
-    super.dispose();
-  }
-
-  /// Streams the file into the temp dir and returns the staged copy.
-  /// Shared by share-out and local download — big media never round-trips
-  /// through memory. [AgentFile.path] is server-sourced from the sheet's
-  /// own listing, so it downloads as-is (same as delete).
-  Future<File> _stage(AgentFile f) async {
-    final repo = ref.read(agentFilesRepoProvider);
-    final safeName = f.name.replaceAll(RegExp(r'[/\\:*?"<>|]'), '_');
-    final dir = Directory('${(await getTemporaryDirectory()).path}/share');
-    await dir.create(recursive: true);
-    final target = File('${dir.path}/$safeName');
-    await repo.downloadTo(_agentId!, f.path, target.path, sessionId: _sessionId);
-    return target;
-  }
-
-  /// Share-out: stage the file, then hand it to the system share sheet.
-  /// A gateway link would be useless outside the app (cookie auth), so
-  /// receivers always get the bytes.
-  Future<void> _share(AgentFile f) async {
-    if (_agentId == null) return;
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    _setNotice(l.sharePreparing, busy: true);
-    try {
-      final staged = await _stage(f);
-      _setNotice(null);
-      if (!mounted) return;
-      await shareLocalFile(staged);
-    } catch (e) {
-      _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
-    }
-  }
-
-  /// Local download: stage the file, then copy it into the shared
-  /// Download/ folder via MediaStore (system download manager visible).
-  /// Completion surfaces as a system toast (WeChat-style — visible even
-  /// if the user leaves the sheet), busy/errors stay on the in-sheet strip.
-  Future<void> _download(AgentFile f) async {
-    if (_agentId == null) return;
-    final l = AppLocalizations.of(context)!;
-    _setNotice(l.downloadPreparing, busy: true);
-    try {
-      final staged = await _stage(f);
-      if (!mounted) return;
-      await saveLocalFileToDownloads(staged);
-      _setNotice(null);
-      await Fluttertoast.showToast(msg: l.downloadDone);
-    } catch (e) {
-      _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
-    }
-  }
-
-  String _fmtSize(int bytes) => bytes < 1024
-      ? '${bytes}B'
-      : bytes < 1024 * 1024
-          ? '${(bytes / 1024).toStringAsFixed(1)}KB'
-          : '${(bytes / 1024 / 1024).toStringAsFixed(1)}MB';
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
+    final activeKey = ref.watch(chatStoreProvider.select((s) => s.activeKey));
+    final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
+    // The open chat's session — files scope to that conversation's
+    // workspace subtree, not the whole agent (fileScopeForRequest). No
+    // session open → empty state rather than the agent-wide listing.
+    final sessionId = splitSessionKey(activeKey)?.sessionId ?? '';
     return SafeArea(
       child: ConstrainedBox(
         constraints:
             BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_notice != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: _noticeBusy
-                          ? const CircularProgressIndicator(strokeWidth: 2)
-                          : Icon(LucideIcons.check,
-                              size: 14, color: theme.colorScheme.primary),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(_notice!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall),
-                    ),
-                  ],
-                ),
+        child: agentId == null || sessionId.isEmpty
+            ? EmptyState(icon: LucideIcons.folderOpen, message: l.kbEmpty)
+            : WorkspaceFilesView(
+                agentId: agentId,
+                sessionId: sessionId,
+                // Tap previews route through the shared workspace
+                // previewer (same path as chat-message file links).
+                onOpen: (f) => openWorkspaceFilePreview(context, ref,
+                    agentId: agentId,
+                    path: f.path,
+                    sessionId: sessionId,
+                    displayName: f.name),
               ),
-            Flexible(
-              child: FutureBuilder<AgentFileListing>(
-          future: _future,
-          builder: (context, snap) => snap.connectionState == ConnectionState.waiting
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: SkeletonList(itemCount: 5),
-                )
-              : snap.hasError
-                  ? ErrorPane(message: l.chatHistoryError)
-                  : (snap.data?.files.isEmpty ?? true)
-                      ? EmptyState(icon: LucideIcons.folderOpen, message: l.kbEmpty)
-                      : Builder(builder: (context) {
-                          final tree = buildWsFileTree(snap.data!.files);
-                          _seedExpansion(tree);
-                          final rows = _flatten(tree, 0);
-                          return ListView(
-                            shrinkWrap: true,
-                            children: [
-                              for (final (node, depth) in rows)
-                                if (node.isDir)
-                                  _FolderRow(
-                                    node: node,
-                                    depth: depth,
-                                    expanded: _expanded.contains(node.relPath),
-                                    onToggle: () => setState(() {
-                                          if (_expanded.contains(node.relPath)) {
-                                            _expanded.remove(node.relPath);
-                                          } else {
-                                            _expanded.add(node.relPath);
-                                          }
-                                        }),
-                                  )
-                                else
-                                  Slidable(
-                                    key: ValueKey('wsfile-${node.file!.path}'),
-                                    endActionPane: ActionPane(
-                                      motion: const DrawerMotion(),
-                                      extentRatio: 0.25,
-                                      children: [
-                                        SlidableAction(
-                                          onPressed: (_) => _delete(node.file!),
-                                          backgroundColor: theme.colorScheme.error,
-                                          foregroundColor: theme.colorScheme.onError,
-                                          icon: LucideIcons.trash2,
-                                          label: l.chatDelete,
-                                        ),
-                                      ],
-                                    ),
-                                    child: ListTile(
-                                      dense: true,
-                                      contentPadding:
-                                          EdgeInsets.only(left: 16 + depth * 14.0, right: 16),
-                                      leading: Icon(LucideIcons.fileText,
-                                          size: 20, color: theme.colorScheme.outline),
-                                      title: Text(node.name,
-                                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                                      subtitle: Text(
-                                        '${_fmtSize(node.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(node.modTimeMs))}',
-                                        maxLines: 1),
-                                      trailing: IconButton(
-                                        tooltip: l.shareFileOut,
-                                        icon: Icon(LucideIcons.share2,
-                                            size: 18, color: theme.colorScheme.outline),
-                                        onPressed: () => _share(node.file!),
-                                      ),
-                                      onTap: () => _open(context, node.file!),
-                                      onLongPress: () => showRowActionsMenu(context, [
-                                        RowAction(
-                                          icon: LucideIcons.download,
-                                          label: l.downloadFile,
-                                          onRun: () => _download(node.file!),
-                                        ),
-                                        RowAction(
-                                          icon: LucideIcons.trash2,
-                                          label: l.chatDelete,
-                                          destructive: true,
-                                          onRun: () => _delete(node.file!),
-                                        ),
-                                      ]),
-                                    ),
-                                  ),
-                            ],
-                          );
-                        }),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Folder row: chevron + folder icon + name; tap toggles. No swipe
-/// delete — the backend delete endpoint is per-file.
-class _FolderRow extends StatelessWidget {
-  const _FolderRow({
-    required this.node,
-    required this.depth,
-    required this.expanded,
-    required this.onToggle,
-  });
-
-  final WsFileNode node;
-  final int depth;
-  final bool expanded;
-  final VoidCallback onToggle;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onToggle,
-      child: Padding(
-        padding: EdgeInsets.only(left: 16 + depth * 14.0, right: 16),
-        child: SizedBox(
-          height: 44,
-          child: Row(
-            children: [
-              Icon(
-                expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
-                size: 16,
-                color: theme.colorScheme.outline,
-              ),
-              const SizedBox(width: 4),
-              Icon(LucideIcons.folder, size: 18, color: theme.colorScheme.outline),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(node.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(color: theme.colorScheme.onSurface)),
-              ),
-              Text('${node.children.length}',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            ],
-          ),
-        ),
       ),
     );
   }
