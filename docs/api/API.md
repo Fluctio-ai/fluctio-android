@@ -69,6 +69,7 @@
 语义要点（`handlers.go:1304`）：
 
 - 附件先物化进会话工作区，正文自动追加 `[Attached: /workspace/X]` 面包屑。
+- 助理正文里的 `/workspace/<rel>`（image src 与链接 href）是**沙箱内路径**，不是网关 URL：客户端须重映射为 `/api/agents/<agentId>/files/<workspaceRoot><rel>`（逐段 URL 编码）。`workspaceRoot` = `GET /api/agents/{id}/files` 返回 `scopePrefixes` 的最浅一档（散聊 `sessions/<sid>/`，项目聊天 `projects/<pid>/`——沙箱挂载项目根、cwd 进会话子目录，`localfs.go` scopeDir；重映射出处 web `chat-markdown.tsx:249` urlTransform）。listing 未落地前的兜底猜 `sessions/<sid>/` 与 web 一致。
 - **断连不杀 turn**：agent 跑在 detached ctx（45min 上限），断线重连后用 `GET /api/chat/subscribe?since=<seq>` 补齐。**客户端绝不因网络断开把 UI 置为"已停止"**。
 - 同会话旧在飞 turn 会被 supersede（用户刷新而非停止的场景）。
 - 每 30s 一条 `: ping` 注释行保活；`X-Accel-Buffering: no`。

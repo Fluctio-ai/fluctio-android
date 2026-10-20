@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../api/api_client.dart';
@@ -188,12 +187,9 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
         ),
         SliverPadding(
           padding: const EdgeInsets.all(16),
-          sliver: SliverGptMarkdown(
-            normalizeMarkdownBlocks(
-                rewriteWikiLinks(p.body ?? '', (id) => titles[id] ?? id)),
-            config: markdownConfig(context, onTapLink: _onLink),
-            useDollarSignsForLatex: true,
-          ),
+          sliver: sliverMarkdown(
+              context, rewriteWikiLinks(p.body ?? '', (id) => titles[id] ?? id),
+              onTapLink: _onLink),
         ),
       ],
     );

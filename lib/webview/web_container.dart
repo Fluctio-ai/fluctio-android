@@ -207,7 +207,8 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       child: Scaffold(
       appBar: widget.showTitle ? AppBar(title: Text(widget.title)) : null,
       drawer: widget.showDrawer ? AppDrawer.adaptive(context) : null,
-      drawerEdgeDragWidth: widget.showDrawer ? AppDrawer.edgeDragWidth(context) : null,
+      // (edge width is moot when showDrawer=false — there is no drawer)
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
       body: IndexedStack(
         index: _stackIndex,
         children: [

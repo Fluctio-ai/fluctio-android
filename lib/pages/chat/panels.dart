@@ -372,6 +372,7 @@ class _FilesSheet extends ConsumerWidget {
             : WorkspaceFilesView(
                 agentId: agentId,
                 sessionId: sessionId,
+                hug: true,
                 // Tap previews route through the shared workspace
                 // previewer (same path as chat-message file links).
                 onOpen: (f) => openWorkspaceFilePreview(context, ref,

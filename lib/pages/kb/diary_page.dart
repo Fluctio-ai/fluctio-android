@@ -1,4 +1,3 @@
-import '../app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -219,61 +218,49 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
                   },
                 ),
               );
-        if (split) {
-          // Left column only — the detail pane lives outside this builder.
-          return Column(
-            children: [
-              head,
-              Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-              Expanded(child: entriesPane),
-            ],
-          );
-        }
+        // Left column always: the list + entries (the wide detail pane
+        // lives outside this builder; phone swaps a day pane in below).
         return Column(
           children: [
             head,
             Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-            // Swap area: the selected day's content, or the month list.
             Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: _onDayPaneScroll,
-                child: _selected != null
-                    ? _DayPane(agentId: agentId, date: _selected!,
-                        onClose: () => setState(() {
-                              _selected = null;
-                              _collapsed = false;
-                            }))
-                    : entriesPane,
-              ),
+              // Phone swap area: the selected day's content, or the list.
+              child: split
+                  ? entriesPane
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: _onDayPaneScroll,
+                      child: _selected != null
+                          ? _DayPane(agentId: agentId, date: _selected!,
+                              onClose: () => setState(() {
+                                    _selected = null;
+                                    _collapsed = false;
+                                  }))
+                          : entriesPane,
+                    ),
             ),
           ],
         );
       },
     );
 
-    if (split) {
-      return MasterDetailScaffold(
-        appBar: AppBar(title: Text(l.kbDiary)),
-        placeholderIcon: LucideIcons.calendarDays,
-        placeholderText: l.kbSelectToView,
-        listPane: body,
-        detail: _selected == null
-            ? null
-            : _DayPane(
-                agentId: agentId,
-                date: _selected!,
-                onClose: () => setState(() {
-                      _selected = null;
-                      _collapsed = false;
-                    })),
-      );
-    }
-    return Scaffold(
-      // Drawer on every list surface — same gesture zone as chat.
-      drawer: AppDrawer.adaptive(context),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+    // MasterDetailScaffold renders BOTH layouts: wide = list|detail with
+    // the selected day docked right; phone = the list alone (the day
+    // swap already lives inside `body` above).
+    return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbDiary)),
-      body: body,
+      placeholderIcon: LucideIcons.calendarDays,
+      placeholderText: l.kbSelectToView,
+      listPane: body,
+      detail: _selected == null
+          ? null
+          : _DayPane(
+              agentId: agentId,
+              date: _selected!,
+              onClose: () => setState(() {
+                    _selected = null;
+                    _collapsed = false;
+                  })),
     );
   }
 }

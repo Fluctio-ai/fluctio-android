@@ -68,6 +68,11 @@ final List<MarkdownBlockComponent> markdownBlockComponents = [
 /// engines — `\,` renders cleanly (ticket 07).
 String _normalizeTex(String tex) => tex.replaceAll('\\ ', '\\, ');
 
+/// Top-level so the per-line loop never recompiles them (Dart does not
+/// cache inline RegExp literals the way it does const values).
+final _setextH1Re = RegExp(r'^={2,}$');
+final _allEqualsRe = RegExp(r'^[=\s]*$');
+
 /// Is this line a table separator row (`| --- | :---: |`)? Mirrors the
 /// package's `_isTableSeparator` semantics so the two never disagree.
 bool _isTableSeparator(String line) {
@@ -99,6 +104,7 @@ String normalizeMarkdownBlocks(String md) {
   final lines = md.split('\n');
   final out = <String>[];
   var inFence = false;
+  var changed = false;
   for (var i = 0; i < lines.length; i++) {
     final line = lines[i];
     final fenceMarker = line.trimLeft();
@@ -119,18 +125,22 @@ String normalizeMarkdownBlocks(String md) {
         out.last.trim().isNotEmpty &&
         !out.last.contains('|')) {
       // Table glued to a paragraph line — GFM needs the blank line.
+      changed = true;
       out.add('');
-    } else if (RegExp(r'^={2,}$').hasMatch(t) &&
+    } else if (_setextH1Re.hasMatch(t) &&
         out.isNotEmpty &&
         out.last.trim().isNotEmpty &&
-        !RegExp(r'^[=\s]*$').hasMatch(out.last)) {
+        !_allEqualsRe.hasMatch(out.last)) {
       // Setext H1 → ATX (the package lacks setext support).
+      changed = true;
       out.last = '# ${out.last.trim()}';
       continue;
     }
     out.add(line);
   }
-  return out.join('\n');
+  // Untouched input returns as-is — string identity survives for any
+  // downstream caching, and the O(n) join copy is skipped.
+  return changed ? out.join('\n') : md;
 }
 
 double _zhBodyHeight(BuildContext context) =>
@@ -211,3 +221,19 @@ Widget chatTranscript(
     ),
   );
 }
+
+/// Lazy-scrolling sliver twin for reader surfaces (KB text view, wiki
+/// detail): the same dialect wiring (normalize + config + KaTeX dollars)
+/// as the boxed variants — the factory family in this file is the single
+/// chokepoint, so no surface can silently skip a pass. The caller wraps
+/// it in a SliverPadding (the sliver takes no padding).
+SliverGptMarkdown sliverMarkdown(
+  BuildContext context,
+  String data, {
+  void Function(String href)? onTapLink,
+}) =>
+    SliverGptMarkdown(
+      normalizeMarkdownBlocks(data),
+      config: markdownConfig(context, onTapLink: onTapLink),
+      useDollarSignsForLatex: true,
+    );

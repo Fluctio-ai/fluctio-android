@@ -176,7 +176,10 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
       'skills' => _SkillsTab(agentId: agentId),
       'mcp' => _McpTab(config: _config!, onSaved: _savePatch),
       'plugins' => _PluginsTab(scope: _scope!, onSaved: _savePatch),
+      // Same runtimeType as 'regex' below — the ValueKeys stop Flutter
+      // from reusing one _RepoListTabState (and its stale rows) across tabs.
       'scheduler' => _RepoListTab(
+          key: const ValueKey('scheduler'),
           fetch: () => _repo.cronJobs(agentId),
           tileBuilder: (context, row, reload) => _cronTile(
               context,
@@ -184,6 +187,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
               () => _repo.toggleCron(agentId, '${row['id']}').then((_) => reload()),
               () => _repo.deleteCron(agentId, '${row['id']}').then((_) => reload()))),
       'regex' => _RepoListTab(
+          key: const ValueKey('regex'),
           fetch: () => _repo.regexHooks(agentId),
           tileBuilder: (context, row, reload) => _regexTile(
               context,
@@ -506,7 +510,7 @@ class _SkillsTabState extends ConsumerState<_SkillsTab> {
 /// One generic "repo list tab" (load → spinner/empty/tiles), the shared
 /// state machine for scheduler / regex hooks / channels.
 class _RepoListTab extends StatefulWidget {
-  const _RepoListTab({required this.fetch, required this.tileBuilder});
+  const _RepoListTab({super.key, required this.fetch, required this.tileBuilder});
 
   final Future<List<Map<String, dynamic>>> Function() fetch;
   final Widget Function(BuildContext context, Map<String, dynamic> row, void Function() reload)

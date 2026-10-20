@@ -21,8 +21,3 @@ bool hasPermanentSidebar(BuildContext context) =>
 /// column.
 bool isChatSplit(BuildContext context) =>
     isTablet(context) && MediaQuery.sizeOf(context).width >= 1000;
-
-/// Master-detail split for the tool pages (list | detail) — the same
-/// wide gate as the chat split, so every wide adaptation flips at one
-/// threshold.
-bool hasMasterDetail(BuildContext context) => isChatSplit(context);

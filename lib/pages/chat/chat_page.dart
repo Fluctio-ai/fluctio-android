@@ -15,8 +15,8 @@ import '../../chat/models.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/breakpoints.dart';
+import '../../ui/pane_divider.dart';
 import '../../ui/load_states.dart';
-import '../../util/app_toast.dart';
 import '../../theme/tokens.dart';
 import '../app_drawer.dart';
 import '../../router.dart';
@@ -64,7 +64,6 @@ class _ChatPageState extends ConsumerState<ChatPage>
   /// combined in-memory payload from ballooning across many files.
   static const _maxTotalBytes = 110 * 1024 * 1024;
   bool _routeSessionOpened = false;
-  DateTime? _lastBackAt;
 
   /// Docked workspace panel width (tablet split layout). Right-anchored;
   /// the drag handle adjusts it. A ValueNotifier keeps per-frame drag
@@ -73,7 +72,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
   final ValueNotifier<double> _panelWidth = ValueNotifier(380);
 
   void _onPanelDrag(double dx) {
-    // Right-anchored: dragging left (negative dx) grows the panel.
+    // Right-ANCHORED panel: the divider is its left edge, so dragging
+    // right (positive dx) narrows it — the mirror of the left-anchored
+    // master-detail lists.
     final size = MediaQuery.sizeOf(context);
     final maxW = (size.width * 0.5).clamp(300.0, 640.0);
     _panelWidth.value = (_panelWidth.value - dx).clamp(300.0, maxW);
@@ -424,17 +425,12 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final selected = agents.selected!;
     final store = ref.watch(chatStoreProvider);
     final activeSessionId = store.activeKey?.substring(store.activeKey!.indexOf('|') + 1);
-    final sessionTitle = ref
-        .watch(sessionsProvider)
-        .value
-        ?.where((s) => s.id == activeSessionId)
-        .firstOrNull
-        ?.title;
-    final activeSession = ref
-        .watch(sessionsProvider)
-        .value
-        ?.where((s) => s.id == activeSessionId)
-        .firstOrNull;
+    final activeSession = activeSessionId == null
+        ? null
+        : ref.watch(sessionsProvider).value
+            ?.where((s) => s.id == activeSessionId)
+            .firstOrNull;
+    final sessionTitle = activeSession?.title;
     // Web parity (chat-screen.tsx:1399-1409): a session whose channel is
     // an IM (wechat/telegram/…) opens read-only — this app's send path
     // can't deliver into the upstream messenger, so composing here would
@@ -495,41 +491,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
                   ),
                 ],
         );
-    return PopScope(
-      // Double-back-to-exit on the root: one stray tap shouldn't kill
-      // the transcript mid-session. A drawer open consumes back first
-      // (Navigator local history), so this only sees the bare root.
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        final now = DateTime.now();
-        if (_lastBackAt != null && now.difference(_lastBackAt!) < const Duration(seconds: 2)) {
-          SystemNavigator.pop();
-          return;
-        }
-        _lastBackAt = now;
-        AppToast.show(l.exitAgain);
-      },
-      child: Scaffold(
-        // The shell's permanent sidebar replaces the modal drawer on wide
-        // layouts.
-        drawer: AppDrawer.adaptive(context),
-        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
-        // per user feedback): the default ~20px left-edge zone is hard to
-        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
-        // start zone lets a right thumb drag from the middle — clear of
-        // both system back edges. The arena still awards vertical-dominant
-        // scrolls to the transcript.
-        drawerEdgeDragWidth: wide ? 0 : AppDrawer.edgeDragWidth(context),
-        // Wide: no global appBar — the header renders inside the chat
-        // column (chatHeader below) so it never spans the sidebar/panel.
-        appBar: wide ? null : chatHeader(inline: false),
-        // SafeArea only on wide (no Scaffold appBar to absorb the status
-        // bar); the phone path keeps its exact pre-shell layout.
-        body: (() {
-          final content = active == null
-              ? const SkeletonListView(itemCount: 4)
-              : Row(
+    Widget chatBody() {
+      if (active == null) return const SkeletonListView(itemCount: 4);
+      return Row(
                 children: [
                   Expanded(
                     child: Column(
@@ -620,7 +584,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
                     ),
                   ),
                   if (split && panelOpen) ...[
-                    _PanelDragHandle(onDrag: _onPanelDrag),
+                    PaneDivider(onDrag: _onPanelDrag),
                     ValueListenableBuilder<double>(
                       valueListenable: _panelWidth,
                       // The panel builds once; only the sizing box
@@ -634,38 +598,34 @@ class _ChatPageState extends ConsumerState<ChatPage>
                   ],
                 ],
               );
-          return wide
-              ? SafeArea(top: true, bottom: false, child: content)
-              : content;
-        })(),
-      ),
-    );
-  }
-}
+    }
 
-/// The drag strip between transcript and docked workspace panel (tablet
-/// split). It IS the 1px separator — the panel draws no left border.
-class _PanelDragHandle extends StatelessWidget {
-  const _PanelDragHandle({required this.onDrag});
-
-  /// Horizontal drag delta in px; the parent converts it to a width delta.
-  final ValueChanged<double> onDrag;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.resizeColumn,
-        child: SizedBox(
-          width: 9,
-          child: Center(
-            child: Container(
-                width: 1, color: Theme.of(context).colorScheme.outlineVariant),
-          ),
-        ),
-      ),
+    // Double-back-to-exit lives on the AppShell now: with the ShellRoute,
+    // a back at the inner navigator's bottom routes to the ROOT navigator,
+    // so a PopScope here is never consulted (it silently stopped working
+    // when the shell landed).
+    return Scaffold(
+        // The shell's permanent sidebar replaces the modal drawer on wide
+        // layouts.
+        drawer: AppDrawer.adaptive(context),
+        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
+        // per user feedback): the default ~20px left-edge zone is hard to
+        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
+        // start zone lets a right thumb drag from the middle — clear of
+        // both system back edges. The arena still awards vertical-dominant
+        // scrolls to the transcript.
+        // (edge width is moot on wide — adaptive() gives no drawer)
+        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+        // Wide: no global appBar — the header renders inside the chat
+        // column (chatHeader below) so it never spans the sidebar/panel.
+        appBar: wide ? null : chatHeader(inline: false),
+        // SafeArea only on wide (no Scaffold appBar to absorb the status
+        // bar); the phone path keeps its exact pre-shell layout.
+        // SafeArea only on wide (no Scaffold appBar to absorb the status
+        // bar); the phone path keeps its exact pre-shell layout.
+        body: wide
+            ? SafeArea(top: true, bottom: false, child: chatBody())
+            : chatBody(),
     );
   }
 }

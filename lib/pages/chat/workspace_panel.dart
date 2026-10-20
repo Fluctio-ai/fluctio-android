@@ -6,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pdfrx/pdfrx.dart';
 
 import '../../auth/auth_controller.dart';
-import '../../chat/produced_files.dart';
 import '../../files/agent_files.dart';
 import '../../files/file_preview.dart';
 import '../../files/workspace_files.dart';
@@ -39,15 +38,10 @@ class WorkspacePanelController extends Notifier<WorkspacePanelState> {
   void setOpen(bool open) =>
       state = WorkspacePanelState(open: open, previewPath: state.previewPath);
 
-  /// Inline file card tap: reveal the panel (if collapsed) and preview
-  /// the file inside it.
-  void openFile(ProducedFile file) =>
-      state = WorkspacePanelState(open: true, previewPath: file.path);
-
-  /// Tree-row tap (inline-capable files only — the panel gates before
-  /// calling).
-  void preview(String path) =>
-      state = WorkspacePanelState(open: state.open, previewPath: path);
+  /// Preview a file inline: reveal the panel (if collapsed) and show it.
+  /// Inline transcript cards and the smart opener both land here.
+  void openFile(String path) =>
+      state = WorkspacePanelState(open: true, previewPath: path);
 
   /// Preview header's back: return to the tree, panel stays open.
   void closePreview() => state = WorkspacePanelState(open: state.open);
@@ -71,7 +65,7 @@ void openWorkspaceFileSmart(
 }) {
   final name = displayName ?? path.split('/').last;
   if (isChatSplit(context) && canInlinePreview(name)) {
-    ref.read(workspacePanelProvider.notifier).openFile(ProducedFile(path));
+    ref.read(workspacePanelProvider.notifier).openFile(path);
     return;
   }
   openWorkspaceFilePreview(context, ref,

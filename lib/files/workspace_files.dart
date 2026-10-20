@@ -58,7 +58,15 @@ class WorkspaceFilesView extends ConsumerStatefulWidget {
     required this.agentId,
     required this.sessionId,
     required this.onOpen,
+    this.hug = false,
   });
+
+  /// True = content-hugging list (shrinkWrap; the modal sheet needs it
+  /// to size itself inside its height cap). False = lazy builder filling
+  /// the parent — the docked panel mounts this permanently, so rows
+  /// must stay lazy (shrinkWrap would build every row on each turn-end
+  /// invalidate).
+  final bool hug;
 
   final String agentId;
   final String sessionId;
@@ -225,7 +233,7 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
               // builder, not children: this view is now permanently
               // mounted in the docked panel, so rows must stay lazy.
               return ListView.builder(
-                shrinkWrap: true,
+                shrinkWrap: widget.hug,
                 itemCount: rows.length,
                 itemBuilder: (context, i) {
                   final (node, depth) = rows[i];

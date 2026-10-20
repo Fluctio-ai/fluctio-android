@@ -3,7 +3,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../pages/app_drawer.dart';
 import 'breakpoints.dart';
+
 import 'load_states.dart';
+import 'pane_divider.dart';
 
 /// Wide-layout list|detail host for the tool pages (web md+ parity:
 /// knowledge-views / notes / diary / cards all split list-left,
@@ -43,23 +45,27 @@ class MasterDetailScaffold extends StatefulWidget {
   final Widget? floatingActionButton;
 
   /// True when this page should split list|detail instead of pushing
-  /// detail routes (the wide-layout gate shared with the chat split).
-  static bool isSplit(BuildContext context) => hasMasterDetail(context);
+  /// detail routes — the same wide gate as the chat split (every wide
+  /// adaptation flips at one threshold).
+  static bool isSplit(BuildContext context) => isChatSplit(context);
 
   @override
   State<MasterDetailScaffold> createState() => _MasterDetailScaffoldState();
 }
 
-class _MasterDetailScaffoldState extends State<MasterDetailScaffold> {
-  static double _listWidth = 400;
+/// Shared list-pane width across every master-detail page (one drag
+/// habit everywhere). App-lifetime singleton — a double, nothing to
+/// reclaim, so no dispose.
+final ValueNotifier<double> _mdListWidth = ValueNotifier(400.0);
 
+class _MasterDetailScaffoldState extends State<MasterDetailScaffold> {
   static const _minWidth = 240.0;
 
   void _onDrag(double dx) {
     // Left-anchored: dragging right (positive dx) grows the list.
     final size = MediaQuery.sizeOf(context);
     final maxW = (size.width * 0.6).clamp(_minWidth, 720.0);
-    setState(() => _listWidth = (_listWidth + dx).clamp(_minWidth, maxW));
+    _mdListWidth.value = (_mdListWidth.value + dx).clamp(_minWidth, maxW);
   }
 
   @override
@@ -77,8 +83,14 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold> {
           : Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(width: _listWidth, child: widget.listPane),
-                _PaneDivider(onDrag: _onDrag),
+                ValueListenableBuilder<double>(
+                  valueListenable: _mdListWidth,
+                  child: widget.listPane,
+                  builder: (context, w, child) =>
+                      SizedBox(width: w, child: child),
+                ),
+                // Left-anchored: positive drag grows the list.
+                PaneDivider(onDrag: _onDrag),
                 Expanded(
                   child: detail ??
                       Center(
@@ -93,31 +105,49 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold> {
   }
 }
 
-/// The draggable strip between the list and detail panes (web
-/// PaneDivider parity): a 9px hit area over a 1px line, column-resize
-/// cursor on pointer devices.
-class _PaneDivider extends StatelessWidget {
-  const _PaneDivider({required this.onDrag});
+/// The 48px header of a master-detail pane: truncated title on the
+/// left, optional edit pencil on the right (notes/flash panes; pages
+/// with richer chrome build their own).
+class DetailPaneHeader extends StatelessWidget {
+  const DetailPaneHeader({super.key, required this.title, this.onEdit, this.editTooltip});
 
-  /// Horizontal drag delta in px; the parent converts it to a width
-  /// delta (left-anchored: positive grows).
-  final ValueChanged<double> onDrag;
+  final String title;
+
+  /// Pass null to omit the pencil (view-only panes).
+  final VoidCallback? onEdit;
+  final String? editTooltip;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragUpdate: (d) => onDrag(d.delta.dx),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.resizeColumn,
-        child: SizedBox(
-          width: 9,
-          child: Center(
-            child: Container(width: 1, color: scheme.outlineVariant),
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              if (onEdit != null)
+                IconButton(
+                  tooltip: editTooltip,
+                  icon: const Icon(LucideIcons.penLine, size: 20),
+                  onPressed: onEdit,
+                ),
+              const SizedBox(width: 8),
+            ],
           ),
         ),
-      ),
+        Divider(height: 1, color: theme.colorScheme.outlineVariant),
+      ],
     );
   }
 }

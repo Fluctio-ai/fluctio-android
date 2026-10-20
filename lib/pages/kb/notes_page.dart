@@ -37,15 +37,9 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     final notes = agentId == null ? null : ref.watch(kbNotesProvider(agentId));
     final split = MasterDetailScaffold.isSplit(context);
-    KbNote? selected;
-    final list = notes?.value;
-    if (split && _selectedId != null && list != null) {
-      for (final n in list) {
-        if (n.id == _selectedId) selected = n;
-      }
-    }
-    // Final alias: closures capture it with promotion intact.
-    final sel = selected;
+    final sel = split
+        ? notes?.value?.where((n) => n.id == _selectedId).firstOrNull
+        : null;
 
     return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbNotes)),
@@ -229,43 +223,36 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
 /// The wide-layout detail pane for a note: pane header (title + edit
 /// pencil) above the read-only markdown body (KbTextView). Editing stays
 /// a full-screen push in v1 — the pane header's pencil drives it.
-class _NotePane extends StatelessWidget {
+///
+/// Stateful so the KbTextView future is created ONCE (a fresh
+/// Future.value per build would re-subscribe the FutureBuilder →
+/// skeleton flash + full re-parse on any parent rebuild). The parent's
+/// ValueKey(id+updatedAt) remounts it when content changes.
+class _NotePane extends StatefulWidget {
   const _NotePane({super.key, required this.note, required this.onEdit});
 
   final KbNote note;
   final VoidCallback onEdit;
 
   @override
+  State<_NotePane> createState() => _NotePaneState();
+}
+
+class _NotePaneState extends State<_NotePane> {
+  late final Future<String> _content = Future.value(widget.note.contentMd);
+
+  @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     return Column(
       children: [
-        SizedBox(
-          height: 48,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  note.title.isEmpty ? l.noteUntitled : note.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              IconButton(
-                tooltip: l.kbEdit,
-                icon: const Icon(LucideIcons.penLine, size: 20),
-                onPressed: onEdit,
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
+        DetailPaneHeader(
+          title: widget.note.title.isEmpty ? l.noteUntitled : widget.note.title,
+          onEdit: widget.onEdit,
+          editTooltip: l.kbEdit,
         ),
-        Divider(height: 1, color: theme.colorScheme.outlineVariant),
         // The note list row already carries the full markdown body.
-        Expanded(child: KbTextView(future: Future.value(note.contentMd))),
+        Expanded(child: KbTextView(future: _content)),
       ],
     );
   }

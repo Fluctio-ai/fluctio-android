@@ -16,7 +16,9 @@ import '../../util/dates.dart';
 import 'typing_dots.dart';
 import '../../theme/tokens.dart';
 import '../../files/file_preview.dart';
+import '../../files/agent_files.dart';
 import '../../files/workspace_files.dart';
+import '../../webview/web_container.dart';
 import 'chat_image.dart';
 import 'image_viewer.dart';
 import 'workspace_panel.dart';
@@ -604,14 +606,15 @@ class _MarkdownImage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final auth = ref.watch(authControllerProvider);
+    final resolved = _resolveChatMediaUrl(ref, url, watch: true);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: InkWell(
-        onTap: () => _openImage(context, ref, url),
+        onTap: () => _openImage(context, ref, resolved),
         child: ClipRRect(
           borderRadius: AppRadius.controlBorder,
           child: Image(
-            image: chatImageProvider(url, baseUrl: auth.baseUrl, cookie: auth.sid),
+            image: chatImageProvider(resolved, baseUrl: auth.baseUrl, cookie: auth.sid),
             width: width,
             height: height,
             errorBuilder: (_, _, _) => Container(
@@ -627,18 +630,27 @@ class _MarkdownImage extends ConsumerWidget {
   }
 }
 
-class _ToolCard extends ConsumerWidget {
+class _ToolCard extends ConsumerStatefulWidget {
   const _ToolCard({required this.entry});
 
   final ToolEntry entry;
 
-  /// Files this call deliberately produced (web FilesPanel parity,
-  /// extractProducedFiles): write_file / deliver_file / image_gen records
-  /// only. The live listing supplies the real scopePrefixes AND the
-  /// exists-oracle — without it the only fallback would be a loose-chat
-  /// `sessions/<sid>/` guess, wrong for project chats, so cards simply
-  /// don't render until the listing lands.
-  List<ProducedFile> _produced(WidgetRef ref) {
+  @override
+  ConsumerState<_ToolCard> createState() => _ToolCardState();
+}
+
+class _ToolCardState extends ConsumerState<_ToolCard> {
+  /// Memoized extraction: arguments/result are immutable after settle and
+  /// the listing only changes on turn-end invalidate — re-running
+  /// jsonDecode (write_file arguments can carry 100KB+) on every
+  /// streaming delta for every visible card is pure waste. Re-extract
+  /// only when either input's identity changes.
+  String? _cachedResult;
+  AgentFileListing? _cachedListing;
+  List<ProducedFile> _producedFiles = const [];
+
+  List<ProducedFile> _produced() {
+    final entry = widget.entry;
     // Running tools carry no result yet — nothing could have landed.
     if (entry.result == null || !toolCallProducesFiles(entry.name)) {
       return const [];
@@ -648,17 +660,24 @@ class _ToolCard extends ConsumerWidget {
     final listing =
         ref.watch(workspaceFilesProvider((parts.agentId, parts.sessionId))).value;
     if (listing == null) return const [];
-    return extractProducedFiles(
+    if (identical(entry.result, _cachedResult) && identical(listing, _cachedListing)) {
+      return _producedFiles;
+    }
+    _cachedResult = entry.result;
+    _cachedListing = listing;
+    return _producedFiles = extractProducedFiles(
         entry.name, entry.arguments, entry.result, listing.scopePrefixes,
         exists: listing.pathSet.contains);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
+    final entry = widget.entry;
     final running = entry.result == null;
-    final produced = _produced(ref);
+    final produced = _produced();
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
@@ -902,19 +921,47 @@ class _AuthCard extends ConsumerWidget {
   }
 }
 
+/// Model-emitted sandbox srcs (`![](/workspace/<rel>)`) remap onto the
+/// authenticated file API against THIS chat's workspace root — the
+/// shallowest scope prefix (web ChatMarkdown urlTransform parity,
+/// chat-markdown.tsx:249; contract §4). Before the listing lands the
+/// loose-chat guess `sessions/<sid>/` covers the window, same fallback
+/// as the web. Everything else passes through. [watch] keeps the listing
+/// subscribed during builds — that watch is also what fetches
+/// scopePrefixes when no files surface is mounted; event handlers pass
+/// false.
+String _resolveChatMediaUrl(WidgetRef ref, String url, {bool watch = false}) {
+  if (!url.startsWith('/workspace/')) return url;
+  final parts = splitSessionKey(ref.read(chatStoreProvider).activeKey);
+  final agentId = parts?.agentId ?? ref.read(agentsProvider).selectedId;
+  if (agentId == null) return url;
+  final sessionId = parts?.sessionId ?? '';
+  final listing = watch
+      ? ref.watch(workspaceFilesProvider((agentId, sessionId)))
+      : ref.read(workspaceFilesProvider((agentId, sessionId)));
+  final root = listing.value?.workspaceRoot ??
+      (sessionId.isNotEmpty ? 'sessions/$sessionId/' : '');
+  return WebRoutes.agentFile(agentId, root + url.substring('/workspace/'.length));
+}
+
 /// Opens [url] inside the conversation's image lightbox: every image of
 /// the active transcript via [UiEntryGalleryImages.galleryImages], so
 /// horizontal swipes page through them (ticket 13); a URL not found in
-/// the inventory opens alone (agent files etc.).
+/// the inventory opens alone (agent files etc.). Inventory and tap
+/// resolve through the same remap so `/workspace/` srcs match.
 void _openImage(BuildContext context, WidgetRef ref, String url) {
   final auth = ref.read(authControllerProvider);
   final entries = ref.read(chatStoreProvider).active?.entries ?? const <UiEntry>[];
-  final urls = [for (final e in entries) ...e.galleryImages];
-  final index = urls.indexOf(url);
+  final urls = [
+    for (final e in entries)
+      ...[for (final u in e.galleryImages) _resolveChatMediaUrl(ref, u)]
+  ];
+  final tapped = _resolveChatMediaUrl(ref, url);
+  final index = urls.indexOf(tapped);
   openImageViewer(
     context,
     [
-      for (final u in (index >= 0 ? urls : [url]))
+      for (final u in (index >= 0 ? urls : [tapped]))
         chatImageProvider(u, baseUrl: auth.baseUrl, cookie: auth.sid),
     ],
     initialIndex: index >= 0 ? index : 0,

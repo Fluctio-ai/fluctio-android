@@ -27,7 +27,7 @@ String workspaceFileExt(String name) =>
 /// Authenticated gateway URL for one workspace file — the panel's inline
 /// image preview needs the same URL the pushed previews build.
 String workspaceFileGatewayUrl(String baseUrl, String agentId, String path) =>
-    '$baseUrl/api/agents/$agentId/files/${encodeWorkspacePath(path)}';
+    '$baseUrl${WebRoutes.agentFile(agentId, path)}';
 
 const _imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
 const _textExts = {

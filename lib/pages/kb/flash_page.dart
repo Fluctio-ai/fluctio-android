@@ -40,15 +40,9 @@ class _KbFlashPageState extends ConsumerState<KbFlashPage> {
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     final sources = agentId == null ? null : ref.watch(kbSourcesProvider(agentId));
     final split = MasterDetailScaffold.isSplit(context);
-    KbSource? selected;
-    final list = sources?.value;
-    if (split && _selectedId != null && list != null) {
-      for (final s in list) {
-        if (s.id == _selectedId) selected = s;
-      }
-    }
-    // Final alias: closures capture it with promotion intact.
-    final sel = selected;
+    final sel = split
+        ? sources?.value?.where((s) => s.id == _selectedId).firstOrNull
+        : null;
 
     return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbIdeas)),
@@ -276,32 +270,13 @@ class _FlashPaneState extends ConsumerState<_FlashPane> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     return Column(
       children: [
-        SizedBox(
-          height: 48,
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  widget.source.title.isEmpty ? l.kbIdeas : widget.source.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              IconButton(
-                tooltip: l.kbEdit,
-                icon: const Icon(LucideIcons.penLine, size: 20),
-                onPressed: widget.onEdit,
-              ),
-              const SizedBox(width: 8),
-            ],
-          ),
+        DetailPaneHeader(
+          title: widget.source.title.isEmpty ? l.kbIdeas : widget.source.title,
+          onEdit: widget.onEdit,
+          editTooltip: l.kbEdit,
         ),
-        Divider(height: 1, color: theme.colorScheme.outlineVariant),
         Expanded(child: KbTextView(future: _future)),
       ],
     );

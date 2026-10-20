@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/markdown.dart';
@@ -115,11 +114,7 @@ class KbTextView extends StatelessWidget {
                         slivers: [
                           SliverPadding(
                             padding: const EdgeInsets.all(16),
-                            sliver: SliverGptMarkdown(
-                              normalizeMarkdownBlocks(snap.data ?? ''),
-                              config: markdownConfig(context),
-                              useDollarSignsForLatex: true,
-                            ),
+                            sliver: sliverMarkdown(context, snap.data ?? ''),
                           ),
                         ],
                       ),
