@@ -26,7 +26,7 @@ class UpdateService {
   /// Default: GitHub latest release API. Kept in one place alongside the
   /// CI workflow's publish target; change here when the repo moves.
   static const checkUrl =
-      'https://api.github.com/repos/moon/fluctio-android/releases/latest';
+      'https://api.github.com/repos/Fluctio-ai/fluctio-android/releases/latest';
 
   Future<UpdateInfo?> check() async {
     final res = await _dio.get(checkUrl);
