@@ -1,3 +1,6 @@
+import java.io.StringReader
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -31,21 +34,35 @@ android {
         versionName = flutter.versionName
     }
 
+    // Release signing: credentials come from android/app/key.properties
+    // (gitignored; local builds) or the FLUCTIO_KEYSTORE_PROPS env var
+    // (CI, injected from Actions secrets) — never from this file. The
+    // keystore itself stays out of git; CI restores it from a secret.
+    // Without material the release APK builds unsigned and the workflow's
+    // app-release.apk upload fails loudly.
+    val keystoreProps = Properties().apply {
+        val f = file("key.properties")
+        if (f.exists()) {
+            f.inputStream().use { load(it) }
+        } else {
+            System.getenv("FLUCTIO_KEYSTORE_PROPS")?.let { load(StringReader(it)) }
+        }
+    }
+
     signingConfigs {
-        create("release") {
-            // Release keystore lives in the repo (private project) so CI
-            // and local builds share one signature — updates install over
-            // each other.
-            storeFile = file("release.keystore")
-            storePassword = "***scrubbed***"
-            keyAlias = "fluctio"
-            keyPassword = "***scrubbed***"
+        if (keystoreProps.getProperty("storePassword") != null) {
+            create("release") {
+                storeFile = file("release.keystore")
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 }

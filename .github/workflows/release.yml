@@ -34,7 +34,12 @@ jobs:
           # a breaking gpt_markdown once already).
           PUB_HOSTED_URL: https://pub.flutter-io.cn
           FLUTTER_STORAGE_BASE_URL: https://storage.flutter-io.cn
+          # Signing material lives in Actions secrets; the keystore is
+          # decoded back into place just for this build.
+          FLUCTIO_KEYSTORE_BASE64: ${{ secrets.FLUCTIO_KEYSTORE_BASE64 }}
+          FLUCTIO_KEYSTORE_PROPS: ${{ secrets.FLUCTIO_KEYSTORE_PROPS }}
         run: |
+          echo "$FLUCTIO_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
           flutter pub get
           flutter build apk --release
 
