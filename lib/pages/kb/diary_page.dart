@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/chat_controller.dart';
+import '../../chat/chat_routes.dart';
 import '../../kb/diary_models.dart';
 import '../../kb/diary_repo.dart';
 import '../../l10n/app_localizations.dart';
@@ -682,6 +683,21 @@ class DiaryContent extends StatelessWidget {
             const SizedBox(height: 8),
           ],
         ],
+        if (diary.shelved.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(LucideIcons.archiveRestore, size: 15, color: scheme.primary),
+              const SizedBox(width: 6),
+              Text(l.diaryShelved, style: theme.textTheme.titleSmall),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (final s in diary.shelved) ...[
+            _ShelvedCard(item: s),
+            const SizedBox(height: 8),
+          ],
+        ],
         if (diary.archives.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(l.diaryArchives, style: theme.textTheme.titleSmall),
@@ -694,6 +710,115 @@ class DiaryContent extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// A #seq-N deep-link chip into the chat transcript — the shared visual
+/// for theme segment chips and shelved-ledger cards; the route shape
+/// comes from chatSessionRoute.
+class _SeqChip extends StatelessWidget {
+  const _SeqChip({required this.session, required this.seq, this.end});
+
+  final String session;
+  final int seq;
+
+  /// Segment ranges render as `#seq-a~b`; single points omit it.
+  final int? end;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final rangeEnd = end;
+    return InkWell(
+      onTap: () => context.push(chatSessionRoute(session, seq: seq)),
+      borderRadius: BorderRadius.all(AppRadius.nested),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.all(AppRadius.nested),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.4)),
+        ),
+        child: Text(
+          rangeEnd != null && rangeEnd != seq ? '#seq-$seq~$rangeEnd' : '#seq-$seq',
+          style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary),
+        ),
+      ),
+    );
+  }
+}
+
+/// One shelved-ledger entry (web ShelvedCard): topic + the situation
+/// when deferred + a #seq-N chip back into that conversation (the way
+/// back in — settling stays the user's own move). Resolved entries
+/// (picked back up that day) render with the success tint as the
+/// closed loop.
+class _ShelvedCard extends StatelessWidget {
+  const _ShelvedCard({required this.item});
+
+  final DiaryShelved item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    final scheme = theme.colorScheme;
+    final success = paletteOf(context).success;
+    final resolved = item.resolved;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: resolved
+            ? success.withValues(alpha: 0.05)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        borderRadius: AppRadius.cardBorder,
+        border: Border.all(
+            color: resolved
+                ? success.withValues(alpha: 0.3)
+                : scheme.outlineVariant),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (resolved) ...[
+                      Icon(LucideIcons.check, size: 14, color: success),
+                      const SizedBox(width: 4),
+                    ],
+                    Expanded(
+                        child: Text(item.topic, style: theme.textTheme.bodyMedium)),
+                  ],
+                ),
+                if (item.context.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(item.context,
+                      style:
+                          theme.textTheme.bodySmall?.copyWith(color: scheme.outline)),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  resolved
+                      ? l.diaryShelvedResolved
+                      : l.diaryShelvedSince(item.since, item.daysOpen),
+                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
+                ),
+              ],
+            ),
+          ),
+          if (item.session.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            _SeqChip(session: item.session, seq: item.seq),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -736,27 +861,9 @@ class _ThemeCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 // #seq chips deep-link the transcript to the segment's
-                // first message (/c/<sid>?seq=N).
+                // first message (chatSessionRoute builds the shape).
                 for (final seg in item.segments.take(6))
-                  InkWell(
-                    onTap: () => context.push(
-                        '/c/${Uri.encodeComponent(seg.session)}?seq=${seg.start}'),
-                    borderRadius: BorderRadius.all(AppRadius.nested),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.all(AppRadius.nested),
-                        border: Border.all(color: scheme.primary.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        seg.start == seg.end
-                            ? '#seq-${seg.start}'
-                            : '#seq-${seg.start}~${seg.end}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: scheme.primary),
-                      ),
-                    ),
-                  ),
+                  _SeqChip(session: seg.session, seq: seg.start, end: seg.end),
               ],
             ),
           ],

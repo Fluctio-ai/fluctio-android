@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../auth/auth_state.dart';
@@ -13,7 +11,7 @@ import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
 import '../kb/kb_models.dart';
 import '../kb/kb_repo.dart';
-import '../router.dart';
+import '../notify/notify_hub.dart';
 import '../util/dates.dart';
 
 /// Local todo reminders: while the gateway's due sweep pushes to external
@@ -30,11 +28,14 @@ final todoReminderServiceProvider =
     Provider<TodoReminderService>((ref) => TodoReminderService(ref));
 
 class TodoReminderService {
-  TodoReminderService(this._ref) {
-    _initPlugin();
+  TodoReminderService(this._ref) : _hub = _ref.read(localNotifyHubProvider) {
     // Lazy-build catch-up (same contract as the chat controllers): this
     // provider first builds inside FluctioApp long after auth restored, so
-    // the listeners below must also check the current state.
+    // the listeners below must also check the current state. The hub's
+    // async plugin init may finish after activation — sync once it lands.
+    unawaited(_hub.ready.then((_) {
+      if (_active && _hub.isReady) _syncNow();
+    }));
     _ref.listen(authControllerProvider.select((s) => s.status), (prev, next) {
       next == AuthStatus.loggedIn ? _activate() : _deactivate();
     }, fireImmediately: true);
@@ -43,21 +44,20 @@ class TodoReminderService {
     });
   }
 
-  static const _todosRoute = '/kb/todos'; // payload AND tap destination
+  static const _todosRoute = '/kb/todos'; // notification tap destination
   static const _channelId = 'todo_reminders';
 
   final Ref _ref;
-  final _plugin = FlutterLocalNotificationsPlugin();
+  final LocalNotifyHub _hub;
 
   bool _active = false;
-  bool _ready = false;
   bool _syncing = false;
   DateTime _lastSync = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _debounce;
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
 
-  bool get _zh => PlatformDispatcher.instance.locale.languageCode == 'zh';
+  bool get _zh => _hub.localeIsZh;
 
   /// Re-sync after a todo mutation (the repo's onTodoWrite callback and the
   /// todos page refresh). Trailing-debounced so a burst of mutations
@@ -69,12 +69,12 @@ class TodoReminderService {
 
   Future<void> _syncNow() async {
     final agentId = _ref.read(agentsProvider).selectedId;
-    if (agentId == null || _syncing || !_ready) return;
+    if (agentId == null || _syncing || !_hub.isReady) return;
     _syncing = true;
     try {
       final todos = await _ref.read(kbRepoProvider).todos(agentId);
       final now = DateTime.now();
-      await _plugin.cancelAll();
+      await _hub.cancelAll();
       for (final t in todos) {
         if (t.status == 'done' || t.status == 'cancelled') continue;
         final start = t.startAt?.toLocal();
@@ -89,43 +89,11 @@ class TodoReminderService {
     }
   }
 
-  Future<void> _initPlugin() async {
-    try {
-      tzdata.initializeTimeZones();
-      const settings = InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      );
-      await _plugin.initialize(
-        settings: settings,
-        onDidReceiveNotificationResponse: _onNotificationTapped,
-      );
-      // Cold start from a notification: the callback above only fires for an
-      // already-running app; the launch tap is reported via launchDetails.
-      final launch = await _plugin.getNotificationAppLaunchDetails();
-      if (launch?.didNotificationLaunchApp ?? false) {
-        _openTodos();
-      }
-    } catch (_) {
-      // No platform implementation (unit tests): stay inert, _ready stays
-      // false and every sync becomes a no-op.
-      return;
-    }
-    _ready = true;
-    if (_active) _syncNow();
-  }
-
   void _activate() {
     if (_active) return;
     _active = true;
     // POST_NOTIFICATIONS runtime prompt (Android 13+); no-op when granted.
-    try {
-      // Errors surface on the returned Future — swallow those too.
-      _plugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission()
-          .catchError((_) => null);
-    } catch (_) {} // plugin-less environments (tests)
+    _hub.requestPermission();
     _lifecycle = AppLifecycleListener(onResume: () {
       // Back to foreground: server-side edits since we were last seen.
       if (DateTime.now().difference(_lastSync) > const Duration(minutes: 5)) {
@@ -140,7 +108,7 @@ class TodoReminderService {
         _syncNow();
       }
     });
-    if (_ready) _syncNow();
+    if (_hub.isReady) _syncNow();
   }
 
   Future<void> _deactivate() async {
@@ -151,12 +119,8 @@ class TodoReminderService {
     _debounce = null;
     _lifecycle?.dispose();
     _lifecycle = null;
-    // Logged out: no one else's todos may ring. Guarded the same way as
-    // _initPlugin for plugin-less environments — and awaited, since the
-    // platform call reports errors through the returned Future.
-    try {
-      await _plugin.cancelAll();
-    } catch (_) {}
+    // Logged out: no one else's todos may ring.
+    await _hub.cancelAll();
   }
 
   Future<void> _schedule(KbSource t) async {
@@ -180,7 +144,7 @@ class TodoReminderService {
     // Only stable within a run: every sync starts with cancelAll, so ids
     // never need to outlive the process.
     final id = t.id.hashCode & 0x7fffffff;
-    Future<void> schedule(AndroidScheduleMode mode) => _plugin.zonedSchedule(
+    Future<void> schedule(AndroidScheduleMode mode) => _hub.plugin.zonedSchedule(
           id: id,
           title: t.title,
           body: body,
@@ -195,18 +159,6 @@ class TodoReminderService {
       // No exact-alarm grant (e.g. USE_EXACT_ALARM refused): a few minutes
       // of Doze slack beats no reminder at all.
       await schedule(AndroidScheduleMode.inexactAllowWhileIdle);
-    }
-  }
-
-  void _onNotificationTapped(NotificationResponse response) {
-    if (response.payload == _todosRoute) _openTodos();
-  }
-
-  void _openTodos() {
-    try {
-      _ref.read(routerProvider).go(_todosRoute);
-    } catch (_) {
-      // Router not mounted yet (cold start race) — the user lands on chat.
     }
   }
 }

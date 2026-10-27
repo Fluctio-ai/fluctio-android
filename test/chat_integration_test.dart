@@ -63,6 +63,13 @@ void main() {
   late HttpServer server;
   late ProviderContainer container;
   final postedBodies = <Map<String, dynamic>>[];
+  // 'ok' — stream frames normally. 'fail-first' — kill the next
+  // failKillsLeft POSTs at the socket level (network-class death before
+  // any frame). 'http-error' — 500 with an error body; 'http-plain' —
+  // 502 with a body that has no error field (unreadable for
+  // sseErrorText, but still an HTTP-layer rejection).
+  var postMode = 'ok';
+  var failKillsLeft = 0;
 
   Future<void> until(String label, bool Function() cond, {Duration timeout = const Duration(seconds: 5)}) async {
     final deadline = DateTime.now().add(timeout);
@@ -77,8 +84,23 @@ void main() {
     }
   }
 
+  /// Boots the container into an open session the way ChatPage's first
+  /// frame does (chat store alive before agents load) and returns the
+  /// active session key.
+  Future<String> boot() async {
+    container.read(chatStoreProvider.notifier);
+    await container.read(agentsProvider.notifier).load();
+    await until('agents', () => container.read(agentsProvider).selectedId == 'agt_test');
+    await until('activeKey', () => container.read(chatStoreProvider).activeKey != null);
+    final key = container.read(chatStoreProvider).activeKey!;
+    await until('history', () => !container.read(chatStoreProvider).chats[key]!.historyLoading);
+    return key;
+  }
+
   setUp(() async {
     postedBodies.clear();
+    postMode = 'ok';
+    failKillsLeft = 0;
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
 
     server.listen((req) async {
@@ -96,6 +118,21 @@ void main() {
       } else if (path == '/api/chat/stream' && req.method == 'POST') {
         final body = jsonDecode(await utf8.decoder.bind(req).join());
         postedBodies.add(Map<String, dynamic>.from(body as Map));
+        if (postMode == 'fail-first' && failKillsLeft-- > 0) {
+          // Abrupt socket death, zero response bytes: a network-class
+          // DioException with no HTTP response at all.
+          final socket = await req.response.detachSocket();
+          socket.destroy();
+          return;
+        }
+        if (postMode == 'http-error') {
+          _json(req, {'error': 'server says no'}, status: 500);
+          return;
+        }
+        if (postMode == 'http-plain') {
+          _json(req, {'oops': 'no error field'}, status: 502);
+          return;
+        }
         req.response.headers.set('Content-Type', 'text/event-stream');
         await req.response.flush();
         await _sseFrame(req.response, 11, {'seq': 11, 'type': 'content_delta', 'data': {'delta': 'Hel'}});
@@ -128,16 +165,10 @@ void main() {
       () async {
     // Real-app ordering: the chat store is alive (ChatPage's first frame)
     // before agents load, so build()'s listener catches the transition.
-    final chat = container.read(chatStoreProvider.notifier);
-    await container.read(agentsProvider.notifier).load();
-    await until('agents', () => container.read(agentsProvider).selectedId == 'agt_test');
-
-    await until('activeKey', () => container.read(chatStoreProvider).activeKey != null);
-    final key = container.read(chatStoreProvider).activeKey!;
+    final key = await boot();
     expect(key.startsWith('agt_test|'), isTrue);
-    await until('history', () => !container.read(chatStoreProvider).chats[key]!.historyLoading);
 
-    await chat.send('hi');
+    await container.read(chatStoreProvider.notifier).send('hi');
     await until('assistant', () {
       final s = container.read(chatStoreProvider).chats[key]!;
       return s.entries.any((e) => e is AssistantEntry && e.text == 'Hello!');
@@ -151,6 +182,93 @@ void main() {
     expect(postedBodies.single['message'], 'hi');
     expect(postedBodies.single['agentId'], 'agt_test');
     expect(postedBodies.single['sessionId'], key.split('|')[1]);
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('network death before the first frame auto-retries with rollback instead of failing',
+      () async {
+    // Phantom-failure symptom on mobile: the POST dies before any frame
+    // (lock-screen blip, WiFi↔cellular switch) while the server may
+    // already hold the message. The controller must retry once with
+    // rollbackPendingUser — not mark the bubble failed.
+    postMode = 'fail-first';
+    failKillsLeft = 1;
+    final key = await boot();
+
+    await container.read(chatStoreProvider.notifier).send('hi');
+    await until('retried', () => postedBodies.length == 2);
+    expect(postedBodies[1]['rollbackPendingUser'], isTrue);
+    await until('assistant', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.any((e) => e is AssistantEntry && e.text == 'Hello!');
+    });
+
+    final s = container.read(chatStoreProvider).chats[key]!;
+    expect(s.phase, TurnPhase.idle);
+    // Exactly one user bubble, not failed — the retry superseded the mark.
+    final users = s.entries.whereType<UserEntry>().toList();
+    expect(users, hasLength(1));
+    expect(users.single.failed, isFalse);
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('HTTP error before the first frame marks failed without retrying',
+      () async {
+    postMode = 'http-error';
+    final key = await boot();
+
+    await container.read(chatStoreProvider.notifier).send('hi');
+    await until('failed', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.whereType<UserEntry>().any((e) => e.failed);
+    });
+    // A real server rejection is not retried.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(postedBodies, hasLength(1));
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('HTTP rejection with an unreadable body is still not retried',
+      () async {
+    // 502 without a parseable {"error": ...} field: sseErrorText returns
+    // null, but the response object proves an HTTP-layer rejection —
+    // the retry gate keys on that, not on body readability.
+    postMode = 'http-plain';
+    final key = await boot();
+
+    await container.read(chatStoreProvider.notifier).send('hi');
+    await until('failed', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.whereType<UserEntry>().any((e) => e.failed);
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(postedBodies, hasLength(1));
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('resend after a server rejection also auto-retries on network death',
+      () async {
+    // resendFailed passes rollback:true on its FIRST attempt, so the
+    // retry gate must not lean on rollback as its generation marker.
+    postMode = 'http-error';
+    final key = await boot();
+    await container.read(chatStoreProvider.notifier).send('hi');
+    await until('failed', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.whereType<UserEntry>().any((e) => e.failed);
+    });
+
+    postMode = 'fail-first';
+    failKillsLeft = 1;
+    await container.read(chatStoreProvider.notifier).resendFailed();
+    await until('assistant', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.any((e) => e is AssistantEntry && e.text == 'Hello!');
+    });
+
+    final s = container.read(chatStoreProvider).chats[key]!;
+    expect(s.phase, TurnPhase.idle);
+    expect(postedBodies, hasLength(3));
+    expect(postedBodies[2]['rollbackPendingUser'], isTrue);
+    final users = s.entries.whereType<UserEntry>().toList();
+    expect(users, hasLength(1));
+    expect(users.single.failed, isFalse);
   }, timeout: const Timeout(Duration(seconds: 20)));
 }
 

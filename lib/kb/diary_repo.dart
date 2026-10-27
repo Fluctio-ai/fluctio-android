@@ -18,6 +18,23 @@ final diaryEntryProvider = FutureProvider.autoDispose
   return ref.watch(diaryRepoProvider).entry(t.$1, t.$2);
 });
 
+/// The live shelved-topics ledger for the dashboard pane
+/// (GET /api/agents/{id}/diary/shelved).
+final diaryShelvedProvider =
+    FutureProvider.autoDispose.family<DiaryShelvedView, String>((ref, agentId) {
+  return ref.watch(diaryRepoProvider).shelved(agentId);
+});
+
+/// Live shelved-ledger view (docs/api/API.md §8): enabled:false when the
+/// agent hasn't opted in — the pane hides entirely instead of rendering
+/// an empty teaser.
+class DiaryShelvedView {
+  const DiaryShelvedView({required this.enabled, this.items = const []});
+
+  final bool enabled;
+  final List<DiaryShelved> items;
+}
+
 /// Dates with a manual generation in flight — shared by the calendar
 /// page's generate row and the detail page's regenerate action (the web
 /// parent view owns the same single flag). Plain Notifier, not
@@ -93,4 +110,24 @@ class DiaryRepo {
   /// Fire-and-forget manual generation (202); the caller polls [entry].
   Future<void> generate(String agentId, String date) =>
       _dio.post('/api/agents/$agentId/diary/generate', data: {'date': date});
+
+  /// The live shelved ledger. Fail-closed like the web (api.ts
+  /// getDiaryShelved): any failure answers enabled:false so the opt-in
+  /// pane just never appears.
+  Future<DiaryShelvedView> shelved(String agentId) async {
+    try {
+      final data = (await _dio.get('/api/agents/$agentId/diary/shelved')).data;
+      if (data is! Map) return const DiaryShelvedView(enabled: false);
+      final j = Map<String, dynamic>.from(data);
+      return DiaryShelvedView(
+        enabled: j['enabled'] == true,
+        items: [
+          for (final s in (j['items'] as List? ?? const []))
+            if (s is Map) DiaryShelved.fromJson(Map<String, dynamic>.from(s)),
+        ],
+      );
+    } catch (_) {
+      return const DiaryShelvedView(enabled: false);
+    }
+  }
 }

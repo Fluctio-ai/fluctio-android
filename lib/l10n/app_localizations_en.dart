@@ -360,6 +360,17 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get diaryShelved => 'Shelved topics';
+
+  @override
+  String diaryShelvedSince(Object date, int n) {
+    return 'Shelved $date · ${n}d ago';
+  }
+
+  @override
+  String get diaryShelvedResolved => 'Picked up';
+
+  @override
   String get meAgents => 'Agents';
 
   @override
@@ -985,6 +996,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashCronNone => 'No jobs enabled';
+
+  @override
+  String get dashShelvedNone => 'Nothing shelved';
+
+  @override
+  String dashShelvedDaysAgo(int n) {
+    return '${n}d ago';
+  }
+
+  @override
+  String get dashShelvedView => 'Open diary →';
 
   @override
   String editorIssues(num count) {

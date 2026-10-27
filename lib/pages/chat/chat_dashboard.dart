@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/chat_controller.dart';
+import '../../chat/chat_routes.dart';
 import '../../chat/models.dart';
+import '../../kb/diary_models.dart';
+import '../../kb/diary_repo.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
@@ -18,6 +21,14 @@ import 'chat_image.dart';
 final _cardStatsProvider =
     FutureProvider.autoDispose.family<KbCardStats, String>((ref, agentId) {
   return ref.watch(kbRepoProvider).cardStats(agentId);
+});
+
+/// The due queue's first rows for the cards pane (most-overdue first,
+/// GET /kb/cards?queue=1) — the pane lists actual cards instead of a
+/// bare count.
+final _dueCardsProvider =
+    FutureProvider.autoDispose.family<List<KbCard>, String>((ref, agentId) {
+  return ref.watch(kbRepoProvider).cardQueue(agentId, limit: 4);
 });
 
 /// Enabled cron jobs for the fresh-chat board (GET /api/agents/{id}/cron
@@ -42,6 +53,50 @@ class ChatDashboard extends ConsumerWidget {
     final theme = Theme.of(context);
     final agent = ref.watch(agentsProvider).selected;
     if (agent == null) return const SizedBox.shrink();
+    final shelved = ref.watch(diaryShelvedProvider(agent.id));
+    // Every pane's fetch goes out up front (web parity — all dashboard
+    // fetches fire together); the hold below gates rendering only.
+    ref.watch(_cardStatsProvider(agent.id));
+    ref.watch(_dueCardsProvider(agent.id));
+    ref.watch(kbTodosProvider(agent.id));
+    ref.watch(_cronJobsProvider(agent.id));
+
+    final hero = Center(
+      child: Column(
+        children: [
+          const AgentAvatar(size: 56),
+          const SizedBox(height: 12),
+          Text(agent.name, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            AppLocalizations.of(context)!.dashHeroHint,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+          ),
+        ],
+      ),
+    );
+
+    // Hold the panes until the shelved opt-in state lands (web
+    // chat-dashboard.tsx "hold the first paint"): an enabled ledger
+    // mounting a new first pane above already-rendered ones reads as a
+    // layout glitch; failure answers enabled:false (fail-closed).
+    if (!shelved.hasValue) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        children: [_DashIn(index: 0, child: hero)],
+      );
+    }
+
+    // Shelved first — most time-sensitive (web grid order); the rest keep
+    // their existing sequence. One full-width pane per row (user
+    // preference) — same rhythm as the web's stacked mobile dashboard.
+    final panes = <Widget>[
+      if (shelved.value!.enabled) _ShelvedPane(view: shelved.value!),
+      _CardsPane(agentId: agent.id),
+      _TodosPane(agentId: agent.id),
+      _RecentPane(agentId: agent.id),
+      _CronPane(agentId: agent.id),
+    ];
 
     return ListView(
       // Horizontal 12 matches the composer card's margin and the transcript
@@ -49,33 +104,12 @@ class ChatDashboard extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
       children: [
         // Hero: who you're talking to (web fresh-chat header).
-        _DashIn(
-          index: 0,
-          child: Center(
-            child: Column(
-              children: [
-                const AgentAvatar(size: 56),
-                const SizedBox(height: 12),
-                Text(agent.name, style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  AppLocalizations.of(context)!.dashHeroHint,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _DashIn(index: 0, child: hero),
         const SizedBox(height: 20),
-        // One full-width pane per row (user preference) — same rhythm as
-        // the web's stacked mobile dashboard.
-        _DashIn(index: 1, child: _CardsPane(agentId: agent.id)),
-        const SizedBox(height: 12),
-        _DashIn(index: 2, child: _TodosPane(agentId: agent.id)),
-        const SizedBox(height: 12),
-        _DashIn(index: 3, child: _RecentPane(agentId: agent.id)),
-        const SizedBox(height: 12),
-        _DashIn(index: 4, child: _CronPane(agentId: agent.id)),
+        for (var i = 0; i < panes.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _DashIn(index: i + 1, child: panes[i]),
+        ],
       ],
     );
   }
@@ -243,6 +277,94 @@ class _PaneSkeleton extends StatelessWidget {
   }
 }
 
+/// Shelved-topics pane (web dashboard shelved pane, opt-in): open rows
+/// deep-link back into the deferred conversation's #seq anchor (quick
+/// re-entry); resolved rows render as the closed loop, no link. Rows
+/// sort oldest-first like the web — longest-shelved on top.
+class _ShelvedPane extends StatelessWidget {
+  const _ShelvedPane({required this.view});
+
+  final DiaryShelvedView view;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final open = view.items.where((s) => !s.resolved).length;
+    return _PaneCard(
+      icon: LucideIcons.archiveRestore,
+      title: l.diaryShelved,
+      badge: open == 0 ? null : '$open',
+      child: view.items.isEmpty
+          ? _paneEmpty(context, LucideIcons.archiveRestore, l.dashShelvedNone)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final s in [...view.items]..sort((a, b) => a.since.compareTo(b.since)))
+                  _ShelvedRow(item: s),
+                _PaneLink(
+                    label: l.dashShelvedView, onTap: () => context.push('/kb/diary')),
+              ],
+            ),
+    );
+  }
+}
+
+class _ShelvedRow extends StatelessWidget {
+  const _ShelvedRow({required this.item});
+
+  final DiaryShelved item;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    if (item.resolved) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Icon(LucideIcons.check, size: 13, color: paletteOf(context).success),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(item.topic,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(color: scheme.outline)),
+            ),
+            Text(l.diaryShelvedResolved,
+                style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+          ],
+        ),
+      );
+    }
+    return InkWell(
+      onTap: item.session.isEmpty
+          ? null
+          : () => context.push(chatSessionRoute(item.session, seq: item.seq)),
+      borderRadius: AppRadius.controlBorder,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(item.topic,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text(l.dashShelvedDaysAgo(item.daysOpen),
+                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _CardsPane extends ConsumerWidget {
   const _CardsPane({required this.agentId});
 
@@ -251,37 +373,59 @@ class _CardsPane extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
     final stats = ref.watch(_cardStatsProvider(agentId));
+    final due = ref.watch(_dueCardsProvider(agentId));
+    final dueCount = stats.value?.dueToday ?? 0;
     return _PaneCard(
       icon: LucideIcons.layers,
       title: l.dashCardsTitle,
-      badge: stats.value == null || stats.value!.dueToday == 0 ? null : '${stats.value!.dueToday}',
-      child: stats.when(
+      badge: dueCount == 0 ? null : '$dueCount',
+      child: due.when(
         loading: () => const _PaneSkeleton(lines: 3),
         error: (_, _) => _paneEmpty(context, LucideIcons.layers, l.dashCardsNone),
-        data: (s) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(s.dueToday > 0 ? l.dashCardsDue(s.dueToday) : l.dashCardsNone,
-                style: Theme.of(context).textTheme.bodySmall),
-            if (s.streakDays > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(LucideIcons.flame, size: 13, color: Theme.of(context).colorScheme.tertiary),
-                    const SizedBox(width: 4),
-                    Text(l.dashCardsStreak(s.streakDays),
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
+        data: (cards) {
+          final s = stats.value;
+          // Due rows like the recent-chats pane: question preview, one
+          // line, tap opens the review deck; streak + browse trail.
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (cards.isEmpty)
+                Text(l.dashCardsNone, style: theme.textTheme.bodySmall)
+              else
+                for (final c in cards)
+                  InkWell(
+                    onTap: () => context.push('/kb/cards/review'),
+                    borderRadius: AppRadius.controlBorder,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Text(c.question,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall),
+                    ),
+                  ),
+              if (s != null && s.streakDays > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(LucideIcons.flame,
+                          size: 13, color: theme.colorScheme.tertiary),
+                      const SizedBox(width: 4),
+                      Text(l.dashCardsStreak(s.streakDays),
+                          style: theme.textTheme.bodySmall),
+                    ],
+                  ),
                 ),
-              ),
-            const SizedBox(height: 6),
-            _PaneLink(
-                label: l.dashCardsBrowse,
-                onTap: () => context.push('/kb/cards/review')),          ],
-        ),
+              _PaneLink(
+                  label: l.dashCardsBrowse,
+                  onTap: () => context.push('/kb/cards/review')),
+            ],
+          );
+        },
       ),
     );
   }

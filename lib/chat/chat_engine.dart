@@ -199,9 +199,14 @@ class ChatUiState {
 /// pure engine can't make (refresh session metadata after a title change
 /// / reload lists after a turn).
 class FrameEffects {
-  const FrameEffects({this.turnDone = false, this.titleChanged = false});
+  const FrameEffects({this.turnDone = false, this.titleChanged = false, this.authPrompt});
   final bool turnDone;
   final bool titleChanged;
+
+  /// Non-null when this frame was an auth_prompt (carries its
+  /// description) — the controller turns it into a background
+  /// notification (the turn idles until the user answers).
+  final String? authPrompt;
 }
 
 /// Pure transcript + turn reducer for one (agent, session). Frames from
@@ -518,6 +523,16 @@ class ChatEngine {
       _lastSeq = frameId;
     }
     final type = payload['type'];
+    // Progress over the re-anchored subscribe connection means the
+    // client link is healthy again — clear the reconnecting banner
+    // (web parity, chat-screen.tsx:1098) instead of sticking until
+    // `done`. The server's own `reconnecting` event is its upstream
+    // retry tier and untyped legacy bus frames are not this turn's
+    // progress — neither is typed, so both keep the banner up.
+    if (_phase == TurnPhase.reconnecting && type is String && type != 'reconnecting') {
+      _phase = TurnPhase.streaming;
+      _statusHint = '';
+    }
     final data = payload['data'];
     final map = data is Map ? data : const <String, dynamic>{};
     switch (type) {
@@ -562,11 +577,13 @@ class ChatEngine {
         final attempt = map['attempt'];
         if (attempt is int) _statusHint = '$attempt';
       case 'auth_prompt':
+        final description = map['description'] as String? ?? '';
         _entries.add(AuthPromptEntry(
           key: _key('auth'),
-          description: map['description'] as String? ?? '',
+          description: description,
           options: _authOptions(map['options']),
         ));
+        return FrameEffects(authPrompt: description);
       case 'error':
         _notice(map['message'] as String? ?? '', NoticeKind.serverError, NoticeTone.error);
       case 'done':

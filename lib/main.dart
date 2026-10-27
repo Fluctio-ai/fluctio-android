@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'auth/auth_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'notify/notify_hub.dart';
 import 'router.dart';
 import 'share/share_receiver.dart';
 import 'theme/app_theme.dart';
@@ -25,7 +26,10 @@ class FluctioApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Root-lifetime wiring: todo reminder alarms live as long as the app.
+    // Root-lifetime wiring: the notification hub (single plugin owner —
+    // todo reminders and background turn alerts share it) and the todo
+    // reminder alarms live as long as the app.
+    ref.watch(localNotifyHubProvider);
     ref.watch(todoReminderServiceProvider);
     // Inbound shares (other apps): the picker decides the destination —
     // chat session, article ingest, bookmark. The listen also forces the

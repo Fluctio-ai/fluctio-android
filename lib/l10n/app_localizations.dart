@@ -776,6 +776,24 @@ abstract class AppLocalizations {
   /// **'{date} · {themes} 主题 · {blindspots} 盲区'**
   String diaryListMeta(Object date, int themes, int blindspots);
 
+  /// No description provided for @diaryShelved.
+  ///
+  /// In zh, this message translates to:
+  /// **'搁浅话题'**
+  String get diaryShelved;
+
+  /// No description provided for @diaryShelvedSince.
+  ///
+  /// In zh, this message translates to:
+  /// **'搁浅于 {date} · {n} 天前'**
+  String diaryShelvedSince(Object date, int n);
+
+  /// No description provided for @diaryShelvedResolved.
+  ///
+  /// In zh, this message translates to:
+  /// **'已捡起'**
+  String get diaryShelvedResolved;
+
   /// No description provided for @meAgents.
   ///
   /// In zh, this message translates to:
@@ -1975,6 +1993,24 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'没有启用的定时任务'**
   String get dashCronNone;
+
+  /// No description provided for @dashShelvedNone.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有搁浅的话题'**
+  String get dashShelvedNone;
+
+  /// No description provided for @dashShelvedDaysAgo.
+  ///
+  /// In zh, this message translates to:
+  /// **'{n} 天前'**
+  String dashShelvedDaysAgo(int n);
+
+  /// No description provided for @dashShelvedView.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看日记 →'**
+  String get dashShelvedView;
 
   /// No description provided for @editorIssues.
   ///

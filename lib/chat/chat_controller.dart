@@ -14,8 +14,10 @@ import '../auth/auth_state.dart';
 import '../files/workspace_files.dart';
 import 'chat_engine.dart';
 import 'chat_repo.dart';
+import 'chat_routes.dart';
 import 'models.dart';
 import 'slash_commands.dart';
+import 'turn_notify.dart';
 
 // ---------------------------------------------------------------------------
 // Agents
@@ -552,6 +554,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     List<String> images,
     List<PendingAttachment> attachments, {
     required bool rollback,
+    bool isRetry = false,
     bool? chatOnly,
   }) async {
     final key = sessionKeyOf(agentId, sessionId);
@@ -619,6 +622,26 @@ class ChatStoreController extends Notifier<ChatStore> {
       if (cancel.isCancelled) return; // explicit stop / teardown
       if (!gotFrame) {
         final message = await sseErrorText(e);
+        // Network-class death (no HTTP response at all): the message may
+        // already be with the server — 断连≠Stop, a dead POST doesn't
+        // mean a dead turn. Marking failed here was the phantom-failure
+        // symptom ("发送失败" while the server got it). One automatic
+        // retry is safe (rollbackPendingUser drops the trailing
+        // unanswered turn, handlers.go:1377); an HTTP-layer rejection
+        // (response present, even with an unreadable body) is a real
+        // failure and never retries.
+        final responded = e is DioException && e.response != null;
+        if (!responded && !isRetry) {
+          // Attachments were already uploaded by the first attempt —
+          // resend as plain text with the same breadcrumb.
+          final breadcrumb = attachmentBreadcrumb(attachments);
+          final retriedText = attachments.isEmpty
+              ? text
+              : (text.isEmpty ? breadcrumb : '$breadcrumb\n$text');
+          unawaited(_runSend(agentId, sessionId, retriedText, images, const <PendingAttachment>[],
+              rollback: true, isRetry: true, chatOnly: chatOnly));
+          return;
+        }
         engine.failLastSend();
         if (message != null && message.isNotEmpty) {
           engine.addLocalNotice(NoticeKind.serverError, message, NoticeTone.error);
@@ -699,6 +722,8 @@ class ChatStoreController extends Notifier<ChatStore> {
         engine.settleStopped();
         _markDirty(key);
         _publish();
+        // User-initiated stop: no turn-done frame ever fired, so no
+        // alert — notifications are opt-in at the done-frame site.
         _onTurnDone(agentId, sessionId);
       }
       // 409 (nothing in flight): the turn likely finished between tap and
@@ -726,9 +751,61 @@ class ChatStoreController extends Notifier<ChatStore> {
     engine.markStreaming();
     final effects = engine.applyFrame(frame.id, payload, tag: tag);
     _markDirty(sessionKeyOf(agentId, sessionId));
-    if (effects.turnDone) _onTurnDone(agentId, sessionId);
+    // Frame effects handled inline at the frame site (like authPrompt
+    // below): alerting is opt-in per effect — a user-initiated stop
+    // settles via _onTurnDone without ever alerting.
+    if (effects.turnDone) {
+      _notifyTurnDone(agentId, sessionId);
+      _onTurnDone(agentId, sessionId);
+    }
+    final authDesc = effects.authPrompt;
+    if (authDesc != null) {
+      ref.read(turnNotifyProvider).onAuthPrompt(
+            title: _sessionTitle(sessionId),
+            description: authDesc,
+            route: chatSessionRoute(sessionId),
+          );
+    }
     if (effects.titleChanged) ref.read(sessionsProvider.notifier).reload();
     _schedulePublish();
+  }
+
+  /// Notification title for turn alerts: the session's title, falling
+  /// back to the agent name (fresh sessions get their server-generated
+  /// title only after the first turn's reload lands).
+  String _sessionTitle(String sessionId) {
+    final t = ref
+            .read(sessionsProvider)
+            .value
+            ?.where((s) => s.id == sessionId)
+            .firstOrNull
+            ?.title ??
+        '';
+    if (t.isNotEmpty) return t;
+    return ref.read(agentsProvider).selected?.name ?? 'fluctio';
+  }
+
+  /// The finished reply's first line, capped — notification body.
+  String _replySnippet(String agentId, String sessionId) {
+    final engine = _engines[sessionKeyOf(agentId, sessionId)];
+    if (engine == null) return '';
+    for (final e in engine.entries.reversed) {
+      if (e is AssistantEntry) {
+        var line = e.text.trim().split('\n').first;
+        if (line.length > 80) line = '${line.substring(0, 80)}…';
+        return line;
+      }
+    }
+    return '';
+  }
+
+  /// Turn-finished alert: session title + the reply's first line.
+  void _notifyTurnDone(String agentId, String sessionId) {
+    ref.read(turnNotifyProvider).onTurnDone(
+          title: _sessionTitle(sessionId),
+          snippet: _replySnippet(agentId, sessionId),
+          route: chatSessionRoute(sessionId),
+        );
   }
 
   void _onTurnDone(String agentId, String sessionId) {

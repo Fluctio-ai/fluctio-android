@@ -56,12 +56,68 @@ class DiaryBlindspot {
       );
 }
 
+/// One shelved ("回头再说") topic on the rolling cross-diary ledger
+/// (docs/api/API.md §8, internal/store/diary.go DiaryShelved): deferred
+/// and never returned to — each day's Pass 3 inherits the previous
+/// ledger, settles entries picked back up (resolved, shown that day
+/// then retired), and drops open entries past the shelved window.
+/// session/seq is the #seq-N deep link back into the deferred context.
+class DiaryShelved {
+  const DiaryShelved({
+    required this.topic,
+    this.context = '',
+    this.since = '',
+    this.session = '',
+    this.seq = 0,
+    this.status = 'open',
+  });
+
+  final String topic;
+
+  /// One line: the situation when deferred.
+  final String context;
+
+  /// YYYY-MM-DD first shelved.
+  final String since;
+
+  /// Deep-link target back into the deferred conversation.
+  final String session;
+  final int seq;
+
+  /// "open" | "resolved".
+  final String status;
+
+  bool get resolved => status == 'resolved';
+
+  /// Whole days from [since] to today (UTC+8 frame, like the server's
+  /// date strings); 0 for unparseable/future dates (web daysSince).
+  int get daysOpen {
+    final s = DateTime.tryParse('${since}T00:00:00');
+    if (s == null) return 0;
+    final now = DateTime.now().toUtc().add(const Duration(hours: 8));
+    final days = DateTime.utc(now.year, now.month, now.day)
+        .difference(DateTime.utc(s.year, s.month, s.day))
+        .inDays;
+    return days < 0 ? 0 : days;
+  }
+
+  factory DiaryShelved.fromJson(Map<String, dynamic> j) => DiaryShelved(
+        topic: j['topic'] as String? ?? '',
+        context: j['context'] as String? ?? '',
+        since: j['since'] as String? ?? '',
+        session: j['session'] as String? ?? '',
+        seq: (j['seq'] as num?)?.toInt() ?? 0,
+        status: j['status'] as String? ?? 'open',
+      );
+}
+
 class DailyDiary {
   const DailyDiary({
     required this.date,
     this.overview = '',
     this.themes = const [],
     this.blindspots = const [],
+    this.shelved = const [],
     this.archives = const [],
     this.model = '',
     this.generatedAt = '',
@@ -74,6 +130,10 @@ class DailyDiary {
   final String overview;
   final List<DiaryTheme> themes;
   final List<DiaryBlindspot> blindspots;
+
+  /// The shelved-topics ledger carried by this day's entry (opt-in Pass
+  /// 3; empty when the feature is off or the day had none).
+  final List<DiaryShelved> shelved;
   final List<String> archives;
 
   /// The model that distilled this entry (footer metadata on the web).
@@ -88,6 +148,8 @@ class DailyDiary {
 
   /// A row that was generated but carries nothing — the day had no
   /// conversation summaries (red-frame calendar marker on the web).
+  /// Shelved is a rolling ledger, not the day's content: it never counts
+  /// here (web genDateIsEmpty keys on themes+blindspots only).
   bool get isEmptyDay => themes.isEmpty && blindspots.isEmpty;
 
   factory DailyDiary.fromJson(Map<String, dynamic> j) => DailyDiary(
@@ -100,6 +162,10 @@ class DailyDiary {
         blindspots: [
           for (final b in (j['blindspots'] as List? ?? const []))
             if (b is Map) DiaryBlindspot.fromJson(Map<String, dynamic>.from(b)),
+        ],
+        shelved: [
+          for (final s in (j['shelved'] as List? ?? const []))
+            if (s is Map) DiaryShelved.fromJson(Map<String, dynamic>.from(s)),
         ],
         archives: [for (final a in (j['archives'] as List? ?? const [])) if (a is String) a],
         model: j['model'] as String? ?? '',

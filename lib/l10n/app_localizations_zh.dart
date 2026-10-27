@@ -355,6 +355,17 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get diaryShelved => '搁浅话题';
+
+  @override
+  String diaryShelvedSince(Object date, int n) {
+    return '搁浅于 $date · $n 天前';
+  }
+
+  @override
+  String get diaryShelvedResolved => '已捡起';
+
+  @override
   String get meAgents => '智能体';
 
   @override
@@ -975,6 +986,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dashCronNone => '没有启用的定时任务';
+
+  @override
+  String get dashShelvedNone => '没有搁浅的话题';
+
+  @override
+  String dashShelvedDaysAgo(int n) {
+    return '$n 天前';
+  }
+
+  @override
+  String get dashShelvedView => '查看日记 →';
 
   @override
   String editorIssues(num count) {

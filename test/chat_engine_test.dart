@@ -243,6 +243,25 @@ void main() {
       expect(e.snapshot().phase, TurnPhase.idle);
     });
 
+    test('progress frames recover streaming after reconnecting', () {
+      final e = _primed();
+      e.beginSend('q', const []);
+      e.applyFrame(null, {'seq': -1, 'type': 'content_delta', 'data': {'delta': 'partial'}});
+      e.markReconnecting();
+      // Server's own reconnecting tier (upstream retries) only refreshes
+      // the hint; the banner is a client-disconnect marker.
+      e.applyFrame(null, {'seq': -1, 'type': 'reconnecting', 'data': {'attempt': 3}});
+      expect(e.snapshot().statusHint, '3');
+      // Subscribe re-anchor delivers progress: the banner clears (web
+      // parity, chat-screen.tsx:1098) instead of sticking until done.
+      e.applyFrame(null, {'seq': -1, 'type': 'content_delta', 'data': {'delta': ' more'}});
+      final state = e.snapshot();
+      expect(state.phase, TurnPhase.streaming);
+      expect(state.statusHint, isEmpty);
+      e.applyFrame(7, {'seq': 7, 'type': 'done'});
+      expect(e.snapshot().phase, TurnPhase.idle);
+    });
+
     test('explicit stop settles locally', () {
       final e = _primed();
       e.beginSend('q', const []);

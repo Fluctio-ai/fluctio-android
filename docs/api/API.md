@@ -220,7 +220,9 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
   - `GET /api/agents/{id}/diary?from=&to=` → `DailyDiary[]`（[from,to] 闭区间，YYYY-MM-DD、UTC+8，新→旧；缺省=近 30 天）
   - `GET /api/agents/{id}/diary/{date}` → `DailyDiary`；无记录 404；该 (agent,date) 手动生成进行中 → `200 {agentId,date,generating:true}`
   - `POST /api/agents/{id}/diary/generate` `{date?}`（缺省=昨天 UTC+8）→ `202 {status:"started",date}`；同 (agent,date) 已在生成 → `409 {status:"already_running"}`。异步：LLM 生成完 upsert 落库，客户端轮询 GET（生成中态或 generatedAt 前进判定完成）
-  - `DailyDiary`：`{agentId, date, overview, themes:[{title,summary,points[],topics?,session?,segments?:[{session,start,end}]}], blindspots:[{point,reason}], archives:[string], model, generatedAt}`；themes/blindspots 均空 = 当日无对话内容（生成过但空）；segments 为 #seq-N 会话引用
+  - `GET /api/agents/{id}/diary/shelved` → `{enabled, items:[DiaryShelved]}`（handlers_diary.go handleDiaryShelved）：当前搁浅话题账本（最近一篇日记的账本，open 滚动到今天 + 当日 resolved 闭环）；agent 未开启该功能 → `{enabled:false, items:[]}`（前端整块隐藏）；注意路由注册在 `/diary/{date}` 之前
+  - `DailyDiary`：`{agentId, date, overview, themes:[{title,summary,points[],topics?,session?,segments?:[{session,start,end}]}], blindspots:[{point,reason}], shelved:[DiaryShelved], archives:[string], model, generatedAt}`；themes/blindspots 均空 = 当日无对话内容（生成过但空，shelved 不计入）；segments 为 #seq-N 会话引用
+  - `DiaryShelved`（store/diary.go:44）：`{topic, context, since(YYYY-MM-DD 首次搁浅), session, seq, status("open"|"resolved")}`——用户说"回头再说"后未捡起的话题，跨日记滚动账本：每天 Pass 3 继承前账，捡起的标 resolved（当日展示后退役）；session/seq 是回到搁浅现场的 #seq-N 深链
 - Workflow：`/api/agents/{agentID}/workflows` 全套 CRUD + `run`、`run/stream`、`runs`（list/get/del/批量删）、`runs/{runID}/resume(/stream)`（M6 表单交互）、`schedules` CRUD
 - Workflow 运行流事件：NodeStart/NodeComplete/Done（形状待补，M4 时补）
 
