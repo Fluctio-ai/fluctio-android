@@ -25,8 +25,15 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.47.5
 
       - name: Build release APK
+        env:
+          # Match pubspec.lock's hosted URLs so pub installs the locked
+          # versions instead of re-resolving against pub.dev (which pulled
+          # a breaking gpt_markdown once already).
+          PUB_HOSTED_URL: https://pub.flutter-io.cn
+          FLUTTER_STORAGE_BASE_URL: https://storage.flutter-io.cn
         run: |
           flutter pub get
           flutter build apk --release
