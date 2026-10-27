@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/markdown.dart';
+import '../../files/file_preview.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../chat/chat_image.dart';
 
 /// Read-only content viewer for KB text items (flash/note): loads the
 /// full stored content — list rows only carry the truncated title — and
 /// renders it as markdown with the transcript's exact look. The pencil
 /// hands off to the caller's edit flow; a true result reloads.
 class KbTextViewPage extends StatefulWidget {
-  const KbTextViewPage({super.key, required this.title, required this.loadContent, this.onEdit, this.pathLine});
+  const KbTextViewPage(
+      {super.key, required this.title, required this.loadContent, this.onEdit, this.pathLine, this.topSection});
 
   final String title;
   final Future<String> Function() loadContent;
@@ -21,6 +25,10 @@ class KbTextViewPage extends StatefulWidget {
   /// Optional small source-path line under the app bar (selectable, for
   /// debugging link resolution).
   final String? pathLine;
+
+  /// Optional strip between the app bar and the content (note
+  /// attachments).
+  final Widget? topSection;
 
   @override
   State<KbTextViewPage> createState() => _KbTextViewPageState();
@@ -63,7 +71,7 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
             ),
         ],
       ),
-      body: KbTextView(future: _future, pathLine: widget.pathLine),
+      body: KbTextView(future: _future, pathLine: widget.pathLine, topSection: widget.topSection),
     );
   }
 }
@@ -71,8 +79,8 @@ class _KbTextViewPageState extends State<KbTextViewPage> {
 /// The chromeless body of [KbTextViewPage] — content FutureBuilder +
 /// markdown scroll view, no Scaffold/AppBar. Also embedded by the chat
 /// page's docked workspace panel for inline text/markdown preview.
-class KbTextView extends StatelessWidget {
-  const KbTextView({super.key, required this.future, this.pathLine});
+class KbTextView extends ConsumerWidget {
+  const KbTextView({super.key, required this.future, this.pathLine, this.topSection});
 
   /// The (already-started) content fetch.
   final Future<String>? future;
@@ -80,10 +88,14 @@ class KbTextView extends StatelessWidget {
   /// Optional small source-path line above the content.
   final String? pathLine;
 
+  /// Optional strip above the content (note attachments).
+  final Widget? topSection;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
+        ?topSection,
         if (pathLine != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -114,7 +126,20 @@ class KbTextView extends StatelessWidget {
                         slivers: [
                           SliverPadding(
                             padding: const EdgeInsets.all(16),
-                            sliver: sliverMarkdown(context, snap.data ?? ''),
+                            sliver: sliverMarkdown(
+                              context,
+                              snap.data ?? '',
+                              // Links and images route through the shared
+                              // gateway-file logic (native preview for
+                              // /api/agents/.../files, browser otherwise).
+                              onTapLink: (href) => openChatLink(context, ref, href),
+                              imageBuilder: (context, url, width, height) => MarkdownGatewayImage(
+                                url: url,
+                                width: width,
+                                height: height,
+                                onTap: () => openChatLink(context, ref, url),
+                              ),
+                            ),
                           ),
                         ],
                       ),

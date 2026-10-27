@@ -58,6 +58,49 @@ ImageProvider _resolve(String url, {required String baseUrl, String? cookie}) {
   );
 }
 
+/// Inline markdown image for reader surfaces (KB viewers, wiki): the
+/// gateway serves note images as root-relative /api/agents/.../files URLs
+/// that are cookie-gated, so loads go through [chatImageProvider]
+/// (baseUrl prefix + session cookie; data:/absolute URLs pass through).
+/// Chat bubbles use their own builder with /workspace/ remapping
+/// (message_list.dart `_MarkdownImage`).
+class MarkdownGatewayImage extends ConsumerWidget {
+  const MarkdownGatewayImage({super.key, required this.url, this.width, this.height, this.onTap});
+
+  final String url;
+  final double? width;
+  final double? height;
+
+  /// Tap routing stays with the caller (lightbox, file preview…).
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scheme = Theme.of(context).colorScheme;
+    final auth = ref.watch(authControllerProvider);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        onTap: onTap,
+        child: ClipRRect(
+          borderRadius: AppRadius.controlBorder,
+          child: Image(
+            image: chatImageProvider(url, baseUrl: auth.baseUrl, cookie: auth.sid),
+            width: width,
+            height: height,
+            errorBuilder: (_, _, _) => Container(
+              height: 40,
+              padding: const EdgeInsets.all(8),
+              color: scheme.secondaryContainer,
+              child: Icon(LucideIcons.imageOff, size: 18, color: scheme.outline),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Circular agent avatar (GET /api/agents/*/files/avatar.png — cookie
 /// gated, so same-host loads carry the session cookie). Falls back to a
 /// smart-toy tile when the agent has no avatar file.

@@ -14,6 +14,7 @@ import '../../wiki/wiki_actions.dart';
 import '../../wiki/wiki_links.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
+import '../chat/chat_image.dart';
 import '../kb/kb_editor_page.dart';
 
 final wikiPageProvider =
@@ -189,7 +190,13 @@ class _WikiPageDetailState extends ConsumerState<WikiPageDetail> {
           padding: const EdgeInsets.all(16),
           sliver: sliverMarkdown(
               context, rewriteWikiLinks(p.body ?? '', (id) => titles[id] ?? id),
-              onTapLink: _onLink),
+              onTapLink: _onLink,
+              imageBuilder: (context, url, width, height) => MarkdownGatewayImage(
+                    url: url,
+                    width: width,
+                    height: height,
+                    onTap: () => _onLink(url),
+                  )),
         ),
       ],
     );

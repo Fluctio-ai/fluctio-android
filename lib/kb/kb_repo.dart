@@ -31,6 +31,11 @@ final kbNotesProvider =
   return ref.watch(kbRepoProvider).notes(agentId);
 });
 
+final noteAttachmentsProvider = FutureProvider.autoDispose
+    .family<List<KbNoteAttachment>, (String, String)>((ref, key) {
+  return ref.watch(kbRepoProvider).noteAttachments(key.$1, key.$2);
+});
+
 /// Typed wrappers over the KB surface (docs/api/API.md §7). Save paths
 /// return a duplicate marker when the server deduped the write.
 class KbRepo {

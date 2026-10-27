@@ -4,10 +4,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../chat/chat_controller.dart';
+import '../../auth/auth_controller.dart';
+import '../../files/file_preview.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../pages/chat/chat_image.dart';
+import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/master_detail.dart';
@@ -54,8 +58,9 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
           : _NotePane(
               // Rebuild (fresh read) when the note's content changes.
               key: ValueKey('${sel.id}-${sel.updatedAt}'),
+              agentId: agentId!,
               note: sel,
-              onEdit: () => _edit(context, ref, agentId!, sel),
+              onEdit: () => _edit(context, ref, agentId, sel),
             ),
       listPane: notes == null
           ? const SizedBox.shrink()
@@ -151,6 +156,8 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
       builder: (_) => KbTextViewPage(
         title: n.title.isEmpty ? l.noteUntitled : n.title,
         loadContent: () async => n.contentMd,
+        // Read-only attachment strip (uploaded from the web side).
+        topSection: _NoteAttachmentsBar(agentId: agentId, noteId: n.id),
         onEdit: (current) => _edit(context, ref, agentId, n, initialText: current),
       ),
     ));
@@ -229,8 +236,9 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
 /// skeleton flash + full re-parse on any parent rebuild). The parent's
 /// ValueKey(id+updatedAt) remounts it when content changes.
 class _NotePane extends StatefulWidget {
-  const _NotePane({super.key, required this.note, required this.onEdit});
+  const _NotePane({super.key, required this.agentId, required this.note, required this.onEdit});
 
+  final String agentId;
   final KbNote note;
   final VoidCallback onEdit;
 
@@ -252,8 +260,119 @@ class _NotePaneState extends State<_NotePane> {
           editTooltip: l.kbEdit,
         ),
         // The note list row already carries the full markdown body.
-        Expanded(child: KbTextView(future: _content)),
+        Expanded(
+          child: KbTextView(
+            future: _content,
+            topSection: _NoteAttachmentsBar(agentId: widget.agentId, noteId: widget.note.id),
+          ),
+        ),
       ],
+    );
+  }
+}
+
+/// Read-only attachment strip (uploads happen on the web side): image
+/// mimes render thumbnails, everything else a file tile. Taps route
+/// through the shared file preview (lightbox / pdf / media / text).
+/// Loads best-effort — a failed listing just hides the strip.
+class _NoteAttachmentsBar extends ConsumerWidget {
+  const _NoteAttachmentsBar({required this.agentId, required this.noteId});
+
+  final String agentId;
+  final String noteId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final atts = ref.watch(noteAttachmentsProvider((agentId, noteId)));
+    return atts.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Text(l.noteAttachments,
+                  style: theme.textTheme.labelSmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            ),
+            SizedBox(
+              height: 64,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: list.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final a = list[i];
+                  final isImage = a.mime.startsWith('image/');
+                  final auth = ref.read(authControllerProvider);
+                  return InkWell(
+                    onTap: a.filePath.isEmpty
+                        ? null
+                        : () => openWorkspaceFilePreview(context, ref,
+                            agentId: agentId, path: a.filePath, displayName: a.fileName),
+                    borderRadius: AppRadius.controlBorder,
+                    child: isImage
+                        ? ClipRRect(
+                            borderRadius: AppRadius.controlBorder,
+                            child: Image(
+                              image: chatImageProvider(
+                                workspaceFileGatewayUrl(auth.baseUrl, agentId, a.filePath),
+                                baseUrl: auth.baseUrl,
+                                cookie: auth.sid,
+                              ),
+                              width: 96,
+                              height: 64,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _FileTile(name: a.fileName),
+                            ),
+                          )
+                        : _FileTile(name: a.fileName),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Non-image attachment tile: paperclip + file name (web's file card).
+class _FileTile extends StatelessWidget {
+  const _FileTile({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: 96,
+      height: 64,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: AppRadius.controlBorder,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(LucideIcons.paperclip, size: 16, color: theme.colorScheme.outline),
+          const SizedBox(height: 4),
+          Text(name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall),
+        ],
+      ),
     );
   }
 }

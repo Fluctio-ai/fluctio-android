@@ -188,7 +188,14 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 - `PATCH /kb/bookmarks/{bid}` `{title?, summary?}`；`DELETE /kb/bookmarks/{bid}` → `{status:"deleted"}`
 - `POST /kb/bookmarks/{bid}/promote` → `{article_source_id, bookmark_id}`（升格为文章进 wiki 生成，幂等）
 
-（notes/cards/pending 查重留待票 06 补。）
+**笔记（note）**
+- `GET /kb/notes` → `{notes:[KBNote]}`；`POST /kb/notes` `{id?, title, content_md, whiteboard?}` — upsert（id 空即新建）→ `{id}`（handlers_kb.go:865）；`DELETE /kb/notes/{noteId}` → `{ok:true}`
+- `KBNote`：`{id, agent_id, title, content_md, whiteboard?, created_at, updated_at}`（internal/kb/types.go:65）
+- 附件（server.go:471-473）：`GET /kb/notes/{noteId}/attachments` → `{attachments:[KBNoteAttachment]}`；`POST` 同路径 multipart `file` 字段（可多个，单请求 ≤64MB，`requireWritable`）→ `{attachments:[...]}`；`DELETE /kb/notes/{noteId}/attachments/{attId}` → `{ok:true}`（handlers_kb.go:926/950/1018）
+- `KBNoteAttachment`：`{id, note_id, agent_id, file_name, file_path, mime, size, created_at}`（internal/kb/types.go:78）。字节落在 agent workspace `notes/<noteId>/<uuid>-<name>`，经标准 `/api/agents/{id}/files/<path>`（cookie 鉴权）伺服（handlers_kb.go:946）
+- web 端把图片附件以 `![name](/api/agents/<agentId>/files/<file_path>)` 根相对 URL 写进 content_md（notes-view.tsx:251 insertImageRef），客户端渲染笔记 markdown 须按同网关 cookie 请求解析
+
+（cards/pending 查重留待票 06 补。）
 
 **卡片（ticket 06）**
 - `GET /kb/cards?queue=1&limit=` — **到期复习队列**（most-overdue first）；不带 queue → 卡片库 `?filter=(due|active|mastered|archived)&source=&q=&limit=&offset=`

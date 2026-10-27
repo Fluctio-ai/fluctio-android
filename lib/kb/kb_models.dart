@@ -202,16 +202,22 @@ class KbNote {
 }
 
 class KbNoteAttachment {
-  const KbNoteAttachment({required this.id, required this.fileName, this.mime = '', this.size = 0});
+  const KbNoteAttachment(
+      {required this.id, required this.fileName, this.filePath = '', this.mime = '', this.size = 0});
 
   final String id;
   final String fileName;
+
+  /// Agent-workspace path (`notes/<noteId>/<uuid>-<name>`) the bytes live
+  /// at — served through the standard /api/agents/{id}/files channel.
+  final String filePath;
   final String mime;
   final int size;
 
   factory KbNoteAttachment.fromJson(Map<String, dynamic> j) => KbNoteAttachment(
         id: j['id'] as String? ?? '',
         fileName: j['file_name'] as String? ?? '',
+        filePath: j['file_path'] as String? ?? '',
         mime: j['mime'] as String? ?? '',
         size: (j['size'] as num?)?.toInt() ?? 0,
       );

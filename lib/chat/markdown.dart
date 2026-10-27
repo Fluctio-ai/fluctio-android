@@ -231,9 +231,10 @@ SliverGptMarkdown sliverMarkdown(
   BuildContext context,
   String data, {
   void Function(String href)? onTapLink,
+  ImageBuilder? imageBuilder,
 }) =>
     SliverGptMarkdown(
       normalizeMarkdownBlocks(data),
-      config: markdownConfig(context, onTapLink: onTapLink),
+      config: markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder),
       useDollarSignsForLatex: true,
     );
