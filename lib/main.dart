@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'auth/auth_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'notify/notification_poll_worker.dart';
 import 'notify/notify_hub.dart';
+import 'notify/notifications_service.dart';
 import 'router.dart';
 import 'share/share_receiver.dart';
 import 'theme/app_theme.dart';
@@ -14,6 +17,10 @@ import 'ui/row_actions_menu.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Background notification polling (contract §11): the periodic task's
+  // dispatcher runs in a headless engine — it must be registered before
+  // runApp, and nothing in it may touch this container.
+  await Workmanager().initialize(notificationPollDispatcher);
   // Restore (prefs → Keystore → /api/me probe) completes before the first
   // frame, so the router redirect never flashes the wrong screen.
   final container = ProviderContainer();
@@ -27,10 +34,12 @@ class FluctioApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Root-lifetime wiring: the notification hub (single plugin owner —
-    // todo reminders and background turn alerts share it) and the todo
-    // reminder alarms live as long as the app.
+    // todo reminders and background turn alerts share it), the todo
+    // reminder alarms, and the server-notification channel (foreground
+    // SSE + background WorkManager poll) live as long as the app.
     ref.watch(localNotifyHubProvider);
     ref.watch(todoReminderServiceProvider);
+    ref.watch(serverNotificationsServiceProvider);
     // Inbound shares (other apps): the picker decides the destination —
     // chat session, article ingest, bookmark. The listen also forces the
     // lazy controller to build (cold-start consume).

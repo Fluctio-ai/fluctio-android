@@ -244,8 +244,25 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 `POST /v1/chat/completions` 等（`internal/api`）——第三方客户端用，APP 不走。
 
+## 11. 通知队列（Gotify 式直连推送，无 FCM）
+
+服务端四条主动 sweep（到期待办 `gateway_due_todo.go` / 卡片摘要 `cards_push.go` / 搁浅 `shelved_push.go` / 日记盲点 `blindspot_push.go`）入队的通知行，APP 两种方式排空：**后台** WorkManager 周期轮询 list；**前台**挂 SSE stream 实时收。投递模型是**游标+删除**：客户端持 `since` 游标（本地持久化），ack 一个水位即服务端删到该位（`handlers_notifications.go`）。
+
+| 端点 | 说明 |
+|---|---|
+| `GET /api/notifications?since=<id>&limit=<n>` | → `{"notifications":[...],"lastId":N}`（id>since 未投递行，id 升序，lastId=页内最大 id，空页=since）。limit 默认 50 上限 200。行形状 `{id, agentId, kind, title, body, deepLink, createdAt}`，kind ∈ `todo_reminder\|cards_digest\|shelved_nudge\|blindspot`。`deepLink` 是 web 相对路径（`/agents/<id>/knowledge/diary` 等），客户端自行映射自家路由 |
+| `POST /api/notifications/ack` | req `{"lastId": N}` → `{"ok":true}`；删除该用户 id≤N 的行。语义是水位而非逐条：设备 A ack 后设备 B 若未拉过则错过（接受的竞争——晨间摘要类低害，web 会话气泡是持久副本） |
+| `GET /api/notifications/stream?since=<id>` | SSE。帧 `id:<nid>` + `data:{通知行 JSON}`（与 §4 同线协议：无 `event:` 行，30s `: ping`）；服务端 5s DB 轮询源（`handlers_notifications.go` handleNotificationsStream），连接时补发 since 之后的存量 |
+
+语义要点：
+
+- **ack 时机**：渲染/弹完一批后立即 ack（lastId=批内最大 id），且**先推进本地游标再 ack**——ack 失败下次重拉靠客户端去重（本地已展示过的 id 不再弹）。
+- 通知频率：晨间批量（每 agent 每天 0-4 条），SSE 5s 延迟无感知。
+- retention：服务端 7 天兜底清行（`FLUCTIO_NOTIFICATIONS_RETENTION_HOURS`），客户端游标可能超前于已清行——空页响应即对齐。
+
 ---
 
 ## 附：版本
 
+- 契约 v0.3（2026-10-29）：新增 §11 通知队列（list/ack/stream；出处 `handlers_notifications.go` + `store/notifications.go` 游标+删除模型）。
 - 契约 v0.2（2026-09-29）：补全票 04 所需字段——事件 data 形状全表、stop/steer body 与响应、subscribe 回放/去重规则、history 分页与条目形状、WebSession/todo/chat-only/agents 列表响应（出处见各条）。KB/Wiki/Workflow body 细节按票补。
