@@ -41,13 +41,25 @@ class SseLineParser {
   }
 }
 
-/// Streams SSE frames over a Dio client. `receiveTimeout` is raised
-/// per-request on purpose: the gateway pings every 30s, so a quiet 90s
-/// window means the connection is dead, not merely thinking — the caller
-/// treats that as a disconnect and reconnects via subscribe.
+/// Streams SSE frames over a Dio client.
+///
+/// dio's `receiveTimeout` only bounds the wait for response *headers*
+/// (io_adapter.dart wraps `request.close()` in `.timeout()`) — it never
+/// fires once the body stream is flowing. Liveness on an open stream
+/// therefore comes from the watchdog `.timeout(idleTimeout)` on the raw
+/// chunk stream: any byte (a 30s `: ping` included) resets it, so
+/// silence past the budget means the TCP path died without a FIN — the
+/// stream errors with a receiveTimeout-shaped DioException and the
+/// caller's normal disconnect path takes over (reconnect via subscribe,
+/// `since=lastSeq` replay). Before the watchdog this was the "sent but
+/// no reply ever renders" bug: a silently-dead socket just hung forever.
 class SseClient {
-  SseClient(this._dio);
+  SseClient(this._dio, {this.idleTimeout = const Duration(seconds: 90)});
   final Dio _dio;
+
+  /// Silence budget on an open stream. The gateway pings every 30s
+  /// (contract §4), so 90s of nothing is decisively dead, not thinking.
+  final Duration idleTimeout;
 
   static final _streamOptions = Options(
     responseType: ResponseType.stream,
@@ -80,8 +92,21 @@ class SseClient {
     if (body == null) return;
     final parser = SseLineParser();
     try {
-      await for (final line
-          in body.stream.cast<List<int>>().transform(utf8.decoder).transform(const LineSplitter())) {
+      // The watchdog rides the raw chunk stream — before decoding — so a
+      // header-less partial line still counts as traffic. On timeout the
+      // error is injected into the stream, which unwinds this await for
+      // and cancels the upstream response body (the dead socket goes
+      // with it).
+      await for (final line in body.stream
+          .timeout(idleTimeout, onTimeout: (sink) {
+        sink.addError(DioException.receiveTimeout(
+          timeout: idleTimeout,
+          requestOptions: response.requestOptions,
+        ));
+      })
+          .cast<List<int>>()
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())) {
         final frame = parser.pushLine(line);
         if (frame != null) yield frame;
       }
