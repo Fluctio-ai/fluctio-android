@@ -121,13 +121,17 @@ class LocalNotifyHub {
   }
 
   /// POST_NOTIFICATIONS runtime prompt (Android 13+); no-op when granted.
-  void requestPermission() {
+  /// Returns the prompt's outcome (null on pre-13 / plugin-less tests) so
+  /// callers can sequence first delivery after the verdict — a show()
+  /// racing an unanswered prompt is silently dropped by the OS (the
+  /// login-drain bug the emulator e2e caught: enqueued=1, posted=0).
+  Future<bool?> requestPermission() async {
     try {
-      // Errors surface on the returned Future — swallow those too.
-      _plugin
+      return await _plugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission()
-          .catchError((_) => null);
-    } catch (_) {} // plugin-less environments (tests)
+          ?.requestNotificationsPermission();
+    } catch (_) {
+      return null; // plugin-less environments (tests)
+    }
   }
 }

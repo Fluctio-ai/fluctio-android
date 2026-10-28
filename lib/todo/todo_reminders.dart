@@ -56,6 +56,10 @@ class TodoReminderService {
   Timer? _debounce;
   Timer? _timer;
   AppLifecycleListener? _lifecycle;
+  // Alarm ids this service currently has scheduled — the cancel set for
+  // _syncNow (never cancelAll: app-scoped, would clear other features'
+  // live notifications).
+  final Set<int> _scheduledIds = {};
 
   bool get _zh => _hub.localeIsZh;
 
@@ -74,7 +78,13 @@ class TodoReminderService {
     try {
       final todos = await _ref.read(kbRepoProvider).todos(agentId);
       final now = DateTime.now();
-      await _hub.cancelAll();
+      // Cancel only OUR alarm ids — hub cancelAll is app-scoped and would
+      // wipe live server notifications too (the emulator-e2e catch: the
+      // todo reschedule raced the notification drain and cleared it).
+      for (final id in _scheduledIds) {
+        await _hub.plugin.cancel(id: id);
+      }
+      _scheduledIds.clear();
       for (final t in todos) {
         if (t.status == 'done' || t.status == 'cancelled') continue;
         final start = t.startAt?.toLocal();
@@ -141,9 +151,10 @@ class TodoReminderService {
     // Same start-time rendering policy as the todos page (lib/util/dates.dart).
     final time = formatSessionTime(start.millisecondsSinceEpoch);
     final body = _zh ? '开始时间 $time' : 'Starts at $time';
-    // Only stable within a run: every sync starts with cancelAll, so ids
-    // never need to outlive the process.
+    // Only stable within a run: every sync cancels this set, so ids never
+    // need to outlive the process.
     final id = t.id.hashCode & 0x7fffffff;
+    _scheduledIds.add(id);
     Future<void> schedule(AndroidScheduleMode mode) => _hub.plugin.zonedSchedule(
           id: id,
           title: t.title,

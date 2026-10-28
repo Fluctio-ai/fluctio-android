@@ -57,7 +57,6 @@ class ServerNotificationsService {
   Future<void> _activate() async {
     if (_active) return;
     _active = true;
-    _hub.requestPermission();
     final prefs = await SharedPreferences.getInstance();
     _cursor = prefs.getInt(_cursorKey) ?? 0;
     // Background delivery: a 15-min-floor periodic task (OS-deferred under
@@ -71,6 +70,10 @@ class ServerNotificationsService {
       constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingWorkPolicy.keep,
     ));
+    // First drain waits for the permission prompt's verdict: a show()
+    // racing an unanswered POST_NOTIFICATIONS prompt is silently dropped
+    // by the OS (the login-drain bug the emulator e2e caught).
+    unawaited(_hub.requestPermission().then((_) => _drainOnce()));
     _lifecycle = AppLifecycleListener(
       onResume: () {
         _resumed = true;
