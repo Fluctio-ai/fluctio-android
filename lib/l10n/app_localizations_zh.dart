@@ -169,6 +169,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatReconnecting => '重连中';
 
   @override
+  String get chatPullForLatest => '上拉获取最新';
+
+  @override
+  String get chatFetchingLatest => '正在获取最新…';
+
+  @override
   String get chatCompacted => '上下文已压缩';
 
   @override

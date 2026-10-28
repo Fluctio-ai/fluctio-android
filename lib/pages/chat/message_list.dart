@@ -48,6 +48,28 @@ class _MessageListState extends ConsumerState<MessageList> {
   final ScrollController _scroll = ScrollController();
   bool _awayFromBottom = false;
 
+  // ---- pull-for-latest state ----
+  /// Accumulated underscroll at the newest end (reverse list: the min
+  /// extent is the bottom). A silent accumulator — the pill only
+  /// consumes the boolean thresholds below, so it never enters setState
+  /// and overscroll notifications stay allocation-free.
+  double _pullPx = 0;
+  bool _pullShown = false;
+  bool _refreshing = false;
+  /// One refresh per drag: set on fire, cleared only when the drag ends,
+  /// so holding the overscroll past the trigger can't re-arm mid-refresh.
+  bool _pullFired = false;
+  static const _pullShowPx = 8.0;
+  static const _pullTrigger = 72.0;
+
+  void _refreshLatest() {
+    setState(() => _refreshing = true);
+    HapticFeedback.lightImpact();
+    ref.read(chatStoreProvider.notifier).refreshLatest().whenComplete(() {
+      if (mounted) setState(() => _refreshing = false);
+    });
+  }
+
   // ---- seq deep-link jump state ----
   int? _pendingSeq;
   int? _targetI; // reverse-list index of the anchor entry
@@ -158,6 +180,37 @@ class _MessageListState extends ConsumerState<MessageList> {
               final away = n.metrics.pixels > 600;
               if (away != _awayFromBottom) setState(() => _awayFromBottom = away);
             }
+            // Pull-for-latest: at the newest end (min extent, bottom),
+            // swiping up past the edge accumulates overscroll; past the
+            // trigger it re-anchors the stream and re-syncs the
+            // transcript (once per drag). Same flip-only-setState shape
+            // as the away-from-bottom tracking above — the accumulator
+            // itself never triggers a rebuild. The newest-end gate keys
+            // on pixels-at-min, NOT the overscroll sign: when the
+            // transcript is shorter than the viewport the under-scroll
+            // direction is ambiguous and the notification can arrive
+            // with either sign.
+            if (n is OverscrollNotification &&
+                n.depth == 0 &&
+                n.metrics.axis == Axis.vertical &&
+                n.overscroll != 0 &&
+                n.metrics.pixels <= n.metrics.minScrollExtent + 1 &&
+                !_refreshing &&
+                !_pullFired) {
+              _pullPx += n.overscroll.abs();
+              if (_pullPx >= _pullTrigger) {
+                _pullPx = 0;
+                _pullFired = true;
+                _refreshLatest();
+              }
+              final shown = _pullPx > _pullShowPx;
+              if (shown != _pullShown) setState(() => _pullShown = shown);
+            }
+            if (n is ScrollEndNotification && n.depth == 0) {
+              _pullPx = 0;
+              _pullFired = false;
+              if (_pullShown) setState(() => _pullShown = false);
+            }
             return false;
           },
           child: ListView.builder(
@@ -234,6 +287,20 @@ class _MessageListState extends ConsumerState<MessageList> {
             ),
           ),
         ),
+        // Pull-for-latest pill: pull progress while dragging past the
+        // newest end, a spinner while the resync runs.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 8,
+          child: IgnorePointer(
+            child: AnimatedOpacity(
+              opacity: _pullShown || _refreshing ? 1 : 0,
+              duration: AppMotion.entrance,
+              child: Center(child: _PullForLatest(refreshing: _refreshing)),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -299,6 +366,47 @@ class _JumpToLatest extends StatelessWidget {
           padding: EdgeInsets.all(10),
           child: Icon(LucideIcons.arrowDown, size: 20),
         ),
+      ),
+    );
+  }
+}
+
+/// Pull-for-latest pill (same visual vocabulary as _NoticeChip): an
+/// up-arrow hint while the drag accumulates, a spinner once the refresh
+/// is running.
+class _PullForLatest extends StatelessWidget {
+  const _PullForLatest({required this.refreshing});
+
+  final bool refreshing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    final color = theme.colorScheme.outline;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: AppRadius.cardBorder,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (refreshing)
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            Icon(LucideIcons.arrowUp, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            refreshing ? l.chatFetchingLatest : l.chatPullForLatest,
+            style: theme.textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ],
       ),
     );
   }

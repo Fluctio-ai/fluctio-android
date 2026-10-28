@@ -433,6 +433,48 @@ class ChatStoreController extends Notifier<ChatStore> {
     _publish();
   }
 
+  /// Manual pull-up-at-bottom refresh — the escape hatch for "sent but
+  /// no reply ever rendered". The usual cause is a silently-dead
+  /// subscribe socket (no close event, no frames): the server finished
+  /// the turn long ago but the final `content`/`done` frames never
+  /// arrived. Re-anchors the subscribe connection (`since=lastSeq`
+  /// replays the gap) and re-syncs from the latest history page whenever
+  /// the server holds messages we haven't rendered — the settled reply
+  /// renders and the stuck phase falls back to idle (explicit user
+  /// gesture = web F5 semantics; the 断连≠Stop invariant covers network
+  /// events, not this). The gate compares MESSAGE-space seqs on both
+  /// sides: `latestEventSeq` is the events cursor and prunes backwards
+  /// (even to -1 after a failed turn), so it can never certify
+  /// "nothing new". When the server has nothing new, the re-anchor
+  /// alone is the fix — the live bubble is left untouched.
+  Future<void> refreshLatest() async {
+    final key = state.activeKey;
+    if (key == null || _disposed) return;
+    final parts = splitSessionKey(key);
+    if (parts == null) return;
+    final (agentId, sessionId) = (parts.agentId, parts.sessionId);
+    _ensureSubscribe(agentId, sessionId);
+    final engine = _engines[key];
+    if (engine == null) return;
+    try {
+      final page = await ref.read(chatRepoProvider).history(agentId, sessionId);
+      if (!ref.mounted || state.activeKey != key) return;
+      var remoteMax = -1;
+      for (final m in page.messages) {
+        final s = m.seq;
+        if (s != null && s > remoteMax) remoteMax = s;
+      }
+      if (remoteMax > (engine.maxMessageSeq ?? -1) || engine.entries.isEmpty) {
+        engine.loadHistory(page, older: false);
+        _markDirty(key);
+        _publish();
+      }
+    } catch (_) {
+      // Best-effort: the re-anchor above already retried the live path,
+      // and the gesture is always repeatable.
+    }
+  }
+
   /// App foregrounded: backgrounding reaps the subscribe socket, and
   /// nothing else re-opens it for an already-open session — live events
   /// would stop until a restart. Reconnect unconditionally (ambient

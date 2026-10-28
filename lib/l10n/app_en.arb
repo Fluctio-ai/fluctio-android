@@ -53,6 +53,8 @@
   "chatResend": "Resend",
   "chatRegenerate": "Regenerate",
   "chatReconnecting": "Reconnecting",
+  "chatPullForLatest": "Pull up for the latest",
+  "chatFetchingLatest": "Fetching the latest…",
   "chatCompacted": "Context compacted",
   "chatHistoryError": "Failed to load history",
   "chatEmpty": "Type a message to start",

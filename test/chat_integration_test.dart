@@ -70,6 +70,9 @@ void main() {
   // sseErrorText, but still an HTTP-layer rejection).
   var postMode = 'ok';
   var failKillsLeft = 0;
+  // Mutable history response — refreshLatest tests rewrite it mid-test
+  // to simulate the server settling a turn the client never saw.
+  late Map<String, dynamic> historyPayload;
 
   Future<void> until(String label, bool Function() cond, {Duration timeout = const Duration(seconds: 5)}) async {
     final deadline = DateTime.now().add(timeout);
@@ -101,6 +104,7 @@ void main() {
     postedBodies.clear();
     postMode = 'ok';
     failKillsLeft = 0;
+    historyPayload = {'history': [], 'earliestSeq': 0, 'hasMore': false, 'latestEventSeq': 10};
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
 
     server.listen((req) async {
@@ -114,7 +118,7 @@ void main() {
       } else if (path == '/api/chat/sessions' && req.method == 'GET') {
         _json(req, {'sessions': []});
       } else if (path == '/api/chat/history' && req.method == 'GET') {
-        _json(req, {'history': [], 'earliestSeq': 0, 'hasMore': false, 'latestEventSeq': 10});
+        _json(req, historyPayload);
       } else if (path == '/api/chat/stream' && req.method == 'POST') {
         final body = jsonDecode(await utf8.decoder.bind(req).join());
         postedBodies.add(Map<String, dynamic>.from(body as Map));
@@ -269,6 +273,79 @@ void main() {
     final users = s.entries.whereType<UserEntry>().toList();
     expect(users, hasLength(1));
     expect(users.single.failed, isFalse);
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('refreshLatest re-syncs a settled turn even when latestEventSeq is gone',
+      () async {
+    // The reported bug: the gate used to trust latestEventSeq (the
+    // session_events cursor), but that table prunes backwards and sits
+    // at -1 after a failed turn — a server that HAS the late reply
+    // reports "nothing new" and the refresh no-ops until app restart.
+    // The gate now compares message-space seqs, so the fresh assistant
+    // row at seq 7 must resync regardless of the event cursor.
+    final key = await boot();
+    expect(container.read(chatStoreProvider).chats[key]!.entries, isEmpty);
+
+    historyPayload = {
+      'history': [
+        {'role': 'user', 'content': 'old', 'timestamp': 1, 'seq': 5},
+        {'role': 'user', 'content': 'hi', 'timestamp': 2, 'seq': 6},
+        {'role': 'assistant', 'content': 'Late reply', 'timestamp': 3, 'seq': 7},
+      ],
+      'earliestSeq': 5,
+      'hasMore': false,
+      // Event cursor pruned / failed turn — deliberately useless.
+      'latestEventSeq': -1,
+    };
+    await container.read(chatStoreProvider.notifier).refreshLatest();
+    await until('late reply', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.any((e) => e is AssistantEntry && e.text == 'Late reply');
+    });
+
+    final s = container.read(chatStoreProvider).chats[key]!;
+    // The seq anchor is a mixed-space high-water mark: the boot baseline
+    // pushed it to 10 and a re-sync never walks it back.
+    expect(s.lastSeq, 10);
+    expect(s.phase, TurnPhase.idle);
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('refreshLatest keeps the transcript when the server holds the same turn',
+      () async {
+    // Both sides already hold the settled turn (live entries carry no
+    // seq, so the message-space gate re-syncs once against the server's
+    // persisted rows): the rebuilt transcript must be exactly the same
+    // messages — no loss, no duplication.
+    final key = await boot();
+    await container.read(chatStoreProvider.notifier).send('hi');
+    await until('assistant', () {
+      final s = container.read(chatStoreProvider).chats[key]!;
+      return s.entries.any((e) => e is AssistantEntry && e.text == 'Hello!');
+    });
+    // The rows the real gateway would have persisted for that turn.
+    historyPayload = {
+      'history': [
+        {'role': 'user', 'content': 'hi', 'timestamp': 1, 'seq': 11},
+        {'role': 'assistant', 'content': 'Hello!', 'timestamp': 2, 'seq': 12},
+      ],
+      'earliestSeq': 11,
+      'hasMore': false,
+      'latestEventSeq': 13,
+    };
+
+    await container.read(chatStoreProvider.notifier).refreshLatest();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final s = container.read(chatStoreProvider).chats[key]!;
+    expect(
+      s.entries.map((e) => switch (e) {
+            UserEntry u => 'u:${u.text}',
+            AssistantEntry a => 'a:${a.text}',
+            _ => '?',
+          }),
+      ['u:hi', 'a:Hello!'],
+    );
+    expect(s.phase, TurnPhase.idle);
   }, timeout: const Timeout(Duration(seconds: 20)));
 }
 

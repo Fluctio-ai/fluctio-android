@@ -264,6 +264,21 @@ class ChatEngine {
 
   bool get loadMoreRunning => _loadMoreRunning;
 
+  /// Highest message-space seq currently rendered (history entries carry
+  /// theirs; local-only entries are null). The refresh-latest gate
+  /// compares this against a fresh history page's max message seq —
+  /// message-space, NOT the session_events cursor (`latestEventSeq`),
+  /// which prunes backwards and can sit at -1 after a failed turn, so it
+  /// can never prove "nothing new".
+  int? get maxMessageSeq {
+    int? max;
+    for (final e in _entries) {
+      final s = e.seq;
+      if (s != null && s >= 0 && (max == null || s > max)) max = s;
+    }
+    return max;
+  }
+
   /// Read-only view of the transcript (no copy); materializes any pending
   /// streaming text first.
   List<UiEntry> get entries {

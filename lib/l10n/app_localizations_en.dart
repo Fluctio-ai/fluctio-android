@@ -173,6 +173,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatReconnecting => 'Reconnecting';
 
   @override
+  String get chatPullForLatest => 'Pull up for the latest';
+
+  @override
+  String get chatFetchingLatest => 'Fetching the latest…';
+
+  @override
   String get chatCompacted => 'Context compacted';
 
   @override

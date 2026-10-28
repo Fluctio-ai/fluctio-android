@@ -416,6 +416,18 @@ abstract class AppLocalizations {
   /// **'重连中'**
   String get chatReconnecting;
 
+  /// No description provided for @chatPullForLatest.
+  ///
+  /// In zh, this message translates to:
+  /// **'上拉获取最新'**
+  String get chatPullForLatest;
+
+  /// No description provided for @chatFetchingLatest.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在获取最新…'**
+  String get chatFetchingLatest;
+
   /// No description provided for @chatCompacted.
   ///
   /// In zh, this message translates to:

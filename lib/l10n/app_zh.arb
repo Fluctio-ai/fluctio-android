@@ -53,6 +53,8 @@
   "chatResend": "重发",
   "chatRegenerate": "重新生成",
   "chatReconnecting": "重连中",
+  "chatPullForLatest": "上拉获取最新",
+  "chatFetchingLatest": "正在获取最新…",
   "chatCompacted": "上下文已压缩",
   "chatHistoryError": "历史消息加载失败",
   "chatEmpty": "输入消息开始对话",
