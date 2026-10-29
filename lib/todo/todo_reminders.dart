@@ -129,7 +129,10 @@ class TodoReminderService {
     _debounce = null;
     _lifecycle?.dispose();
     _lifecycle = null;
-    // Logged out: no one else's todos may ring.
+    // Logged out: no one else's todos may ring. Deliberately the ONE
+    // app-scoped cancelAll — the logout boundary clears every feature's
+    // posts (privacy: a borrowed phone shows nothing), unlike _syncNow's
+    // own-ids-only cancellation above.
     await _hub.cancelAll();
   }
 

@@ -56,7 +56,8 @@ class SrvNotification {
 /// notification tap payload). The app is single-agent-perspective, so the
 /// agent id segment is dropped; unknown paths land on chat. Keep in sync
 /// with the sweeps' deepLink values (gateway_due_todo.go / cards_push.go /
-/// shelved_push.go / blindspot_push.go) and router.dart.
+/// shelved_push.go / blindspot_push.go / handlers_push.go chat replies)
+/// and router.dart.
 String appRouteForDeepLink(String deepLink) {
   final path = deepLink.split('?').first;
   if (path.endsWith('/knowledge/todos')) return '/kb/todos';
@@ -64,6 +65,11 @@ String appRouteForDeepLink(String deepLink) {
     return deepLink.contains('review=1') ? '/kb/cards/review' : '/kb/cards';
   }
   if (path.endsWith('/knowledge/diary')) return '/kb/diary';
+  final chatIdx = path.indexOf('/chat/');
+  if (chatIdx >= 0) {
+    final sid = path.substring(chatIdx + '/chat/'.length);
+    if (sid.isNotEmpty) return '/c/$sid';
+  }
   return '/';
 }
 

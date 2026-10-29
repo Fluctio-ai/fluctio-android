@@ -47,6 +47,9 @@ class ServerNotificationsService {
   SharedPreferences? _prefs;
   CancelToken? _cancel;
   Timer? _reconnect;
+  Timer? _ackDebounce;
+  int _ackWatermark = 0;
+  ServerNotificationsRepo? _ackRepo;
   AppLifecycleListener? _lifecycle;
 
   // Everything except `paused` counts as foreground — the OS pause is the
@@ -139,7 +142,7 @@ class ServerNotificationsService {
         }
         if (n.id <= _cursor) continue; // replay dup across reconnects
         await _notify(n);
-        await _advance(n.id, repo);
+        _scheduleAck(n.id, repo);
       }
       // Server closed the stream politely — reconnect after a beat.
       _streamEnded();
@@ -163,6 +166,11 @@ class ServerNotificationsService {
     _reconnect = null;
     _cancel?.cancel();
     _cancel = null;
+    _ackDebounce?.cancel();
+    _ackDebounce = null;
+    // A pending watermark flushes now: a killed process must not strand
+    // the disk cursor behind the memory one (that re-delivers).
+    unawaited(_flushAck());
   }
 
   Future<void> _notify(SrvNotification n) async {
@@ -177,12 +185,28 @@ class ServerNotificationsService {
     );
   }
 
-  /// Local cursor first, ack second — see class doc.
-  Future<void> _advance(int lastId, ServerNotificationsRepo repo) async {
-    _cursor = lastId;
-    await _prefs!.setInt(notifyCursorKey, lastId);
+  /// SSE frames arrive in bursts (a morning batch replays back-to-back),
+  /// so the watermark flush is debounced — one prefs write + one ack POST
+  /// per burst instead of per frame. The memory cursor advances
+  /// immediately; the ack is a watermark, so delaying it changes nothing
+  /// semantically. Local cursor first, ack second — see class doc.
+  void _scheduleAck(int id, ServerNotificationsRepo repo) {
+    _cursor = id;
+    _ackWatermark = id;
+    _ackRepo = repo;
+    _ackDebounce?.cancel();
+    _ackDebounce = Timer(const Duration(seconds: 2), () => unawaited(_flushAck()));
+  }
+
+  Future<void> _flushAck() async {
+    final watermark = _ackWatermark;
+    final repo = _ackRepo;
+    _ackWatermark = 0;
+    _ackRepo = null;
+    if (watermark <= 0 || repo == null || _prefs == null) return;
+    await _prefs!.setInt(notifyCursorKey, watermark);
     try {
-      await repo.ack(lastId);
+      await repo.ack(watermark);
     } catch (_) {}
   }
 }

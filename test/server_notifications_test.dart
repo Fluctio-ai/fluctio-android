@@ -36,6 +36,10 @@ void main() {
       expect(appRouteForDeepLink('/agents/agt_x/knowledge/diary'), '/kb/diary');
     });
 
+    test('chat replies land on their session', () {
+      expect(appRouteForDeepLink('/agents/agt_x/chat/web-sess'), '/c/web-sess');
+    });
+
     test('unknown paths land on chat', () {
       expect(appRouteForDeepLink('/agents/agt_x/somewhere/else'), '/');
       expect(appRouteForDeepLink(''), '/');

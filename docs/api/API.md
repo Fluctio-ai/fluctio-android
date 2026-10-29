@@ -250,7 +250,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/notifications?since=<id>&limit=<n>` | → `{"notifications":[...],"lastId":N}`（id>since 未投递行，id 升序，lastId=页内最大 id，空页=since）。limit 默认 50 上限 200。行形状 `{id, agentId, kind, title, body, deepLink, createdAt}`，kind ∈ `todo_reminder\|cards_digest\|shelved_nudge\|blindspot`。`deepLink` 是 web 相对路径（`/agents/<id>/knowledge/diary` 等），客户端自行映射自家路由 |
+| `GET /api/notifications?since=<id>&limit=<n>` | → `{"notifications":[...],"lastId":N}`（id>since 未投递行，id 升序，lastId=页内最大 id，空页=since）。limit 默认 50 上限 200。行形状 `{id, agentId, kind, title, body, deepLink, createdAt}`，kind ∈ `todo_reminder\|cards_digest\|shelved_nudge\|blindspot\|chat_reply`。`deepLink` 是 web 相对路径（`/agents/<id>/knowledge/diary`、`/agents/<id>/chat/<session>` 等），客户端自行映射自家路由。`chat_reply` 由无 SSE 订阅者的 web 渠道出站消息产生（cron/异步回复），同 (agent, session) 60s 合并一条 |
 | `POST /api/notifications/ack` | req `{"lastId": N}` → `{"ok":true}`；删除该用户 id≤N 的行。语义是水位而非逐条：设备 A ack 后设备 B 若未拉过则错过（接受的竞争——晨间摘要类低害，web 会话气泡是持久副本） |
 | `GET /api/notifications/stream?since=<id>` | SSE。帧 `id:<nid>` + `data:{通知行 JSON}`（与 §4 同线协议：无 `event:` 行，30s `: ping`）；服务端 5s DB 轮询源（`handlers_notifications.go` handleNotificationsStream），连接时补发 since 之后的存量 |
 
