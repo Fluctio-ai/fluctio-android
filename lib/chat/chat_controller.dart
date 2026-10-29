@@ -197,27 +197,34 @@ final projectsProvider = FutureProvider.family<List<ProjectInfo>, String>((ref, 
 // agent-scope shadows same-named globals — web parity, chat-screen.tsx:857)
 // ---------------------------------------------------------------------------
 
-/// Merged skill list behind the composer's `/` palette. Refetches on agent
-/// switch. Both fetches are best-effort: any failure (offline, or the
-/// agent-scoped endpoint's owner-only gate) degrades to whatever did load.
+/// Global skill catalog — agent-independent, fetched once per session
+/// (the list endpoint rescans every SKILL.md server-side, so refetching
+/// per agent switch would be wasted IO). Failures resolve to an empty
+/// list.
+final globalSkillsProvider = FutureProvider<List<SkillInfo>>((ref) {
+  return ref.watch(chatRepoProvider).globalSkills().catchError((_) => const <SkillInfo>[]);
+});
+
+/// Merged skill list behind the composer's `/` palette. Refetches only
+/// the agent-scoped half on agent switch. Agent-scope shadows same-named
+/// globals — approximates the loader precedence; the list endpoints
+/// don't apply the config enabled/disabled gating, so a disabled skill
+/// may still be listed. The agent-scoped endpoint is owner-only; a
+/// failure degrades to whatever did load.
 final slashSkillsProvider = FutureProvider<List<SkillInfo>>((ref) async {
   final agentId = ref.watch(agentsProvider.select((s) => s.selectedId));
   final repo = ref.read(chatRepoProvider);
-  Future<List<SkillInfo>> orEmpty(Future<List<SkillInfo>> fetch) async {
-    try {
-      return await fetch;
-    } catch (_) {
-      return const <SkillInfo>[];
-    }
-  }
-
+  final results = await Future.wait([
+    ref.watch(globalSkillsProvider.future),
+    agentId == null
+        ? Future.value(const <SkillInfo>[])
+        : repo.agentSkills(agentId).catchError((_) => const <SkillInfo>[]),
+  ]);
   final merged = <String, SkillInfo>{
-    for (final s in await orEmpty(repo.globalSkills())) s.name: s,
+    for (final s in results[0]) s.name: s,
+    if (agentId != null)
+      for (final s in results[1]) s.name: s,
   };
-  if (agentId != null) {
-    final own = await orEmpty(repo.agentSkills(agentId));
-    merged.addEntries([for (final s in own) MapEntry(s.name, s)]);
-  }
   return merged.values.toList();
 });
 

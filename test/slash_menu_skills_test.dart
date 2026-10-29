@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluctio/chat/models.dart';
-import 'package:fluctio/chat/slash_commands.dart';
+import 'package:fluctio_android/chat/models.dart';
+import 'package:fluctio_android/chat/slash_commands.dart';
 
 void main() {
   test('bare slash lists commands then skills', () {
