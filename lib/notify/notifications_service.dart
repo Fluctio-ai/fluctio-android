@@ -38,27 +38,28 @@ class ServerNotificationsService {
     }, fireImmediately: true);
   }
 
-  static const _cursorKey = 'notify.cursor';
-  static const _channelId = 'server_notifications';
-
   final Ref _ref;
   final LocalNotifyHub _hub;
 
   bool _active = false;
   bool _draining = false;
   int _cursor = 0;
+  SharedPreferences? _prefs;
   CancelToken? _cancel;
   Timer? _reconnect;
-  bool _resumed = true;
   AppLifecycleListener? _lifecycle;
+
+  // Everything except `paused` counts as foreground — the OS pause is the
+  // handoff point to the background poller.
+  bool get _resumed => WidgetsBinding.instance.lifecycleState != AppLifecycleState.paused;
 
   bool get _zh => _hub.localeIsZh;
 
   Future<void> _activate() async {
     if (_active) return;
     _active = true;
-    final prefs = await SharedPreferences.getInstance();
-    _cursor = prefs.getInt(_cursorKey) ?? 0;
+    final prefs = _prefs = await SharedPreferences.getInstance();
+    _cursor = prefs.getInt(notifyCursorKey) ?? 0;
     // Background delivery: a 15-min-floor periodic task (OS-deferred under
     // Doze; battery-optimization exemption keeps the cadence honest).
     // Registered on login and never unregistered — the worker no-ops
@@ -70,24 +71,19 @@ class ServerNotificationsService {
       constraints: Constraints(networkType: NetworkType.connected),
       existingWorkPolicy: ExistingWorkPolicy.keep,
     ));
-    // First drain waits for the permission prompt's verdict: a show()
-    // racing an unanswered POST_NOTIFICATIONS prompt is silently dropped
-    // by the OS (the login-drain bug the emulator e2e caught).
-    unawaited(_hub.requestPermission().then((_) => _drainOnce()));
     _lifecycle = AppLifecycleListener(
-      onResume: () {
-        _resumed = true;
-        unawaited(_drainOnce());
-        unawaited(_connect());
-      },
-      onPause: () {
-        _resumed = false;
-        _teardownStream(); // the OS background poller owns delivery now
-      },
+      // Back to foreground: the stream replays everything past the cursor,
+      // so connecting IS the catch-up.
+      onResume: () => unawaited(_connect()),
+      onPause: () => _teardownStream(), // the OS background poller owns delivery now
     );
-    _resumed = WidgetsBinding.instance.lifecycleState != AppLifecycleState.paused;
-    unawaited(_drainOnce());
-    if (_resumed) unawaited(_connect());
+    // Login catch-up, one path: the hub gates its own show() on the
+    // memoized permission verdict, so nothing here can race the prompt.
+    if (_resumed) {
+      unawaited(_connect());
+    } else {
+      unawaited(_drainOnce());
+    }
   }
 
   void _deactivate() {
@@ -99,24 +95,22 @@ class ServerNotificationsService {
 
   void dispose() => _deactivate();
 
-  /// One polling page: notify every row, advance the cursor, ack the
-  /// watermark. Also the SSE reconnect path's bootstrap (rows that landed
-  /// while no stream was open).
+  /// One polling drain (the login path while backgrounded, and the resume
+  /// bootstrap before the stream replays). Paging, cursor-then-ack, and
+  /// the ack-error policy live in drainQueue, shared with the worker.
   Future<void> _drainOnce() async {
     if (_draining || !_active) return;
     _draining = true;
     try {
-      final dio = _ref.read(apiClientProvider);
-      final repo = ServerNotificationsRepo(dio);
-      var page = await repo.list(since: _cursor);
-      while (page.rows.isNotEmpty) {
-        for (final n in page.rows) {
-          await _notify(n);
-        }
-        await _advance(page.lastId, repo);
-        if (page.rows.length < 50) break;
-        page = await repo.list(since: _cursor);
-      }
+      await drainQueue(
+        ServerNotificationsRepo(_ref.read(apiClientProvider)),
+        since: _cursor,
+        onCursor: (lastId) async {
+          _cursor = lastId;
+          await _prefs!.setInt(notifyCursorKey, lastId);
+        },
+        notify: _notify,
+      );
     } catch (_) {
       // Network flap: the SSE reconnect / next resume retries.
     } finally {
@@ -135,9 +129,8 @@ class ServerNotificationsService {
     final dio = _ref.read(apiClientProvider);
     final repo = ServerNotificationsRepo(dio);
     try {
-      await for (final frame in SseClient(dio, idleTimeout: const Duration(seconds: 90))
-          .get('/api/notifications/stream', {'since': _cursor}, cancelToken: cancel)) {
-        if (frame.data.isEmpty) continue;
+      await for (final frame
+          in SseClient(dio).get('/api/notifications/stream', {'since': _cursor}, cancelToken: cancel)) {
         final SrvNotification n;
         try {
           n = SrvNotification.fromJson(Map<String, dynamic>.from(jsonDecode(frame.data) as Map));
@@ -175,9 +168,9 @@ class ServerNotificationsService {
   Future<void> _notify(SrvNotification n) async {
     await _hub.show(
       id: n.id & 0x7fffffff,
-      channelId: _channelId,
-      channelName: _zh ? '网关通知' : 'Gateway notifications',
-      channelDescription: _zh ? '待办提醒、卡片摘要、搁浅话题与日记盲点' : 'Todo reminders, cards digest, shelved topics and diary blindspots',
+      channelId: notifyChannelId,
+      channelName: notifyChannelName(_zh),
+      channelDescription: notifyChannelDescription(_zh),
       title: n.title,
       body: n.body,
       payload: appRouteForDeepLink(n.deepLink),
@@ -187,8 +180,7 @@ class ServerNotificationsService {
   /// Local cursor first, ack second — see class doc.
   Future<void> _advance(int lastId, ServerNotificationsRepo repo) async {
     _cursor = lastId;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_cursorKey, lastId);
+    await _prefs!.setInt(notifyCursorKey, lastId);
     try {
       await repo.ack(lastId);
     } catch (_) {}

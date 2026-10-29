@@ -7,11 +7,16 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 
 import '../router.dart';
 
+/// System-locale zh check — the ONE definition, shared by the hub and the
+/// headless background worker (which cannot reach the hub's Ref).
+bool isZhLocale() => PlatformDispatcher.instance.locale.languageCode == 'zh';
+
 /// The single owner of the FlutterLocalNotificationsPlugin instance.
 /// Two plugin instances in one app fight over the native tap callback
 /// (last initialize wins) and cancelAll is app-scoped, not
 /// instance-scoped — every notification feature (todo reminders,
-/// background turn alerts) must go through this hub.
+/// background turn alerts, server notifications) must go through this
+/// hub.
 ///
 /// Tap routing is payload-as-route: every notification carries its
 /// destination route as the payload (`/kb/todos`, `/c/<sid>`), and the
@@ -34,8 +39,9 @@ class LocalNotifyHub {
   bool get isReady => _ready;
 
   /// System-locale zh check, shared by every notification feature's
-  /// copy (todo reminders, turn alerts) — one definition here.
-  bool get localeIsZh => PlatformDispatcher.instance.locale.languageCode == 'zh';
+  /// copy (todo reminders, turn alerts, server notifications) — see
+  /// [isZhLocale].
+  bool get localeIsZh => isZhLocale();
 
   /// Completes when init finished (success or failure — check [isReady]).
   Future<void> get ready => _initDone.future;
@@ -83,7 +89,8 @@ class LocalNotifyHub {
   }
 
   /// Instant heads-up notification. [payload] is the tap destination
-  /// route (see class doc).
+  /// route (see class doc). Awaits the memoized permission verdict first
+  /// so a first-login show() can never race the prompt.
   Future<void> show({
     required int id,
     required String channelId,
@@ -94,25 +101,37 @@ class LocalNotifyHub {
     required String payload,
   }) async {
     if (!_ready) return;
+    await requestPermission();
     try {
       await _plugin.show(
         id: id,
         title: title,
         body: body,
         payload: payload,
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelName,
-            channelDescription: channelDescription,
-            importance: Importance.high,
-            priority: Priority.high,
-            category: AndroidNotificationCategory.message,
-          ),
-        ),
+        notificationDetails:
+            messageDetails(channelId, channelName, channelDescription: channelDescription),
       );
     } catch (_) {}
   }
+
+  /// Presentation policy for message-category notifications — shared by
+  /// show() and the headless poll worker, whose private plugin instance
+  /// can't reach this hub instance (statics travel fine).
+  static NotificationDetails messageDetails(
+    String channelId,
+    String channelName, {
+    String? channelDescription,
+  }) =>
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channelId,
+          channelName,
+          channelDescription: channelDescription,
+          importance: Importance.high,
+          priority: Priority.high,
+          category: AndroidNotificationCategory.message,
+        ),
+      );
 
   Future<void> cancelAll() async {
     try {
@@ -120,18 +139,22 @@ class LocalNotifyHub {
     } catch (_) {}
   }
 
-  /// POST_NOTIFICATIONS runtime prompt (Android 13+); no-op when granted.
-  /// Returns the prompt's outcome (null on pre-13 / plugin-less tests) so
-  /// callers can sequence first delivery after the verdict — a show()
-  /// racing an unanswered prompt is silently dropped by the OS (the
-  /// login-drain bug the emulator e2e caught: enqueued=1, posted=0).
-  Future<bool?> requestPermission() async {
-    try {
-      return await _plugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
-    } catch (_) {
-      return null; // plugin-less environments (tests)
-    }
-  }
+  Future<bool?>? _permissionFuture;
+
+  /// POST_NOTIFICATIONS runtime prompt (Android 13+), memoized: the FIRST
+  /// caller starts the prompt and every later caller — including [show] —
+  /// awaits the same verdict. One prompt per process, and no show() can
+  /// race an unanswered one (the OS silently drops those: the login-drain
+  /// bug the emulator e2e caught, enqueued=1 posted=0). Returns the
+  /// outcome (null on pre-13 / plugin-less tests).
+  Future<bool?> requestPermission() =>
+      _permissionFuture ??= () async {
+        try {
+          return await _plugin
+              .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+              ?.requestNotificationsPermission();
+        } catch (_) {
+          return null; // plugin-less environments (tests)
+        }
+      }();
 }

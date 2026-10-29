@@ -1,5 +1,24 @@
 import 'package:dio/dio.dart';
 
+/// Shared plumbing for the two delivery halves of the notification
+/// channel (contract §11): the foreground service (notifications_service
+/// .dart) and the headless WorkManager worker (notification_poll_worker
+/// .dart). Single-sourced here so the halves can't drift — a cursor-key
+/// or channel mismatch desyncs them invisibly.
+
+/// SharedPreferences cursor key: both halves MUST advance the same key.
+const notifyCursorKey = 'notify.cursor';
+
+/// Channel identity — system settings shows whichever half creates the
+/// channel first, so both must register it identically.
+const notifyChannelId = 'server_notifications';
+String notifyChannelName(bool zh) => zh ? '网关通知' : 'Gateway notifications';
+String notifyChannelDescription(bool zh) =>
+    zh ? '待办提醒、卡片摘要、搁浅话题与日记盲点' : 'Todo reminders, cards digest, shelved topics and diary blindspots';
+
+/// Repo page size — also the drain loop's "full page → keep paging" bound.
+const notifyPageLimit = 50;
+
 /// One row from the gateway's notification queue (contract §11): the
 /// proactive sweeps (due todos / cards digest / shelved ledger / diary
 /// blindspots) enqueue; the app drains them by polling (backgrounded) or
@@ -58,30 +77,54 @@ class ServerNotificationsRepo {
 
   /// One polling page: rows with id > [since], plus the page's high-water
   /// mark (== [since] when empty) so the caller advances its cursor in one
-  /// round-trip.
-  Future<({List<SrvNotification> rows, int lastId})> list({required int since, int limit = 50}) async {
+  /// round-trip. An off-shape payload reads as an empty page — the cursor
+  /// stays put and the next tick retries.
+  Future<({List<SrvNotification> rows, int lastId})> list({
+    required int since,
+    int limit = notifyPageLimit,
+  }) async {
     final res = await _dio.get('/api/notifications', queryParameters: {
       'since': since,
       'limit': limit,
     });
     final data = res.data;
-    if (data is! Map) {
-      throw DioException.badResponse(
-        statusCode: 0,
-        requestOptions: RequestOptions(path: '/api/notifications'),
-        response: Response(requestOptions: RequestOptions(path: '/api/notifications'), data: data),
-      );
-    }
-    final rows = [
-      for (final r in (data['notifications'] as List? ?? const []))
-        if (r is Map) SrvNotification.fromJson(Map<String, dynamic>.from(r)),
-    ];
-    final lastId = (data['lastId'] as num?)?.toInt() ?? since;
-    return (rows: rows, lastId: lastId);
+    if (data is! Map) return (rows: const <SrvNotification>[], lastId: since);
+    return (
+      rows: [
+        for (final r in (data['notifications'] as List? ?? const []))
+          if (r is Map) SrvNotification.fromJson(Map<String, dynamic>.from(r)),
+      ],
+      lastId: (data['lastId'] as num?)?.toInt() ?? since,
+    );
   }
 
   /// Cursor watermark ack: the server deletes everything up to [lastId].
   Future<void> ack(int lastId) async {
     await _dio.post('/api/notifications/ack', data: {'lastId': lastId});
+  }
+}
+
+/// The drain loop both halves run: page through rows past [since], hand
+/// each row to [notify], advance the local cursor via [onCursor] BEFORE
+/// acking the watermark (the §11 invariant — a failed ack must not
+/// re-deliver), and swallow ack errors (the 7-day server retention bounds
+/// the strand). A full page keeps paging.
+Future<void> drainQueue(
+  ServerNotificationsRepo repo, {
+  required int since,
+  required Future<void> Function(int lastId) onCursor,
+  required Future<void> Function(SrvNotification n) notify,
+}) async {
+  var page = await repo.list(since: since);
+  while (page.rows.isNotEmpty) {
+    for (final n in page.rows) {
+      await notify(n);
+    }
+    await onCursor(page.lastId);
+    try {
+      await repo.ack(page.lastId);
+    } catch (_) {}
+    if (page.rows.length < notifyPageLimit) break;
+    page = await repo.list(since: page.lastId);
   }
 }

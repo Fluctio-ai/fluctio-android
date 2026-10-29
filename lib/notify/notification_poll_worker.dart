@@ -1,13 +1,15 @@
 import 'dart:io' show HttpClient;
-import 'dart:ui' show PlatformDispatcher;
 
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../auth/credentials_store.dart';
+import '../auth/session_cookie.dart';
+import '../core/config_store.dart';
+import 'notify_hub.dart' show LocalNotifyHub, isZhLocale;
 import 'server_notifications.dart';
 
 /// Background half of the server-notification channel (contract §11):
@@ -21,8 +23,6 @@ import 'server_notifications.dart';
 /// worker's notification payload routes through the main engine's
 /// launch-details handling (notify_hub.dart _init).
 const notifyPollTask = 'fluctio-notify-poll';
-const _cursorKey = 'notify.cursor'; // same key as the foreground service
-const _channelId = 'server_notifications';
 
 @pragma('vm:entry-point')
 void notificationPollDispatcher() => Workmanager().executeTask((task, inputData) async {
@@ -36,10 +36,9 @@ void notificationPollDispatcher() => Workmanager().executeTask((task, inputData)
 
 Future<void> _drain() async {
   final prefs = await SharedPreferences.getInstance();
-  final base = prefs.getString('server.baseUrl') ?? '';
-  final sid = await const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  ).read(key: 'auth.session_sid');
+  final config = ConfigStore(SharedPreferencesAsync());
+  final base = await config.baseUrl();
+  final sid = await CredentialsStore(defaultSecureStorage()).sessionId();
   // No server / logged out: nothing to poll (the task stays registered so
   // the next login doesn't have to re-register).
   if (base.isEmpty || sid == null || sid.isEmpty) return;
@@ -48,49 +47,43 @@ Future<void> _drain() async {
     baseUrl: base,
     connectTimeout: const Duration(seconds: 10),
     receiveTimeout: const Duration(seconds: 30),
-    headers: {'accept': 'application/json', 'cookie': 'fluctio_session=$sid'},
+    headers: {'accept': 'application/json', 'cookie': sessionCookieHeader(sid)},
   ));
-  if (prefs.getBool('server.allowSelfSigned') ?? false) {
+  if (await config.allowSelfSigned()) {
     dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () => HttpClient()..badCertificateCallback = (_, _, _) => true,
     );
   }
-  final repo = ServerNotificationsRepo(dio);
-  var since = prefs.getInt(_cursorKey) ?? 0;
-  var page = await repo.list(since: since);
-  if (page.rows.isEmpty) return;
-
+  final zh = isZhLocale();
   // Headless engine: a private plugin instance, initialized without a tap
-  // callback (the main engine's launch-details path owns tap routing).
+  // callback (the main engine's launch-details path owns tap routing) —
+  // and only once a row actually arrives, so empty ticks stay free.
   final plugin = FlutterLocalNotificationsPlugin();
-  await plugin.initialize(
-    settings: const InitializationSettings(android: AndroidInitializationSettings('@mipmap/ic_launcher')),
-  );
-  final zh = PlatformDispatcher.instance.locale.languageCode == 'zh';
-  while (page.rows.isNotEmpty) {
-    for (final n in page.rows) {
+  var pluginReady = false;
+  await drainQueue(
+    ServerNotificationsRepo(dio),
+    since: prefs.getInt(notifyCursorKey) ?? 0,
+    onCursor: (lastId) => prefs.setInt(notifyCursorKey, lastId),
+    notify: (n) async {
+      if (!pluginReady) {
+        pluginReady = true;
+        await plugin.initialize(
+          settings: const InitializationSettings(
+            android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+          ),
+        );
+      }
       await plugin.show(
         id: n.id & 0x7fffffff,
         title: n.title,
         body: n.body,
         payload: appRouteForDeepLink(n.deepLink),
-        notificationDetails: NotificationDetails(
-          android: AndroidNotificationDetails(
-            _channelId,
-            zh ? '网关通知' : 'Gateway notifications',
-            importance: Importance.high,
-            priority: Priority.high,
-            category: AndroidNotificationCategory.message,
-          ),
+        notificationDetails: LocalNotifyHub.messageDetails(
+          notifyChannelId,
+          notifyChannelName(zh),
+          channelDescription: notifyChannelDescription(zh),
         ),
       );
-    }
-    since = page.lastId;
-    await prefs.setInt(_cursorKey, since);
-    try {
-      await repo.ack(since);
-    } catch (_) {}
-    if (page.rows.length < 50) break;
-    page = await repo.list(since: since);
-  }
+    },
+  );
 }
