@@ -31,6 +31,16 @@ class ChatRepo {
       key: 'projects',
       fromJson: ProjectInfo.fromJson);
 
+  /// Global skill catalog (`GET /api/skills`, bare-array payload).
+  Future<List<SkillInfo>> globalSkills() async =>
+      parseRows((await _dio.get('/api/skills')).data, fromJson: SkillInfo.fromJson);
+
+  /// Skills installed in the agent's own home (`GET /api/agents/{id}/skills`).
+  /// Owner-only endpoint — callers degrade to the global list on failure.
+  Future<List<SkillInfo>> agentSkills(String agentId) async => parseRows(
+      (await _dio.get('/api/agents/$agentId/skills')).data,
+      fromJson: SkillInfo.fromJson);
+
   Future<void> createProject(String agentId, String name, {String description = ''}) =>
       _dio.post('/api/agents/$agentId/projects',
           data: {'name': name, if (description.isNotEmpty) 'description': description});

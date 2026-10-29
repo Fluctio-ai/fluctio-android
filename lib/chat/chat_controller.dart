@@ -193,6 +193,35 @@ final projectsProvider = FutureProvider.family<List<ProjectInfo>, String>((ref, 
 });
 
 // ---------------------------------------------------------------------------
+// Slash-menu skills (global catalog + the selected agent's own installs;
+// agent-scope shadows same-named globals — web parity, chat-screen.tsx:857)
+// ---------------------------------------------------------------------------
+
+/// Merged skill list behind the composer's `/` palette. Refetches on agent
+/// switch. Both fetches are best-effort: any failure (offline, or the
+/// agent-scoped endpoint's owner-only gate) degrades to whatever did load.
+final slashSkillsProvider = FutureProvider<List<SkillInfo>>((ref) async {
+  final agentId = ref.watch(agentsProvider.select((s) => s.selectedId));
+  final repo = ref.read(chatRepoProvider);
+  Future<List<SkillInfo>> orEmpty(Future<List<SkillInfo>> fetch) async {
+    try {
+      return await fetch;
+    } catch (_) {
+      return const <SkillInfo>[];
+    }
+  }
+
+  final merged = <String, SkillInfo>{
+    for (final s in await orEmpty(repo.globalSkills())) s.name: s,
+  };
+  if (agentId != null) {
+    final own = await orEmpty(repo.agentSkills(agentId));
+    merged.addEntries([for (final s in own) MapEntry(s.name, s)]);
+  }
+  return merged.values.toList();
+});
+
+// ---------------------------------------------------------------------------
 // Todo panel (single data source: the server's todo.md, refetched at
 // turn end — contract §5, handlers.go:1701)
 // ---------------------------------------------------------------------------

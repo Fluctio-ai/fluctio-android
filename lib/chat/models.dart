@@ -84,6 +84,20 @@ String channelLabel(String channel) => switch (channel) {
       _ => 'Web',
     };
 
+/// One row of `GET /api/skills` / `GET /api/agents/{id}/skills`
+/// (setup/handlers_skills.go scanSkillsDir).
+class SkillInfo {
+  const SkillInfo({required this.name, this.description = ''});
+
+  final String name;
+  final String description;
+
+  factory SkillInfo.fromJson(Map<String, dynamic> json) => SkillInfo(
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+      );
+}
+
 class ProjectInfo {
   const ProjectInfo({required this.id, required this.name, this.description = ''});
 

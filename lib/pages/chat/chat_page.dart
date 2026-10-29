@@ -424,6 +424,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
     final selected = agents.selected!;
     final store = ref.watch(chatStoreProvider);
+    // Slash-menu skill catalog (global + this agent's installs); empty
+    // while loading/offline — the palette then shows commands only.
+    final slashSkills = ref.watch(slashSkillsProvider).value ?? const <SkillInfo>[];
     final activeSessionId = store.activeKey?.substring(store.activeKey!.indexOf('|') + 1);
     final activeSession = activeSessionId == null
         ? null
@@ -515,9 +518,22 @@ class _ChatPageState extends ConsumerState<ChatPage>
                             jumpSeq: widget.jumpSeq),
                   ),
                   _SlashPalette(
-                    matches: readOnly ? const [] : matchSlashCommands(_input.text),
+                    matches: readOnly
+                        ? const []
+                        : matchSlashCommands(_input.text, skills: slashSkills),
                     enabled: !active.turnActive || _input.text.trim().isNotEmpty,
                     onPick: (cmd) {
+                      // Skills take a prompt after the name — insert
+                      // `/<name> ` and keep typing (web selectItem,
+                      // chat-screen.tsx:960); built-in commands dispatch
+                      // immediately as before.
+                      if (cmd.isSkill) {
+                        _input.text = '/${cmd.name} ';
+                        _input.selection =
+                            TextSelection.collapsed(offset: _input.text.length);
+                        setState(() {});
+                        return;
+                      }
                       _input.clear();
                       setState(() {});
                       ref.read(chatStoreProvider.notifier).send(cmd.invoke);
@@ -662,8 +678,16 @@ class _SlashPalette extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
                     children: [
+                      // Skills carry a puzzle glyph + bare name (web
+                      // SlashMenu parity); commands keep the `/name`
+                      // monospace token.
+                      if (cmd.isSkill) ...[
+                        Icon(LucideIcons.puzzle,
+                            size: 14, color: theme.colorScheme.outline),
+                        const SizedBox(width: 8),
+                      ],
                       Text(
-                        cmd.invoke,
+                        cmd.isSkill ? cmd.name : cmd.invoke,
                         style: theme.textTheme.labelLarge
                             ?.copyWith(fontFamily: 'monospace', color: theme.colorScheme.primary),
                       ),
