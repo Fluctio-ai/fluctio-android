@@ -82,6 +82,11 @@ kotlin {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // FluctioApplication implements Configuration.Provider. The workmanager
+    // plugin declares work-runtime as `implementation`, so it is not on this
+    // module's compile classpath without an explicit dependency. Version
+    // matches the plugin's (workmanager 0.6.0 → 2.9.0).
+    implementation("androidx.work:work-runtime:2.9.0")
 }
 
 flutter {
