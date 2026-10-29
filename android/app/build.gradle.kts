@@ -63,6 +63,13 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release")
+            // Flutter enables R8 shrinking for release builds by default;
+            // pin the rules file explicitly so the keeps above are applied.
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

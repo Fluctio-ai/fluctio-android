@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- The app is a pure network client for a self-hosted gateway. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Todo reminders: system notifications fired by AlarmManager at start_at. -->
@@ -72,6 +73,20 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+        <!-- workmanager (background notification polling): the plugin
+             initializes WorkManager itself (headless dispatcher), so the
+             androidx.startup default initializer must be removed — it
+             otherwise eagerly creates the WorkDatabase at process start,
+             which is also the release-only R8 crash path. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove"/>
+        </provider>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
