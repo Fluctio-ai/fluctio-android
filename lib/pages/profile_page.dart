@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../update/update_service.dart';
 import 'agents/agent_settings_page.dart';
 import '../l10n/app_localizations.dart';
+import '../notify/notify_service_controller.dart';
 import '../theme/font_scale.dart';
 import '../theme/theme_mode.dart';
 import '../theme/tokens.dart';
@@ -157,6 +158,25 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           SectionHeader(l.meGeneral),
           SettingsGroup(
             children: [
+              // Opt-in always-on delivery. Off by default: polling is free
+              // while idle, this costs a persistent notification but makes
+              // delivery immediate (see NotifyForegroundService).
+              SettingsTile(
+                icon: LucideIcons.radio,
+                label: l.notifyServiceMode,
+                subtitle: l.notifyServiceModeDesc,
+                trailing: Switch(
+                  value: ref.watch(notifyServiceModeProvider),
+                  onChanged: (v) async {
+                    final ok = await ref.read(notifyServiceModeProvider.notifier).set(v);
+                    if (!ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l.notifyServiceModeFailed)),
+                      );
+                    }
+                  },
+                ),
+              ),
               SettingsTile(
                 icon: LucideIcons.server,
                 label: l.currentServer,

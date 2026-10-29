@@ -130,6 +130,7 @@ class SettingsTile extends StatelessWidget {
     super.key,
     required this.icon,
     required this.label,
+    this.subtitle,
     this.value,
     this.trailing,
     this.onTap,
@@ -137,6 +138,10 @@ class SettingsTile extends StatelessWidget {
 
   final IconData icon;
   final String label;
+  /// Second line under [label], for a short explanation. The trailing
+  /// [value] stays a single-line ellipsized slot for compact values
+  /// (version, server URL) — long copy belongs here.
+  final String? subtitle;
   final String? value;
   final Widget? trailing;
   final VoidCallback? onTap;
@@ -152,7 +157,23 @@ class SettingsTile extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: AppSpace.lg),
-            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label, style: theme.textTheme.bodyMedium),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                  ],
+                ],
+              ),
+            ),
             if (value != null)
               Padding(
                 padding: const EdgeInsets.only(left: AppSpace.md),

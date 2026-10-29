@@ -11,9 +11,45 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private val channelName = "fluctio/share"
     private val toastChannelName = "fluctio/toast"
+    private val notifyChannelName = "fluctio/notify"
+
+    /// Route queued by a notification tap that arrived before Dart was
+    /// listening (cold start). Handed over on the channel's first call.
+    private var pendingRoute: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, notifyChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    // Opt-in always-on delivery: start/stop the foreground
+                    // SSE service with the credentials the UI already holds.
+                    "start" -> {
+                        val base = call.argument<String>("base") ?: ""
+                        val cookie = call.argument<String>("cookie") ?: ""
+                        if (base.isEmpty() || cookie.isEmpty()) {
+                            result.error("missing-args", "base and cookie required", null)
+                        } else {
+                            startNotifyService(base, cookie, call.argument<Boolean>("insecure") ?: false)
+                            result.success(null)
+                        }
+                    }
+                    "stop" -> {
+                        startService(
+                            Intent(this, NotifyForegroundService::class.java)
+                                .setAction(NotifyForegroundService.ACTION_STOP)
+                        )
+                        result.success(null)
+                    }
+                    // Cold start: hand over a route captured from the
+                    // launch intent (a tap that arrived while the app was dead).
+                    "consumeRoute" -> {
+                        result.success(pendingRoute)
+                        pendingRoute = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -40,15 +76,47 @@ class MainActivity : FlutterActivity() {
             }
     }
 
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Cold start from a notification posted by the foreground service:
+        // Dart is not listening yet, so park the route for it to pull.
+        pendingRoute = intent?.getStringExtra(NotifyForegroundService.EXTRA_ROUTE)
+    }
+
+    /// Warm-path method call into Dart; silently drops when no engine is
+    /// attached yet (the cold-start paths park state instead).
+    private fun push(channel: String, method: String, args: Any?) {
+        flutterEngine?.dartExecutor?.binaryMessenger?.let { m ->
+            MethodChannel(m, channel).invokeMethod(method, args)
+        }
+    }
+
+    private fun startNotifyService(base: String, cookie: String, insecure: Boolean) {
+        val svc = Intent(this, NotifyForegroundService::class.java)
+            .setAction(NotifyForegroundService.ACTION_START)
+            .putExtra(NotifyForegroundService.EXTRA_BASE, base)
+            .putExtra(NotifyForegroundService.EXTRA_COOKIE, cookie)
+            .putExtra(NotifyForegroundService.EXTRA_INSECURE, insecure)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(svc)
+        } else {
+            startService(svc)
+        }
+    }
+
     // Warm arrival while the app is running: hand the intent over and let
     // Dart pull its content via consume.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Live notification tap (foreground-service post): Dart is already
+        // attached, so push the route instead of parking it — the parked
+        // path is only for a cold start.
+        intent.getStringExtra(NotifyForegroundService.EXTRA_ROUTE)?.let { route ->
+            push(notifyChannelName, "open", route)
+        }
         if (isShare(intent)) {
-            flutterEngine?.dartExecutor?.binaryMessenger?.let { m ->
-                MethodChannel(m, channelName).invokeMethod("available", null)
-            }
+            push(channelName, "available", null)
         }
     }
 

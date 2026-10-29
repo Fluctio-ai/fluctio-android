@@ -8,6 +8,12 @@
          no per-user Settings trip needed (flutter_local_notifications README). -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Opt-in always-on delivery (NotifyForegroundService): a foreground
+         service holding the gateway's SSE stream, the Gotify-style
+         alternative to the 15-minute WorkManager floor. dataSync is the
+         closest declared type — it is a long-lived data connection. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <!-- Local download of workspace files into the shared Download/ folder
          (file_saver): MediaStore needs no permission on Android 10+; API
          28 and below require a manual grant in Settings. -->
@@ -57,6 +63,14 @@
                 <data android:mimeType="*/*"/>
             </intent-filter>
         </activity>
+        <!-- Opt-in always-on delivery. START_STICKY so a system kill
+             resumes the stream; the service stops itself when no server
+             has been configured (see onStartCommand). -->
+        <service
+            android:name=".NotifyForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="false" />
         <!-- Todo reminder alarms: fire the notification and reschedule the
              queue after a reboot (flutter_local_notifications v19+ requires
              both receivers to be declared by the app). -->

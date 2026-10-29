@@ -392,6 +392,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get meVersion => 'Version';
 
   @override
+  String get notifyServiceMode => 'Keep background connection';
+
+  @override
+  String get notifyServiceModeDesc =>
+      'An always-on foreground service holds the stream so notifications arrive in seconds. Shows a persistent notification and costs battery; off falls back to 15-minute polling.';
+
+  @override
+  String get notifyServiceModeFailed =>
+      'Could not enable: sign in to a server first';
+
+  @override
   String get chatSuggest1 => 'Summarize the recent conversation';
 
   @override

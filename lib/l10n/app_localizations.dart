@@ -836,6 +836,24 @@ abstract class AppLocalizations {
   /// **'版本'**
   String get meVersion;
 
+  /// No description provided for @notifyServiceMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'保持后台连接'**
+  String get notifyServiceMode;
+
+  /// No description provided for @notifyServiceModeDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'常驻前台服务保持长连接，通知秒级送达。会显示一条常驻通知，并增加耗电；关闭时改用 15 分钟后台轮询。'**
+  String get notifyServiceModeDesc;
+
+  /// No description provided for @notifyServiceModeFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法开启：请先登录服务器'**
+  String get notifyServiceModeFailed;
+
   /// No description provided for @chatSuggest1.
   ///
   /// In zh, this message translates to:

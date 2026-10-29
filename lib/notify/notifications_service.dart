@@ -13,6 +13,7 @@ import '../auth/auth_state.dart';
 import '../auth/auth_controller.dart';
 import 'notification_poll_worker.dart' show notifyPollTask;
 import 'notify_hub.dart';
+import 'notify_service_controller.dart';
 import 'server_notifications.dart';
 
 /// Foreground half of the server-notification channel (contract §11):
@@ -63,10 +64,45 @@ class ServerNotificationsService {
     _active = true;
     final prefs = _prefs = await SharedPreferences.getInstance();
     _cursor = prefs.getInt(notifyCursorKey) ?? 0;
+    final external = await _ref.read(notifyServiceControllerProvider).syncEnabled();
+    _applyMode(external);
+  }
+
+  /// Re-evaluates the delivery mode. The cursor-then-ack queue must have
+  /// exactly one consumer: either this Dart half (in-app stream + the
+  /// 15-minute poller) or the native foreground service. Runs on login
+  /// and again whenever the opt-in toggle flips at runtime — toggling
+  /// without this left both attached, double-ringing and racing on the
+  /// ack watermark.
+  Future<void> reconfigureForMode() async {
+    if (!_active) return;
+    _applyMode(await _ref.read(notifyServiceControllerProvider).isEnabled());
+  }
+
+  void _applyMode(bool external) {
+    if (external) {
+      _detachFallback();
+      unawaited(Workmanager().cancelByUniqueName(notifyPollTask));
+      return;
+    }
+    _attachFallback();
+  }
+
+  /// This half's own delivery: the periodic worker registered once, and
+  /// the in-app stream bound to the lifecycle.
+  void _attachFallback() {
+    if (_lifecycle != null) return;
     // Background delivery: a 15-min-floor periodic task (OS-deferred under
-    // Doze; battery-optimization exemption keeps the cadence honest).
-    // Registered on login and never unregistered — the worker no-ops
-    // without a stored session.
+    // Doze). Registered on login and never unregistered — the worker
+    // no-ops without a stored session.
+    //
+    // The network constraint is what keeps this battery-cheap: with no
+    // network the OS simply never schedules the job, so an offline phone
+    // pays nothing. Without it every tick would spawn a headless Flutter
+    // engine just to fail an HTTP call — 96 engine launches a day. The
+    // narrow cost is a LAN that has connectivity but no internet to
+    // validate: the poller stays dormant there, which is what the
+    // foreground-service mode exists for.
     unawaited(Workmanager().registerPeriodicTask(
       notifyPollTask,
       notifyPollTask,
@@ -89,11 +125,15 @@ class ServerNotificationsService {
     }
   }
 
-  void _deactivate() {
-    _active = false;
+  void _detachFallback() {
     _lifecycle?.dispose();
     _lifecycle = null;
     _teardownStream();
+  }
+
+  void _deactivate() {
+    _active = false;
+    _detachFallback();
   }
 
   void dispose() => _deactivate();
