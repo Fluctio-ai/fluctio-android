@@ -132,6 +132,9 @@ class _SetupPageState extends ConsumerState<SetupPage> {
           controller: _addressCtrl,
           autocorrect: false,
           keyboardType: TextInputType.url,
+          // canSave / probe enabled state reads the controller text at
+          // build time — rebuild on typing so the buttons enable live.
+          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             labelText: l.serverAddress,
             hintText: l.serverAddressHint,
