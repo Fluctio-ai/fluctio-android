@@ -6,6 +6,7 @@ import 'auth/auth_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'notify/notification_poll_worker.dart';
 import 'notify/notify_hub.dart';
+import 'notify/notify_service_controller.dart';
 import 'notify/notifications_service.dart';
 import 'router.dart';
 import 'share/share_receiver.dart';
@@ -40,6 +41,10 @@ class FluctioApp extends ConsumerWidget {
     ref.watch(localNotifyHubProvider);
     ref.watch(todoReminderServiceProvider);
     ref.watch(serverNotificationsServiceProvider);
+    // Root-lifetime: registers the fluctio/notify MethodChannel handler so
+    // a notification tap can navigate even when the server-notification
+    // login path hasn't run yet (cold start ordering, ROM-Rebuilt intents).
+    ref.watch(notifyServiceControllerProvider);
     // Inbound shares (other apps): the picker decides the destination —
     // chat session, article ingest, bookmark. The listen also forces the
     // lazy controller to build (cold-start consume).

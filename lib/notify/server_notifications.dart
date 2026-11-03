@@ -54,12 +54,19 @@ class SrvNotification {
 
 /// Maps the server's web-shaped deep link to an in-app route (the
 /// notification tap payload). The app is single-agent-perspective, so the
-/// agent id segment is dropped; unknown paths land on chat. Keep in sync
-/// with the sweeps' deepLink values (gateway_due_todo.go / cards_push.go /
-/// shelved_push.go / blindspot_push.go / handlers_push.go chat replies)
-/// and router.dart.
+/// agent id segment is dropped; app-shaped input passes through unchanged
+/// and anything unrecognized lands on chat. Keep in sync with the sweeps'
+/// deepLink values (gateway_due_todo.go / cards_push.go / shelved_push.go /
+/// blindspot_push.go / handlers_push.go chat replies) and router.dart.
 String appRouteForDeepLink(String deepLink) {
   final path = deepLink.split('?').first;
+  // Web deep links are agent-scoped (`/agents/<id>/...`). Anything else is
+  // already an app route (notification payloads are mapped at show time) —
+  // pass it through unchanged, keeping this mapper idempotent for both
+  // notification origins.
+  if (!path.startsWith('/agents/')) {
+    return path.startsWith('/') ? deepLink : '/';
+  }
   if (path.endsWith('/knowledge/todos')) return '/kb/todos';
   if (path.endsWith('/knowledge/cards')) {
     return deepLink.contains('review=1') ? '/kb/cards/review' : '/kb/cards';

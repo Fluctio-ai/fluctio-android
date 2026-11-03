@@ -17,6 +17,12 @@ class MainActivity : FlutterActivity() {
     /// listening (cold start). Handed over on the channel's first call.
     private var pendingRoute: String? = null
 
+    private companion object {
+        // flutter_local_notifications' tap intent contract (plugin 22.x).
+        const val FLUTTER_NOTIF_ACTION = "SELECT_NOTIFICATION"
+        const val FLUTTER_NOTIF_PAYLOAD = "payload"
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, notifyChannelName)
@@ -80,7 +86,14 @@ class MainActivity : FlutterActivity() {
         super.onCreate(savedInstanceState)
         // Cold start from a notification posted by the foreground service:
         // Dart is not listening yet, so park the route for it to pull.
+        // Also capture FlutterLocalNotificationsPlugin's own launch intent
+        // (action SELECT_NOTIFICATION, payload extra): some ROMs hand the
+        // activity a rebuilt intent that loses the plugin's launch-details
+        // bookkeeping, which left notification taps opening the app on the
+        // root screen.
         pendingRoute = intent?.getStringExtra(NotifyForegroundService.EXTRA_ROUTE)
+            ?: intent?.takeIf { it.action == FLUTTER_NOTIF_ACTION }
+                ?.getStringExtra(FLUTTER_NOTIF_PAYLOAD)
     }
 
     /// Warm-path method call into Dart; silently drops when no engine is
