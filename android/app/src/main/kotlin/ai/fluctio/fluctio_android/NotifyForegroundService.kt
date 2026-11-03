@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -256,7 +257,7 @@ class NotifyForegroundService : Service() {
     private fun post(title: String, body: String, deepLink: String, id: Long) {
         ensureChannel()
         val notif = Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(Notification.BigTextStyle().bigText(body))
@@ -269,8 +270,10 @@ class NotifyForegroundService : Service() {
     private fun buildOngoing(): Notification {
         ensureChannel()
         return Notification.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setContentTitle(if (isZh) "保持后台连接" else "Background connection")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setContentTitle("Fluctio")
+            .setSubText(if (isZh) "保持后台连接" else "Background connection")
             .setContentText(if (isZh) "通知会实时送达" else "Notifications arrive instantly")
             .setOngoing(true)
             .setContentIntent(openActivity(0, null))

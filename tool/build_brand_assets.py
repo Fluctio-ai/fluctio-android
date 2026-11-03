@@ -110,6 +110,22 @@ def write_android_vector(layers: list[tuple[str, list[str]]]) -> None:
     print("android vector")
 
 
+def write_notification_icon(layers: list[tuple[str, list[str]]]) -> None:
+    """Colored 24dp small icon for ROMs that render it as-is
+    (MIUI/HyperOS); stock Android tints the alpha channel instead."""
+    art = raster(mark_svg(inline_paths(layers)), 512, white=False)
+    icon = art.crop(art.getchannel("A").getbbox())
+    for density, px in {"mdpi": 24, "hdpi": 36, "xhdpi": 48, "xxhdpi": 72, "xxxhdpi": 96}.items():
+        canvas = Image.new("RGBA", (px, px), (0, 0, 0, 0))
+        target = round(px * 0.92)
+        scaled = icon.resize((target, target), Image.LANCZOS)
+        canvas.alpha_composite(scaled, ((px - target) // 2, (px - target) // 2))
+        out = RES / f"drawable-{density}"
+        out.mkdir(parents=True, exist_ok=True)
+        canvas.save(out / "ic_notification.png")
+    print("android notification icons")
+
+
 def chrome() -> str:
     candidates = [
         os.environ.get("CHROME"),
@@ -245,6 +261,7 @@ def main() -> None:
     write_android_vector(layers)
     write_web_svgs(layers)
     write_raster_icons(layers)
+    write_notification_icon(layers)
     write_mark_ts(layers)
     write_mark_dart(layers)
 

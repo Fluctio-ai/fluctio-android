@@ -69,7 +69,7 @@ Future<void> _drain() async {
         pluginReady = true;
         await plugin.initialize(
           settings: const InitializationSettings(
-            android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+            android: AndroidInitializationSettings('ic_notification'),
           ),
         );
       }

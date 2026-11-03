@@ -55,7 +55,7 @@ class LocalNotifyHub {
     try {
       tzdata.initializeTimeZones();
       const settings = InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('ic_notification'),
       );
       await _plugin.initialize(
         settings: settings,
