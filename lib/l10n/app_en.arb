@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appName": "fluctio",
+  "appName": "Fluctio",
   "navChat": "Chat",
   "navKnowledge": "Knowledge",
   "navWiki": "Wiki",
@@ -10,7 +10,7 @@
   "workflowNewHint": "Workflow id (letters, digits, - and _)",
   "navSettings": "Settings",
   "comingSoon": "This module arrives in a later milestone",
-  "setupTitle": "Connect to your fluctio",
+  "setupTitle": "Connect to your Fluctio",
   "serverAddress": "Server address",
   "serverAddressHint": "https://your-domain.com",
   "allowSelfSigned": "Trust self-signed certificates",

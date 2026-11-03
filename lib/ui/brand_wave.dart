@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-/// Brand waves (DESIGN.md §6, app take on the web logo-wave): three
-/// surge-cyan bands phase-shifted by a third of the cycle, drifting on a
-/// 3.9s loop — standing water never looks alive. Painted (not an asset),
-/// so the drift is a continuous phase advance instead of the SVG's
-/// 0→64→0 translate and never clips. Reduced motion freezes the bands.
-/// Login/empty-state surfaces only, never a resident bar.
+/// Brand waves (DESIGN.md §6): three surge-cyan bands phase-shifted by a
+/// third of the cycle, drifting on a 3.9s loop — standing water never
+/// looks alive. Painted (not an asset), so the drift is a continuous
+/// phase advance instead of a translate keyframe and never clips. The web
+/// equivalent is the wave-globe emblem; this painted mark is
+/// login/empty-state only, never a resident bar. Reduced motion freezes
+/// the bands.
 class BrandWave extends StatefulWidget {
   const BrandWave({super.key, this.size = 48});
 

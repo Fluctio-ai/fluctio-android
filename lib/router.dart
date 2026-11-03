@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'auth/auth_controller.dart';
 import 'auth/auth_state.dart';
 import 'pages/app_shell.dart';
+import 'pages/boot_page.dart';
 import 'pages/chat/chat_page.dart';
 import 'pages/kb/article_detail_page.dart';
 import 'pages/kb/articles_page.dart';
@@ -47,10 +48,21 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
       final onSetup = state.matchedLocation == '/setup';
+      final onBoot = state.matchedLocation == '/boot';
       switch (auth.status) {
         case AuthStatus.loading:
-          return null;
+          if (onBoot) return null;
+          // Park on /boot, carrying whatever route was requested (share
+          // intents, notification deep links) so it resumes after restore.
+          final next = state.uri.toString();
+          return next == '/'
+              ? '/boot'
+              : '/boot?next=${Uri.encodeComponent(next)}';
         case AuthStatus.loggedIn:
+          if (onBoot) {
+            final next = state.uri.queryParameters['next'];
+            return next != null && next.startsWith('/') ? next : '/';
+          }
           return onSetup ? '/' : null;
         case AuthStatus.needSetup:
         case AuthStatus.loggedOut:
@@ -58,6 +70,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
     },
     routes: [
+      // Boot gate: the only route outside the shell. The redirect parks
+      // here until restore() resolves the auth state.
+      GoRoute(path: '/boot', builder: (_, _) => const BootPage()),
       // One shell around every route: on wide layouts it embeds the
       // permanent sidebar (web AppShell parity); on phones it passes the
       // page through untouched. The route observer moves here — the

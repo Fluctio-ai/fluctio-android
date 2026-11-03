@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:workmanager/workmanager.dart';
@@ -22,11 +24,14 @@ Future<void> main() async {
   // dispatcher runs in a headless engine — it must be registered before
   // runApp, and nothing in it may touch this container.
   await Workmanager().initialize(notificationPollDispatcher);
-  // Restore (prefs → Keystore → /api/me probe) completes before the first
-  // frame, so the router redirect never flashes the wrong screen.
+  // Restore (prefs → Keystore → /api/me probe) starts right after runApp,
+  // concurrently with the first frame: the router parks on /boot (the
+  // animated mark) while the probe is in flight, then redirects on the
+  // resolved auth state — no wrong-screen flash, and the wait is visible
+  // instead of a dead static splash.
   final container = ProviderContainer();
-  await container.read(authControllerProvider.notifier).restore();
   runApp(UncontrolledProviderScope(container: container, child: const FluctioApp()));
+  unawaited(container.read(authControllerProvider.notifier).restore());
 }
 
 class FluctioApp extends ConsumerWidget {
@@ -56,7 +61,7 @@ class FluctioApp extends ConsumerWidget {
       // plain onLongPress callbacks carry no position (row_actions_menu).
       onPointerDown: (e) => lastPointerDown = e.position,
       child: MaterialApp.router(
-        title: 'fluctio',
+        title: 'Fluctio',
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
         // Manual theme setting (drawer toggle) — falls back to system.

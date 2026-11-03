@@ -10,7 +10,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appName => 'fluctio';
+  String get appName => 'Fluctio';
 
   @override
   String get navChat => '对话';
@@ -40,7 +40,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get comingSoon => '此模块将在后续里程碑提供';
 
   @override
-  String get setupTitle => '连接你的 fluctio';
+  String get setupTitle => '连接你的 Fluctio';
 
   @override
   String get serverAddress => '服务器地址';

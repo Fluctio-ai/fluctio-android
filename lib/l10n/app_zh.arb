@@ -1,6 +1,6 @@
 {
   "@@locale": "zh",
-  "appName": "fluctio",
+  "appName": "Fluctio",
   "navChat": "对话",
   "navKnowledge": "知识库",
   "navWiki": "Wiki",
@@ -10,7 +10,7 @@
   "workflowNewHint": "工作流 ID（字母、数字、- 、_）",
   "navSettings": "设置",
   "comingSoon": "此模块将在后续里程碑提供",
-  "setupTitle": "连接你的 fluctio",
+  "setupTitle": "连接你的 Fluctio",
   "serverAddress": "服务器地址",
   "serverAddressHint": "https://your-domain.com",
   "allowSelfSigned": "信任自签名证书",

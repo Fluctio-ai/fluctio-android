@@ -10,7 +10,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'fluctio';
+  String get appName => 'Fluctio';
 
   @override
   String get navChat => 'Chat';
@@ -40,7 +40,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get comingSoon => 'This module arrives in a later milestone';
 
   @override
-  String get setupTitle => 'Connect to your fluctio';
+  String get setupTitle => 'Connect to your Fluctio';
 
   @override
   String get serverAddress => 'Server address';

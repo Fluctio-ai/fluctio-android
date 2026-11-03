@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In zh, this message translates to:
-  /// **'fluctio'**
+  /// **'Fluctio'**
   String get appName;
 
   /// No description provided for @navChat.
@@ -161,7 +161,7 @@ abstract class AppLocalizations {
   /// No description provided for @setupTitle.
   ///
   /// In zh, this message translates to:
-  /// **'连接你的 fluctio'**
+  /// **'连接你的 Fluctio'**
   String get setupTitle;
 
   /// No description provided for @serverAddress.
