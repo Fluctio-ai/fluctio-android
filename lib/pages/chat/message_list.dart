@@ -9,6 +9,7 @@ import '../../chat/chat_controller.dart';
 import '../../chat/chat_engine.dart';
 import '../../chat/markdown.dart';
 import '../../chat/produced_files.dart';
+import '../../chat/reply_options.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../ui/row_actions_menu.dart';
@@ -622,9 +623,12 @@ class _AssistantBubble extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final canRegenerate = isLast &&
-        !entry.streaming &&
-        !ref.watch(chatStoreProvider.select((s) => s.active?.turnActive ?? false));
+    final turnActive =
+        ref.watch(chatStoreProvider.select((s) => s.active?.turnActive ?? false));
+    final canRegenerate = isLast && !entry.streaming && !turnActive;
+    // Quick-reply chips (```options fenced block): rendering-time split,
+    // entry.text stays raw (web parity, chat-screen.tsx:3111).
+    final reply = splitReplyOptions(entry.text);
     return Padding(
       // Web transcript rhythm: space-y-3 (12px) between turns.
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -647,19 +651,45 @@ class _AssistantBubble extends ConsumerWidget {
               ),
               border: Border.all(color: theme.colorScheme.outlineVariant),
             ),
-            child: chatTranscript(
-              context,
-              entry.text,
-              onTapLink: (href) {
-                // Gateway file URLs and bare workspace paths preview
-                // natively; everything else goes to the browser.
-                openChatLink(context, ref, href);
-              },
-              imageBuilder: (context, url, width, height) => _MarkdownImage(
-                url: url,
-                width: width,
-                height: height,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                chatTranscript(
+                  context,
+                  reply.text,
+                  onTapLink: (href) {
+                    // Gateway file URLs and bare workspace paths preview
+                    // natively; everything else goes to the browser.
+                    openChatLink(context, ref, href);
+                  },
+                  imageBuilder: (context, url, width, height) => _MarkdownImage(
+                    url: url,
+                    width: width,
+                    height: height,
+                  ),
+                ),
+                // Web's under-text chip row (mt-3 flex-wrap gap-2): tapping
+                // sends the label through the composer path — steer while a
+                // turn runs, send otherwise (same split as answerAuth).
+                if (reply.options.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final opt in reply.options)
+                          _OptionButton(
+                            label: opt,
+                            onPressed: () {
+                              final store = ref.read(chatStoreProvider.notifier);
+                              turnActive ? store.steer(opt) : store.send(opt);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
             ),
           ),
           // Web's under-bubble meta row: the time is always visible, the
@@ -1014,11 +1044,11 @@ class _AuthCard extends ConsumerWidget {
               runSpacing: 4,
               children: [
                 for (final option in entry.options)
-                  OutlinedButton(
+                  _OptionButton(
+                    label: option.label(locale),
                     onPressed: entry.answered
                         ? null
                         : () => ref.read(chatStoreProvider.notifier).answerAuth(option.cmd),
-                    child: Text(option.label(locale), style: const TextStyle(fontSize: AppType.secondary)),
                   ),
               ],
             ),
@@ -1027,6 +1057,20 @@ class _AuthCard extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Option chip shared by quick-reply rows and the auth-prompt card.
+class _OptionButton extends StatelessWidget {
+  const _OptionButton({required this.label, this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton(
+        onPressed: onPressed,
+        child: Text(label, style: const TextStyle(fontSize: AppType.secondary)),
+      );
 }
 
 /// Model-emitted sandbox srcs (`![](/workspace/<rel>)`) remap onto the
