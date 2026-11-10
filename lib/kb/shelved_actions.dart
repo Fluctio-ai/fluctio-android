@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../chat/chat_routes.dart';
 import '../l10n/app_localizations.dart';
+import '../util/app_toast.dart';
 import 'diary_models.dart';
 import 'diary_repo.dart';
 
@@ -19,9 +20,15 @@ import 'diary_repo.dart';
 void confirmShelved(
     BuildContext context, WidgetRef ref, String agentId, DiaryShelved item) {
   final l = AppLocalizations.of(context)!;
-  final messenger = ScaffoldMessenger.of(context);
-  ref.read(diaryRepoProvider).settle(agentId, item.id, resolved: true).then((_) {
-    messenger.showSnackBar(SnackBar(content: Text(l.shelvedConfirmed)));
+  ref
+      .read(diaryRepoProvider)
+      .settle(agentId, item.id, resolved: true)
+      .then((_) {
+    AppToast.show(l.shelvedConfirmed);
+    // Second invalidate after the PATCH lands: the one below can race it
+    // (its GET may read pre-PATCH state); this one cannot. The dashboard
+    // route stays mounted under the pushed chat route, so ref is alive.
+    ref.invalidate(diaryShelvedProvider(agentId));
   }).catchError((_) {});
   ref.invalidate(diaryShelvedProvider(agentId));
 }
@@ -48,10 +55,9 @@ Future<void> stopRemindingShelved(
   );
   if (ok != true) return;
   if (!context.mounted) return;
-  final messenger = ScaffoldMessenger.of(context);
   try {
     await ref.read(diaryRepoProvider).settle(agentId, item.id, resolved: false);
-    messenger.showSnackBar(SnackBar(content: Text(l.shelvedStopRemind)));
+    AppToast.show(l.shelvedStopRemind);
   } catch (_) {}
   ref.invalidate(diaryShelvedProvider(agentId));
 }
