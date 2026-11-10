@@ -29,18 +29,22 @@ jobs:
 
       - name: Build release APK
         env:
-          # Match pubspec.lock's hosted URLs so pub installs the locked
-          # versions instead of re-resolving against pub.dev (which pulled
-          # a breaking gpt_markdown once already).
-          PUB_HOSTED_URL: https://pub.flutter-io.cn
-          FLUTTER_STORAGE_BASE_URL: https://storage.flutter-io.cn
           # Signing material lives in Actions secrets; the keystore is
           # decoded back into place just for this build.
           FLUCTIO_KEYSTORE_BASE64: ${{ secrets.FLUCTIO_KEYSTORE_BASE64 }}
           FLUCTIO_KEYSTORE_PROPS: ${{ secrets.FLUCTIO_KEYSTORE_PROPS }}
         run: |
           echo "$FLUCTIO_KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-          flutter pub get
+          # The checked-in lock carries the CN mirror URLs (local dev is
+          # mirror-bound), but the runner downloads from pub.dev directly —
+          # rewrite the hosted URLs only (versions and content hashes are
+          # URL-independent) and enforce the lockfile, so pub installs
+          # exactly the locked versions without re-resolving against a
+          # different host. The v1.1.7 build died on the mirror's corrupted
+          # file_selector_platform_interface-2.7.0 archive hash; pub.dev is
+          # the source of truth, so download from it.
+          sed -i 's#https://pub.flutter-io.cn#https://pub.dev#g' pubspec.lock
+          flutter pub get --enforce-lockfile
           flutter build apk --release
 
       - name: Upload to GitHub Release
