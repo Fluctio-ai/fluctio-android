@@ -143,6 +143,7 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
                   preview: s.preview,
                   updatedAt: s.updatedAt,
                   chatOnly: s.chatOnly,
+                  pinned: s.pinned,
                   channel: s.channel,
                 ),
             ],
@@ -159,6 +160,7 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
               preview: c.preview,
               updatedAt: c.updatedAt,
               chatOnly: c.chatOnly,
+              pinned: c.pinned,
               channel: c.channel,
             ),
         ]);
@@ -180,6 +182,13 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
 
   Future<void> setChatOnly(String key, bool on) async {
     await ref.read(chatRepoProvider).setChatOnly(_agentId, key, on);
+    await reload();
+  }
+
+  /// Pin toggle reorders the list server-side (pinned DESC) — reload is
+  /// the re-sort, same as the web refetch-on-success flow.
+  Future<void> setPinned(String key, bool on) async {
+    await ref.read(chatRepoProvider).setPinned(_agentId, key, on);
     await reload();
   }
 }

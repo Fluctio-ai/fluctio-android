@@ -221,6 +221,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOnlyMode => 'Chat-only mode';
 
   @override
+  String get chatPin => 'Pin to top';
+
+  @override
+  String get chatUnpin => 'Unpin';
+
+  @override
   String get chatThinking => 'Thinking…';
 
   @override

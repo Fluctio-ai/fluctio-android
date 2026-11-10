@@ -119,6 +119,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                           onNewChatInProject: () => _newChatInProject(context, p.id),
                           onEdit: () => _editProject(context, p),
                           onDelete: () => _deleteProject(context, p),
+                          onTogglePin: () => _toggleProjectPin(context, p),
                         ),
                     ],
                     loading: () => const [Padding(padding: EdgeInsets.symmetric(horizontal: AppSpace.lg), child: SkeletonList(itemCount: 3))],
@@ -233,6 +234,22 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
       final agentId = ref.read(agentsProvider).selectedId!;
       await ref.read(chatRepoProvider)
           .updateProject(agentId, project.id, name: fields.$1.trim(), description: fields.$2.trim());
+      ref.invalidate(projectsProvider(agentId));
+    } catch (e) {
+      if (context.mounted) _showError(context, e);
+    }
+  }
+
+  /// Project pin toggle — pin-only PATCH (single-column server UPDATE,
+  /// no updatedAt bump), then invalidate so the list re-renders in server
+  /// order (pinned first). Mirrors the web project-row pin flow.
+  Future<void> _toggleProjectPin(BuildContext context, ProjectInfo project) async {
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null) return;
+    try {
+      await ref
+          .read(chatRepoProvider)
+          .setProjectPinned(agentId, project.id, !project.pinned);
       ref.invalidate(projectsProvider(agentId));
     } catch (e) {
       if (context.mounted) _showError(context, e);
@@ -479,6 +496,7 @@ class _ProjectRow extends StatelessWidget {
     required this.onNewChatInProject,
     required this.onEdit,
     required this.onDelete,
+    required this.onTogglePin,
   });
 
   final ProjectInfo project;
@@ -489,6 +507,7 @@ class _ProjectRow extends StatelessWidget {
   final VoidCallback onNewChatInProject;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onTogglePin;
 
   @override
   Widget build(BuildContext context) {
@@ -503,14 +522,38 @@ class _ProjectRow extends StatelessWidget {
           // rows below.
           contentPadding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.sm, 0),
           leading: Icon(expanded ? LucideIcons.folderOpen : LucideIcons.folder, size: 18),
-          title: Text(project.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+          title: Text.rich(
+            TextSpan(
+              text: project.name,
+              // Keep-at-top marker after the name (web nav-projects-list
+              // marker: 12px pin, muted, shrink-0 past truncation).
+              children: [
+                if (project.pinned)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 5),
+                      child: Icon(LucideIcons.pin,
+                          size: 12, color: Theme.of(context).colorScheme.outline),
+                    ),
+                  ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
           trailing: RowMenuButton(
             onSelected: (a) => switch (a) {
+              'pin' => onTogglePin(),
               'new' => onNewChatInProject(),
               'edit' => onEdit(),
               _ => onDelete(),
             },
             itemBuilder: (_) => [
+              // Pin first — mirrors the web project row menu.
+              PopupMenuItem(
+                  value: 'pin',
+                  child: Text(project.pinned ? l.chatUnpin : l.chatPin)),
               PopupMenuItem(value: 'new', child: Text(l.newChatInProject)),
               PopupMenuItem(value: 'edit', child: Text(l.editProject)),
               PopupMenuItem(value: 'delete', child: Text(l.deleteProject)),

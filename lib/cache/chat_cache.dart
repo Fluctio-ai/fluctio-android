@@ -22,7 +22,7 @@ class ChatCache {
     final dir = await getDatabasesPath();
     final db = await openDatabase(
       p.join(dir, 'fluctio_cache.db'),
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE cached_sessions (
@@ -32,6 +32,7 @@ class ChatCache {
             preview TEXT NOT NULL DEFAULT '',
             updated_at INTEGER NOT NULL DEFAULT 0,
             chat_only INTEGER NOT NULL DEFAULT 0,
+            pinned INTEGER NOT NULL DEFAULT 0,
             channel TEXT NOT NULL DEFAULT '',
             PRIMARY KEY (agent_id, session_id)
           )
@@ -65,6 +66,12 @@ class ChatCache {
           await db.execute(
               'ALTER TABLE cached_messages ADD COLUMN attachments TEXT NOT NULL DEFAULT \'[]\'');
         }
+        // v4: sidebar keep-at-top flag — the offline fallback list must
+        // keep the pinned-first order (mirrors the server comparator).
+        if (from < 4) {
+          await db.execute(
+              'ALTER TABLE cached_sessions ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+        }
       },
     );
     return _instance = ChatCache._(db);
@@ -82,6 +89,7 @@ class ChatCache {
           'preview': s.preview,
           'updated_at': s.updatedAt,
           'chat_only': s.chatOnly ? 1 : 0,
+          'pinned': s.pinned ? 1 : 0,
           'channel': s.channel,
         });
       }
@@ -92,7 +100,9 @@ class ChatCache {
     final rows = await _db.query('cached_sessions',
         where: 'agent_id = ?',
         whereArgs: [agentId],
-        orderBy: 'updated_at DESC');
+        // Server display order (pinned DESC → updatedAt DESC), mirrored so
+        // the offline fallback reads like the live list.
+        orderBy: 'pinned DESC, updated_at DESC');
     return [
       for (final r in rows)
         CachedSession(
@@ -105,6 +115,7 @@ class ChatCache {
               (r['preview'] as String).startsWith('Instance of') ? '' : r['preview'] as String,
           updatedAt: r['updated_at'] as int,
           chatOnly: (r['chat_only'] as int) == 1,
+          pinned: (r['pinned'] as int? ?? 0) == 1,
           channel: r['channel'] as String? ?? '',
         ),
     ];
@@ -168,6 +179,7 @@ class CachedSession {
     required this.preview,
     required this.updatedAt,
     required this.chatOnly,
+    this.pinned = false,
     this.channel = '',
   });
 
@@ -176,6 +188,7 @@ class CachedSession {
   final String preview;
   final int updatedAt;
   final bool chatOnly;
+  final bool pinned;
   final String channel;
 }
 

@@ -69,6 +69,8 @@
   "chatDelete": "Delete",
   "chatDeleteConfirm": "Delete this chat? This cannot be undone",
   "chatOnlyMode": "Chat-only mode",
+  "chatPin": "Pin to top",
+  "chatUnpin": "Unpin",
   "chatThinking": "Thinking…",
   "chatSteer": "Steer the running turn",
   "chatToday": "Today",

@@ -34,6 +34,7 @@ class ChatSessionInfo {
     this.title = '',
     this.preview = '',
     this.chatOnly = false,
+    this.pinned = false,
     this.projectId = '',
     this.channel = '',
     this.thumbnailUrl = '',
@@ -45,6 +46,11 @@ class ChatSessionInfo {
   final String title;
   final String preview;
   final bool chatOnly;
+
+  /// Sidebar keep-at-top flag (sessions.pinned, WebSession omitempty —
+  /// false rides as a missing key). List order already reflects it
+  /// server-side (pinned DESC → updatedAt DESC).
+  final bool pinned;
   final String projectId;
 
   /// Owning IM channel (wechat/telegram/…). Empty or `web` = a chat this
@@ -63,6 +69,7 @@ class ChatSessionInfo {
         title: json['title'] as String? ?? '',
         preview: json['preview'] as String? ?? '',
         chatOnly: json['chatOnly'] as bool? ?? false,
+        pinned: json['pinned'] as bool? ?? false,
         projectId: json['projectId'] as String? ?? '',
         channel: json['channel'] as String? ?? '',
         thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
@@ -99,16 +106,26 @@ class SkillInfo {
 }
 
 class ProjectInfo {
-  const ProjectInfo({required this.id, required this.name, this.description = ''});
+  const ProjectInfo({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.pinned = false,
+  });
 
   final String id;
   final String name;
   final String description;
 
+  /// Sidebar keep-at-top flag — the projects GET always carries it
+  /// (projectToJSON hand-builds the map, no omitempty).
+  final bool pinned;
+
   factory ProjectInfo.fromJson(Map<String, dynamic> json) => ProjectInfo(
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? '',
         description: json['description'] as String? ?? '',
+        pinned: json['pinned'] as bool? ?? false,
       );
 }
 

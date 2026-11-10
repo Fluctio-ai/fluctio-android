@@ -69,6 +69,8 @@
   "chatDelete": "删除",
   "chatDeleteConfirm": "删除该会话？删除后不可恢复",
   "chatOnlyMode": "仅聊天模式",
+  "chatPin": "置顶",
+  "chatUnpin": "取消置顶",
   "chatThinking": "思考中…",
   "chatSteer": "插话到当前回合",
   "chatToday": "今天",

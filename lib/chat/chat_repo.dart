@@ -166,6 +166,20 @@ class ChatRepo {
         data: {'agentId': agentId, 'chatOnly': on},
       );
 
+  /// Sidebar keep-at-top flag (handlers.go:2112, same gates/body shape as
+  /// setChatOnly). List order re-sorts server-side on the next reload.
+  Future<void> setPinned(String agentId, String key, bool on) => _dio.patch(
+        '/api/chat/sessions/${Uri.encodeComponent(key)}/pin',
+        data: {'agentId': agentId, 'pinned': on},
+      );
+
+  /// Project pin rides the projects PATCH. Send `pinned` alone — a
+  /// pin-only PATCH takes the server's single-column UPDATE path, so
+  /// unpin doesn't bump updatedAt and float the project to the top of
+  /// the unpinned group (handlers_projects.go:194).
+  Future<void> setProjectPinned(String agentId, String projectId, bool on) =>
+      _dio.patch('/api/agents/$agentId/projects/$projectId', data: {'pinned': on});
+
   /// Fork at [forkSeq] (contract §5; web chat-screen.tsx handleFork): the
   /// child session inherits the source archive up to forkSeq as a
   /// read-only prefix. Returns the new session key, or null when the

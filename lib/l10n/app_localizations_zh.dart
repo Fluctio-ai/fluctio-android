@@ -217,6 +217,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatOnlyMode => '仅聊天模式';
 
   @override
+  String get chatPin => '置顶';
+
+  @override
+  String get chatUnpin => '取消置顶';
+
+  @override
   String get chatThinking => '思考中…';
 
   @override

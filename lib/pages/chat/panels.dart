@@ -58,8 +58,23 @@ class SessionTile extends ConsumerWidget {
       // Right gutter narrowed — the ⋯ menu hugs the row edge (its own
       // box adds a few px); left stays at the standard 16.
       contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-      title: Text(
-        session.title.isEmpty ? l.chatNew : session.title,
+      title: Text.rich(
+        TextSpan(
+          text: session.title.isEmpty ? l.chatNew : session.title,
+          // Keep-at-top marker after the name (web chat-row marker:
+          // 12px pin icon in the muted color, shrink-0 past truncation).
+          children: [
+            if (session.pinned)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 5),
+                  child: Icon(LucideIcons.pin,
+                      size: 12, color: Theme.of(context).colorScheme.outline),
+                ),
+              ),
+          ],
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         // Same size as the transcript body (web runs sidebar text-sm 14
@@ -119,6 +134,11 @@ class SessionTile extends ConsumerWidget {
       // stays as the visual affordance.
       onLongPress: () => showRowActionsMenu(context, [
         RowAction(
+          icon: session.pinned ? LucideIcons.pinOff : LucideIcons.pin,
+          label: session.pinned ? l.chatUnpin : l.chatPin,
+          onRun: () => _SessionMenu.run(context, ref, session, 'pin'),
+        ),
+        RowAction(
           icon: LucideIcons.penLine,
           label: l.chatRename,
           onRun: () => _SessionMenu.run(context, ref, session, 'rename'),
@@ -137,7 +157,9 @@ class SessionTile extends ConsumerWidget {
       key: ValueKey('session-${session.id}'),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        extentRatio: 0.4,
+        // Three actions now (pin / rename / delete) — delete stays at the
+        // edge, ~80dp per pane at phone widths.
+        extentRatio: 0.6,
         children: [
           SlidableAction(
             onPressed: (_) => _SessionMenu.run(context, ref, session, 'rename'),
@@ -145,6 +167,13 @@ class SessionTile extends ConsumerWidget {
             foregroundColor: scheme.onPrimary,
             icon: LucideIcons.penLine,
             label: l.chatRename,
+          ),
+          SlidableAction(
+            onPressed: (_) => _SessionMenu.run(context, ref, session, 'pin'),
+            backgroundColor: scheme.secondary,
+            foregroundColor: scheme.onSecondary,
+            icon: session.pinned ? LucideIcons.pinOff : LucideIcons.pin,
+            label: session.pinned ? l.chatUnpin : l.chatPin,
           ),
           SlidableAction(
             onPressed: (_) => _SessionMenu.run(context, ref, session, 'delete'),
@@ -173,6 +202,10 @@ class _SessionMenu extends ConsumerWidget {
     return RowMenuButton(
       onSelected: (action) => run(context, ref, session, action),
       itemBuilder: (_) => [
+        // Pin first — mirrors the web row menu (pin → edit → delete).
+        PopupMenuItem(
+            value: 'pin',
+            child: Text(session.pinned ? l.chatUnpin : l.chatPin)),
         PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
         PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
       ],
@@ -184,6 +217,12 @@ class _SessionMenu extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     final notifier = ref.read(sessionsProvider.notifier);
     switch (action) {
+      case 'pin':
+        try {
+          await notifier.setPinned(session.id, !session.pinned);
+        } catch (e) {
+          if (context.mounted) showApiError(context, e);
+        }
       case 'rename':
         await promptRename(context, ref, l, session);
       case 'delete':

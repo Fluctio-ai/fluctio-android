@@ -119,16 +119,17 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 
 | 端点 | 说明 |
 |---|---|
-| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 → `{"sessions":[WebSession]}`。WebSession 字段（`session/manager.go:1057`）：`id`/`title`/`preview`/`createdAt`/`updatedAt`（unix ms）+ omitempty 的 `chatOnly`/`projectId`/`channel`/`accountId`/`chatId`/`thumbnailUrl`。agent 不存在 → `{"sessions":[]}`。`channel` 非空且非 `web` = IM 渠道会话（wechat/telegram/…），app/web 的 compose 通道无法送达对端 IM，客户端须按只读渲染（web 出处 chat-screen.tsx:1399-1414，banner+禁输入；只读 slash 白名单 help/status/usage/insights/version 例外） |
+| `GET /api/chat/sessions?agentId=` | 当前 user 的 session 列表 → `{"sessions":[WebSession]}`。WebSession 字段（`session/manager.go:1057`）：`id`/`title`/`preview`/`createdAt`/`updatedAt`（unix ms）+ omitempty 的 `pinned`/`chatOnly`/`projectId`/`channel`/`accountId`/`chatId`/`thumbnailUrl`。**顺序即展示序：`pinned DESC → updatedAt DESC`**（服务端排好，客户端勿再重排；`store.ListSessions`）。agent 不存在 → `{"sessions":[]}`。`channel` 非空且非 `web` = IM 渠道会话（wechat/telegram/…），app/web 的 compose 通道无法送达对端 IM，客户端须按只读渲染（web 出处 chat-screen.tsx:1399-1414，banner+禁输入；只读 slash 白名单 help/status/usage/insights/version 例外） |
 | `PUT /api/chat/sessions/{key}` | 重命名，body `{"agentId","title"}`（agentId 也可走 query）→ `{"ok":true}` |
 | `DELETE /api/chat/sessions/{key}?agentId=` | 删除。有 fork 子会话 → `409 {"error":...,"code":"has_fork_children"}` |
 | `PATCH /api/chat/sessions/{key}/project` | 移动到项目 `{"projectId":...}`（空=脱离） |
 | `PATCH /api/chat/sessions/{key}/chat-only` | 仅聊天模式开关，body `{"agentId","chatOnly":bool}`（agentId 也可走 query）→ `{"ok":true}`（`handlers.go:2039`，owner-only） |
+| `PATCH /api/chat/sessions/{key}/pin` | 置顶开关，body `{"agentId","pinned":bool}`（agentId 也可走 query）→ `{"ok":true}`（`handlers.go:2112`，owner-only）。纯展示元数据：每轮 SaveSession upsert 不触碰它，`pinned=true` 的会话在列表中置顶 |
 | `POST /api/chat/sessions/fork` | 分叉，body `{"agentId","sourceSessionKey","forkSeq"}` → `{"sessionKey":...}` |
 | `GET /api/chat/history?agentId=&sessionId=&before=&limit=` | 历史消息（`handlers.go:1834`）。`before`=earliestSeq 上翻一页（缺省=最新页）；`limit` 默认 50 上限 200。响应 `{"history":[...],"earliestSeq":n,"hasMore":bool,"latestEventSeq":n?}`。条目（`agent/loop.go:1838`）：user=`{role,content,timestamp,seq,imageUrls?,senderName?...}`；assistant=`{role,content?,toolCalls?:[{id,name,arguments}],metadata?,timestamp,seq}`；tool=`{role,content,name,toolCallId,timestamp,seq,metadata?}`；notice 条目带 `kind`（`turn_aborted_notice`\|`compaction_notice`）无 seq；fork 继承前缀 seq<0 |
 | `GET /api/chat/todo?agentId=&sessionId=` | 读会话 todo.md → `{"items":[{"text","done","cancelled"?}],"raw"}`；文件缺失=空 items 非错误（`handlers.go:1701`） |
 | `GET /api/chats` | chat 列表（旧，分页 page/pageSize，含跨 agent 视图） |
-| `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；GET → `{"projects":[{id,name,description,createdAt,updatedAt}]}`（`handlers_projects.go:80`）；POST body `{"name","description"}`；POST sessions 属于「项目内新聊天」路径 |
+| `POST /api/agents/{id}/projects` (+GET/PATCH/DELETE) | 项目 CRUD；GET → `{"projects":[{id,name,description,pinned,createdAt,updatedAt}]}`（`handlers_projects.go:71`，`pinned` 恒返回非 omitempty），**顺序即展示序：`pinned DESC → updatedAt DESC`**（`store.ListProjects`）；POST body `{"name","description"}`；PATCH 各字段可选（`{"name"?,"description"?,"pinned"?}`）：仅 `pinned` 的 PATCH 走单列 UPDATE、不 bump updatedAt（`handlers_projects.go:194`），混合 PATCH 走 read-modify-write（bump updatedAt，pinned 经此保留）；POST sessions 属于「项目内新聊天」路径 |
 
 新会话 key 约定：web 端生成 `s-<unix_ms>-<rand6>`（`chat/page.tsx:24`）；`web-ui` 是历史默认会话。`sessionId` 空串=沿用当前。
 
@@ -220,7 +221,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
   - `GET /api/agents/{id}/diary?from=&to=` → `DailyDiary[]`（[from,to] 闭区间，YYYY-MM-DD、UTC+8，新→旧；缺省=近 30 天）
   - `GET /api/agents/{id}/diary/{date}` → `DailyDiary`；无记录 404；该 (agent,date) 手动生成进行中 → `200 {agentId,date,generating:true}`
   - `POST /api/agents/{id}/diary/generate` `{date?}`（缺省=昨天 UTC+8）→ `202 {status:"started",date}`；同 (agent,date) 已在生成 → `409 {status:"already_running"}`。异步：LLM 生成完 upsert 落库，客户端轮询 GET（生成中态或 generatedAt 前进判定完成）
-  - `GET /api/agents/{id}/diary/shelved` → `{enabled, items:[DiaryShelved]}`（handlers_diary.go handleDiaryShelved）：当前搁浅话题账本（最近一篇日记的账本，open 滚动到今天 + 当日 resolved 闭环）；agent 未开启该功能 → `{enabled:false, items:[]}`（前端整块隐藏）；注意路由注册在 `/diary/{date}` 之前
+  - `GET /api/agents/{id}/diary/shelved` → `{enabled, items:[DiaryShelved]}`（handlers_diary.go handleDiaryShelved）：当前搁浅话题账本（候选表投影：open + 近期 pickup，`shelved_candidates` 表，summary 提取实时写入——不再滞后日记快照一天）；agent 未开启该功能 → `{enabled:false, items:[]}`（前端整块隐藏）；注意路由注册在 `/diary/{date}` 之前
   - `DailyDiary`：`{agentId, date, overview, themes:[{title,summary,points[],topics?,session?,segments?:[{session,start,end}]}], blindspots:[{point,reason}], shelved:[DiaryShelved], archives:[string], model, generatedAt}`；themes/blindspots 均空 = 当日无对话内容（生成过但空，shelved 不计入）；segments 为 #seq-N 会话引用
   - `DiaryShelved`（store/diary.go:44）：`{topic, context, since(YYYY-MM-DD 首次搁浅), session, seq, status("open"|"resolved")}`——用户说"回头再说"后未捡起的话题，跨日记滚动账本：每天 Pass 3 继承前账，捡起的标 resolved（当日展示后退役）；session/seq 是回到搁浅现场的 #seq-N 深链
 - Workflow：`/api/agents/{agentID}/workflows` 全套 CRUD + `run`、`run/stream`、`runs`（list/get/del/批量删）、`runs/{runID}/resume(/stream)`（M6 表单交互）、`schedules` CRUD

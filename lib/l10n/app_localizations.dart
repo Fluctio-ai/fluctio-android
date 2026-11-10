@@ -512,6 +512,18 @@ abstract class AppLocalizations {
   /// **'仅聊天模式'**
   String get chatOnlyMode;
 
+  /// No description provided for @chatPin.
+  ///
+  /// In zh, this message translates to:
+  /// **'置顶'**
+  String get chatPin;
+
+  /// No description provided for @chatUnpin.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消置顶'**
+  String get chatUnpin;
+
   /// No description provided for @chatThinking.
   ///
   /// In zh, this message translates to:
