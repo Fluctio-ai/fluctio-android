@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # fluctio-android
 
-fluctio (FastClaw) 的 Android 客户端（Flutter）。后端参考仓：`D:\codes\fluctio`（用绝对路径 Read/Grep 查证，不修改）。
+fluctio 的 Android 客户端（Flutter）。后端参考仓：`D:\codes\fluctio`（用绝对路径 Read/Grep 查证，不修改）。
 
 ## 纪律
 
-- **API 契约是唯一事实源**：`docs/api/API.md`。发现客户端与后端不一致 → 先改契约（附 fastclaw 侧 handler 出处），再改码。标"待补"的字段实现对应功能时读 handler 补全。
-- 需求/决策/票：fastclaw 仓 `specs/android-app/{REQ,ADR,TICKETS}.md`（本地私有，不上 git）。
+- **API 契约是唯一事实源**：`docs/api/API.md`。发现客户端与后端不一致 → 先改契约（附 fluctio 后端 handler 出处），再改码。标"待补"的字段实现对应功能时读 handler 补全。
+- 需求/决策/票：fluctio 仓 `specs/android-app/{REQ,ADR,TICKETS}.md`（本地私有，不上 git）。
 - Commit message 用英文。
 - Windows 环境（bash/PowerShell 皆可）；真机 Android 16。
 
@@ -25,7 +25,7 @@ export PUB_HOSTED_URL=https://pub.flutter-io.cn FLUTTER_STORAGE_BASE_URL=https:/
 - 单测：`flutter test test/sse_parser_test.dart`（test/ 平铺，按被测模块命名，无目录分层）
 - 真机：`flutter run -d <serial>`；连本地 gateway 先 `adb reverse tcp:18953 tcp:18953`（adb 在 `D:\Android\Sdk\platform-tools`）
 - l10n 再生成：`flutter gen-l10n`——**template 是 `app_zh.arb`**（中文为模板语言）；产物 `app_localizations*.dart` 检入在 `lib/l10n/`，禁手改
-- 内置 webui 资源：`python tool/sync_webui.py`（先把 fastclaw web build 出 `D:\codes\fluctio\web\out`）→ 打进 `assets/webui.zip`
+- 内置 webui 资源：`python tool/sync_webui.py`（先把 fluctio web build 出 `D:\codes\fluctio\web\out`）→ 打进 `assets/webui.zip`
 
 ## 架构大图
 
@@ -53,7 +53,7 @@ export PUB_HOSTED_URL=https://pub.flutter-io.cn FLUTTER_STORAGE_BASE_URL=https:/
 
 ## 设计 token（复刻 web 青色轴）
 
-- **改/造任何屏幕前先读 `DESIGN.md`**（语义层：token 用法、两个动效家族、anti-patterns 清单）；数值事实源 = `fastclaw/web/src/app/globals.css` ⇄ `lib/theme/tokens.dart`（两端 bit 级同步）
+- **改/造任何屏幕前先读 `DESIGN.md`**（语义层：token 用法、两个动效家族、anti-patterns 清单）；数值事实源 = `fluctio/web/src/app/globals.css` ⇄ `lib/theme/tokens.dart`（两端 bit 级同步）
 - surge cyan：浅色 primary `#0e7490` / 暗色 `#22d3ee`；accent `#ecfeff`/`#083344`
 - 间距/动效只从 token 取：`AppSpace`（4–24 六档，对齐 tailwind）/ `AppMotion`（entrance 160ms expo-out、flow 曲线、spring 100/20）；存量字面量随触碰渐进迁移，不搞一次性大扫除
 - 圆角家族：4px 嵌套 / **6px 控件** / 12px 卡片 / 16px 全屏

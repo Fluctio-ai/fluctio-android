@@ -1,6 +1,6 @@
 # fluctio gateway HTTP API 契约（安卓客户端视角）
 
-- 反推自 `fastclaw` dev 分支 `internal/setup/server.go`（路由注册）+ `internal/setup/handlers*.go` + `internal/auth/auth.go` + `internal/agent/loop.go`，2026-09-29。
+- 反推自 `fluctio` dev 分支 `internal/setup/server.go`（路由注册）+ `internal/setup/handlers*.go` + `internal/auth/auth.go` + `internal/agent/loop.go`，2026-09-29。
 - 本文档是 fluctio-android 的**唯一事实源**：端点失配先改这里再改码。标注 `待补` 的字段在实现对应功能时读 handler 补全。
 
 ## 0. 通用约定
