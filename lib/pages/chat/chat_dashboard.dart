@@ -161,9 +161,10 @@ class _PaneCard extends StatelessWidget {
   }
 }
 
-/// A pane's trailing "more" link — default (non-compact) density so the
-/// 12px label keeps a full ≥44px tap row; primary color, one shared look
-/// for the cards/todos/recent panes.
+/// A pane's trailing "more" link — the label hugs the left, but the hit
+/// target spans the full row width at ≥44px tall: one-handed (right-thumb)
+/// taps land anywhere on the row, not just on the 12px label (user
+/// request). One shared look for the cards/todos/recent panes.
 class _PaneLink extends StatelessWidget {
   const _PaneLink({required this.label, this.onTap});
 
@@ -175,6 +176,8 @@ class _PaneLink extends StatelessWidget {
     return TextButton(
       style: TextButton.styleFrom(
         foregroundColor: Theme.of(context).colorScheme.primary,
+        minimumSize: const Size(double.infinity, 44),
+        alignment: Alignment.centerLeft,
       ),
       onPressed: onTap,
       child: Text(label, style: const TextStyle(fontSize: AppType.caption)),
@@ -400,10 +403,18 @@ class _CardsPane extends ConsumerWidget {
                     borderRadius: AppRadius.controlBorder,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Text(c.question,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall),
+                      // Row(Expanded) — the tap target spans the row like
+                      // the shelved/recent rows (right-thumb reach).
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(c.question,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               if (s != null && s.streakDays > 0)
