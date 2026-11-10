@@ -383,6 +383,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diaryShelvedResolved => 'Picked up';
 
   @override
+  String get shelvedStopRemind => 'Stop reminding';
+
+  @override
+  String shelvedStopRemindBody(Object topic) {
+    return 'Stop reminding about \"$topic\"? It leaves the shelved ledger immediately.';
+  }
+
+  @override
+  String get shelvedConfirmed => 'Confirmed';
+
+  @override
   String get meAgents => 'Agents';
 
   @override

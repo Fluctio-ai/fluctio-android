@@ -65,6 +65,7 @@ class DiaryBlindspot {
 class DiaryShelved {
   const DiaryShelved({
     required this.topic,
+    this.id = 0,
     this.context = '',
     this.since = '',
     this.session = '',
@@ -73,6 +74,12 @@ class DiaryShelved {
   });
 
   final String topic;
+
+  /// shelved_candidates row id — the settle endpoint's address (PATCH
+  /// .../diary/shelved/{cid}). 0/absent on legacy snapshots written
+  /// before the projection carried it: they render but cannot be
+  /// settled from the client (tap just deep-links).
+  final int id;
 
   /// One line: the situation when deferred.
   final String context;
@@ -89,6 +96,9 @@ class DiaryShelved {
 
   bool get resolved => status == 'resolved';
 
+  /// Can this client settle the row (tap-confirm / stop-reminding)?
+  bool get settleable => id != 0 && !resolved;
+
   /// Whole days from [since] to today (UTC+8 frame, like the server's
   /// date strings); 0 for unparseable/future dates (web daysSince).
   int get daysOpen {
@@ -103,6 +113,7 @@ class DiaryShelved {
 
   factory DiaryShelved.fromJson(Map<String, dynamic> j) => DiaryShelved(
         topic: j['topic'] as String? ?? '',
+        id: (j['id'] as num?)?.toInt() ?? 0,
         context: j['context'] as String? ?? '',
         since: j['since'] as String? ?? '',
         session: j['session'] as String? ?? '',

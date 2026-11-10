@@ -130,4 +130,13 @@ class DiaryRepo {
       return const DiaryShelvedView(enabled: false);
     }
   }
+
+  /// Manual settlement of one ledger row (PATCH .../diary/shelved/{cid},
+  /// docs/api/API.md §8): resolved = the tap-through confirm, dropped =
+  /// "stop reminding". Idempotent server-side (settled rows answer
+  /// settled:false) so double-taps are safe. fire-and-forget callers
+  /// swallow errors; the ledger refresh shows the truth.
+  Future<void> settle(String agentId, int cid, {required bool resolved}) =>
+      _dio.patch('/api/agents/$agentId/diary/shelved/$cid',
+          data: {'status': resolved ? 'resolved' : 'dropped'});
 }

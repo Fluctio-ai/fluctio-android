@@ -378,6 +378,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diaryShelvedResolved => '已捡起';
 
   @override
+  String get shelvedStopRemind => '不再提醒';
+
+  @override
+  String shelvedStopRemindBody(Object topic) {
+    return '不再提醒「$topic」？该话题会立即移出搁浅账本。';
+  }
+
+  @override
+  String get shelvedConfirmed => '已确认';
+
+  @override
   String get meAgents => '智能体';
 
   @override

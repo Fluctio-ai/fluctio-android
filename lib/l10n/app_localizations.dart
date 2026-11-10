@@ -818,6 +818,24 @@ abstract class AppLocalizations {
   /// **'已捡起'**
   String get diaryShelvedResolved;
 
+  /// No description provided for @shelvedStopRemind.
+  ///
+  /// In zh, this message translates to:
+  /// **'不再提醒'**
+  String get shelvedStopRemind;
+
+  /// No description provided for @shelvedStopRemindBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'不再提醒「{topic}」？该话题会立即移出搁浅账本。'**
+  String shelvedStopRemindBody(Object topic);
+
+  /// No description provided for @shelvedConfirmed.
+  ///
+  /// In zh, this message translates to:
+  /// **'已确认'**
+  String get shelvedConfirmed;
+
   /// No description provided for @meAgents.
   ///
   /// In zh, this message translates to:

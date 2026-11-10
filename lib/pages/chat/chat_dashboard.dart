@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../chat/chat_controller.dart';
-import '../../chat/chat_routes.dart';
 import '../../chat/models.dart';
 import '../../kb/diary_models.dart';
 import '../../kb/diary_repo.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import '../../kb/shelved_actions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
@@ -91,7 +91,7 @@ class ChatDashboard extends ConsumerWidget {
     // their existing sequence. One full-width pane per row (user
     // preference) — same rhythm as the web's stacked mobile dashboard.
     final panes = <Widget>[
-      if (shelved.value!.enabled) _ShelvedPane(view: shelved.value!),
+      if (shelved.value!.enabled) _ShelvedPane(view: shelved.value!, agentId: agent.id),
       _CardsPane(agentId: agent.id),
       _TodosPane(agentId: agent.id),
       _RecentPane(agentId: agent.id),
@@ -281,16 +281,19 @@ class _PaneSkeleton extends StatelessWidget {
 }
 
 /// Shelved-topics pane (web dashboard shelved pane, opt-in): open rows
-/// deep-link back into the deferred conversation's #seq anchor (quick
-/// re-entry); resolved rows render as the closed loop, no link. Rows
-/// sort oldest-first like the web — longest-shelved on top.
-class _ShelvedPane extends StatelessWidget {
-  const _ShelvedPane({required this.view});
+/// tap through to the deferred conversation's #seq anchor — and the tap
+/// itself IS the confirm (ticket #16: viewing counts as settlement);
+/// long-press offers "stop reminding". Resolved rows render as the
+/// closed loop, no link. Rows sort oldest-first like the web —
+/// longest-shelved on top.
+class _ShelvedPane extends ConsumerWidget {
+  const _ShelvedPane({required this.view, required this.agentId});
 
   final DiaryShelvedView view;
+  final String agentId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final open = view.items.where((s) => !s.resolved).length;
     return _PaneCard(
@@ -303,7 +306,7 @@ class _ShelvedPane extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final s in [...view.items]..sort((a, b) => a.since.compareTo(b.since)))
-                  _ShelvedRow(item: s),
+                  _ShelvedRow(item: s, agentId: agentId),
                 _PaneLink(
                     label: l.dashShelvedView, onTap: () => context.push('/kb/diary')),
               ],
@@ -312,13 +315,14 @@ class _ShelvedPane extends StatelessWidget {
   }
 }
 
-class _ShelvedRow extends StatelessWidget {
-  const _ShelvedRow({required this.item});
+class _ShelvedRow extends ConsumerWidget {
+  const _ShelvedRow({required this.item, required this.agentId});
 
   final DiaryShelved item;
+  final String agentId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -341,10 +345,12 @@ class _ShelvedRow extends StatelessWidget {
         ),
       );
     }
+    final tappable = item.session.isNotEmpty || item.settleable;
     return InkWell(
-      onTap: item.session.isEmpty
-          ? null
-          : () => context.push(chatSessionRoute(item.session, seq: item.seq)),
+      onTap: tappable ? () => openShelvedEntry(context, ref, agentId, item) : null,
+      onLongPress: item.settleable
+          ? () => stopRemindingShelved(context, ref, agentId, item)
+          : null,
       borderRadius: AppRadius.controlBorder,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 5),

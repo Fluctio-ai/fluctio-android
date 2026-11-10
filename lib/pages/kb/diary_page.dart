@@ -7,6 +7,7 @@ import '../../chat/chat_controller.dart';
 import '../../chat/chat_routes.dart';
 import '../../kb/diary_models.dart';
 import '../../kb/diary_repo.dart';
+import '../../kb/shelved_actions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
@@ -572,7 +573,7 @@ class _DayPane extends ConsumerWidget {
                         icon: LucideIcons.calendarOff,
                         message: d.overview.isEmpty ? l.diaryNoThemes : d.overview)
                   else
-                    DiaryContent(diary: d),
+                    DiaryContent(diary: d, agentId: agentId),
                 ],
               ),
             ),
@@ -609,9 +610,10 @@ class _GeneratingHint extends StatelessWidget {
 /// The diary body — shared shape with the web DiaryContent: overview
 /// card, theme cards with #seq segment chips, blindspots, archives.
 class DiaryContent extends StatelessWidget {
-  const DiaryContent({super.key, required this.diary});
+  const DiaryContent({super.key, required this.diary, required this.agentId});
 
   final DailyDiary diary;
+  final String agentId;
 
   @override
   Widget build(BuildContext context) {
@@ -694,7 +696,7 @@ class DiaryContent extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           for (final s in diary.shelved) ...[
-            _ShelvedCard(item: s),
+            _ShelvedCard(item: s, agentId: agentId),
             const SizedBox(height: 8),
           ],
         ],
@@ -751,73 +753,86 @@ class _SeqChip extends StatelessWidget {
 }
 
 /// One shelved-ledger entry (web ShelvedCard): topic + the situation
-/// when deferred + a #seq-N chip back into that conversation (the way
-/// back in — settling stays the user's own move). Resolved entries
-/// (picked back up that day) render with the success tint as the
-/// closed loop.
-class _ShelvedCard extends StatelessWidget {
-  const _ShelvedCard({required this.item});
+/// when deferred + a #seq-N chip back into that conversation. Tapping
+/// the card body is itself the confirm (ticket #16: viewing counts as
+/// settlement, resolution="manual") then deep-links; long-press offers
+/// "stop reminding". Rows without an id (legacy snapshots) keep the old
+/// inert behaviour. Resolved entries render with the success tint as
+/// the closed loop.
+class _ShelvedCard extends ConsumerWidget {
+  const _ShelvedCard({required this.item, required this.agentId});
 
   final DiaryShelved item;
+  final String agentId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     final scheme = theme.colorScheme;
     final success = paletteOf(context).success;
     final resolved = item.resolved;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: resolved
-            ? success.withValues(alpha: 0.05)
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: AppRadius.cardBorder,
-        border: Border.all(
-            color: resolved
-                ? success.withValues(alpha: 0.3)
-                : scheme.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    if (resolved) ...[
-                      Icon(LucideIcons.check, size: 14, color: success),
-                      const SizedBox(width: 4),
+    final open = !resolved;
+    return InkWell(
+      onTap: open
+          ? () => openShelvedEntry(context, ref, agentId, item)
+          : null,
+      onLongPress: open && item.settleable
+          ? () => stopRemindingShelved(context, ref, agentId, item)
+          : null,
+      borderRadius: AppRadius.cardBorder,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: resolved
+              ? success.withValues(alpha: 0.05)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: AppRadius.cardBorder,
+          border: Border.all(
+              color: resolved
+                  ? success.withValues(alpha: 0.3)
+                  : scheme.outlineVariant),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      if (resolved) ...[
+                        Icon(LucideIcons.check, size: 14, color: success),
+                        const SizedBox(width: 4),
+                      ],
+                      Expanded(
+                          child: Text(item.topic, style: theme.textTheme.bodyMedium)),
                     ],
-                    Expanded(
-                        child: Text(item.topic, style: theme.textTheme.bodyMedium)),
+                  ),
+                  if (item.context.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(item.context,
+                        style:
+                            theme.textTheme.bodySmall?.copyWith(color: scheme.outline)),
                   ],
-                ),
-                if (item.context.isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(item.context,
-                      style:
-                          theme.textTheme.bodySmall?.copyWith(color: scheme.outline)),
+                  Text(
+                    resolved
+                        ? l.diaryShelvedResolved
+                        : l.diaryShelvedSince(item.since, item.daysOpen),
+                    style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
+                  ),
                 ],
-                const SizedBox(height: 4),
-                Text(
-                  resolved
-                      ? l.diaryShelvedResolved
-                      : l.diaryShelvedSince(item.since, item.daysOpen),
-                  style: theme.textTheme.labelSmall?.copyWith(color: scheme.outline),
-                ),
-              ],
+              ),
             ),
-          ),
-          if (item.session.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            _SeqChip(session: item.session, seq: item.seq),
+            if (item.session.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _SeqChip(session: item.session, seq: item.seq),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
