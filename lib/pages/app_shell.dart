@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
+import '../notify/notify_service_controller.dart';
 import '../util/app_toast.dart';
 import '../ui/breakpoints.dart';
 import 'app_drawer.dart';
@@ -20,7 +22,7 @@ import 'app_drawer.dart';
 /// (go_router's _findCurrentNavigator falls back when the shell can't
 /// pop), so a PopScope on any page inside the shell is never consulted —
 /// the guard must live HERE, under the root route.
-class AppShell extends StatefulWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.path, required this.child});
 
   /// The matched route location (ShellRoute hands over
@@ -29,10 +31,10 @@ class AppShell extends StatefulWidget {
   final Widget child;
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> {
   /// Pages that never want the shell chrome — web BARE_PATHS parity, plus
   /// /workflow on wide layouts: the embedded web editor needs ~1220 CSS px
   /// (list pane + canvas + properties); 1280 − 300 sidebar = 980 overflows
@@ -72,10 +74,19 @@ class _AppShellState extends State<AppShell> {
     // shouldn't kill the transcript mid-session. Drawer/pages open
     // consume back first (navigator local history), so this only sees
     // the bare bottom — from ANY page at its stack root, not just chat.
+    //
+    // Service mode reroutes back-to-background: the foreground service
+    // keeps the process (and connection) alive anyway, and hiding
+    // instead of finishing makes reopening instant — nothing is lost,
+    // so no double-press confirmation is needed on that path.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        if (ref.read(notifyServiceModeProvider)) {
+          ref.read(notifyServiceControllerProvider).moveTaskToBack();
+          return;
+        }
         final now = DateTime.now();
         if (_lastBackAt != null &&
             now.difference(_lastBackAt!) < const Duration(seconds: 2)) {

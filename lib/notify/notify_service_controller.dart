@@ -105,6 +105,18 @@ class NotifyServiceController {
     return setEnabled(true);
   }
 
+  /// Hides the app (moveTaskToBack) instead of finishing the activity —
+  /// the exit guard's path while the service mode keeps the process
+  /// alive, so reopening resumes instantly. Channel-absent platforms
+  /// (tests) no-op: the mode cannot be on there.
+  Future<void> moveTaskToBack() async {
+    try {
+      await _channel.invokeMethod<void>('moveToBack');
+    } catch (_) {
+      // Inert — see doc comment.
+    }
+  }
+
   Future<void> _pullPendingRoute() async {
     try {
       final route = await _channel.invokeMethod<String>('consumeRoute');

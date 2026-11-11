@@ -47,6 +47,13 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
+                    // Exit-guard path while the foreground service runs:
+                    // hide instead of finish so the engine stays warm and
+                    // reopening is instant.
+                    "moveToBack" -> {
+                        moveTaskToBack(true)
+                        result.success(null)
+                    }
                     // Cold start: hand over a route captured from the
                     // launch intent (a tap that arrived while the app was dead).
                     "consumeRoute" -> {
