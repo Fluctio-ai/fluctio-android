@@ -37,15 +37,15 @@ class AppDrawer extends ConsumerStatefulWidget {
   static Widget? adaptive(BuildContext context) =>
       hasPermanentSidebar(context) ? null : const AppDrawer();
 
-  /// The drawer gesture zone every surface shares (ticket 13, revised
-  /// per user feedback): a quarter of the screen width. The original
-  /// 55% zone overlapped slidable list rows — a drag starting mid-list
-  /// fought the row's own swipe instead of opening the drawer; 25%
-  /// keeps the zone clear of both the system back edges and the rows.
+  /// The drawer gesture zone every surface shares: the full screen width
+  /// (user request 2026-11-11, supersedes ticket 13's quarter-width zone).
+  /// Conflicts resolve in favor of the innermost recognizer — swipeable
+  /// rows keep their own gesture; horizontal drags on anything else open
+  /// the drawer. The system back-gesture edges still win at the OS level.
   /// Every Scaffold that mounts this drawer sizes its edge drag with
   /// this, so the zone never drifts between pages.
   static double edgeDragWidth(BuildContext context) =>
-      MediaQuery.sizeOf(context).width * 0.25;
+      MediaQuery.sizeOf(context).width;
 
   @override
   ConsumerState<AppDrawer> createState() => _AppDrawerState();
@@ -161,7 +161,14 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         ),
     );
     if (widget.embedded) return body;
-    return Drawer(shape: const RoundedRectangleBorder(), child: body);
+    // Full-screen modal drawer (user request): the phone menu takes the
+    // whole width instead of Material's 304dp sheet — still closable by
+    // horizontal drag or back.
+    return Drawer(
+      shape: const RoundedRectangleBorder(),
+      width: MediaQuery.sizeOf(context).width,
+      child: body,
+    );
   }
 
   /// Modal-drawer hosts close before navigating; the embedded tablet
