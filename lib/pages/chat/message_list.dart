@@ -603,7 +603,7 @@ class _UserBubble extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  formatTimeOfDay(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
+                  formatSessionTime(entry.ts),
                   style: TextStyle(fontSize: AppType.caption, color: scheme.outline),
                 ),
               ),
@@ -702,7 +702,7 @@ class _AssistantBubble extends ConsumerWidget {
                 children: [
                   if (entry.ts > 0)
                     Text(
-                      formatTimeOfDay(DateTime.fromMillisecondsSinceEpoch(entry.ts)),
+                      formatSessionTime(entry.ts),
                       style: TextStyle(
                           fontSize: AppType.caption, color: theme.colorScheme.outline),
                     ),

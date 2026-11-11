@@ -5,27 +5,21 @@ import 'package:intl/intl.dart';
 /// instances are cached per locale.
 final _hmCache = <String, DateFormat>{};
 final _mdCache = <String, DateFormat>{};
-final _ymdCache = <String, DateFormat>{};
 final _namedCache = <String, Map<String, DateFormat>>{};
 
 DateFormat _hm(String locale) => _hmCache.putIfAbsent(locale, () => DateFormat.Hm(locale));
 DateFormat _md(String locale) => _mdCache.putIfAbsent(locale, () => DateFormat.Md(locale));
-DateFormat _ymd(String locale) => _ymdCache.putIfAbsent(locale, () => DateFormat.yMd(locale));
 
 DateFormat _named(String locale, String pattern) =>
     (_namedCache[locale] ??= {}).putIfAbsent(pattern, () => DateFormat(pattern, locale));
 
-/// Session-list convention: today → HH:mm; this year → M/d HH:mm;
-/// older → yyyy/M/d.
+/// Session-list convention: always date + time (MM-dd HH:mm;
+/// yyyy- prefixed for other years) — a bare HH:mm can't disambiguate days.
 String formatSessionTime(int tsMs, {String locale = 'en_US'}) {
   final local = DateTime.fromMillisecondsSinceEpoch(tsMs).toLocal();
   final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  if (!local.isBefore(today)) return _hm(locale).format(local);
-  if (local.year == now.year) {
-    return '${_md(locale).format(local)} ${_hm(locale).format(local)}';
-  }
-  return _ymd(locale).format(local);
+  final pattern = local.year == now.year ? 'MM-dd HH:mm' : 'yyyy-MM-dd HH:mm';
+  return _named(locale, pattern).format(local);
 }
 
 /// Compact M/d (yyyy/ prefixed for other years), optional HH:mm suffix.
