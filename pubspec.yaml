@@ -35,6 +35,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
+  characters: ^1.4.1
 
   cupertino_icons: ^1.0.8
   # Routing & state

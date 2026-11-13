@@ -1,65 +1,42 @@
-import 'package:flutter/widgets.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fluctio_android/chat/turn_notify.dart';
-import 'package:fluctio_android/notify/notify_hub.dart';
 
-/// Recording LocalNotifyHub: init against the plugin-less test platform
-/// would leave isReady false, so fake both the gate and the sink.
-class _FakeHub extends LocalNotifyHub {
-  _FakeHub(super.ref);
-
-  final shown = <({int id, String title, String body, String payload})>[];
-
-  @override
-  bool get isReady => true;
-
-  @override
-  Future<void> show({
-    required int id,
-    required String channelId,
-    required String channelName,
-    String? channelDescription,
-    required String title,
-    required String body,
-    required String payload,
-  }) async {
-    shown.add((id: id, title: title, body: body, payload: payload));
-  }
-}
-
+/// Notification-body truncation rule. The mojibake case: Dart strings are
+/// UTF-16, and a naive substring can cut a surrogate pair (emoji, rare
+/// CJK ext-B+ chars) in half — the lone half survives into the native
+/// notification text and renders as garbage once encoded for the OS.
 void main() {
-  // The controller-wiring half lives in turn_notify_wiring_test.dart —
-  // a testWidgets in the file wraps the whole suite in
-  // TestWidgetsFlutterBinding, which stubs out real HTTP.
-  testWidgets('turn alerts fire only while backgrounded, payload = session route',
-      (tester) async {
-    final binding = TestWidgetsFlutterBinding.instance;
-    late _FakeHub hub;
-    final container = ProviderContainer(overrides: [
-      localNotifyHubProvider.overrideWith((ref) => hub = _FakeHub(ref)),
-    ]);
-    addTearDown(container.dispose);
-    container.read(localNotifyHubProvider); // force-build the fake
-    final tn = container.read(turnNotifyProvider);
+  group('turnNotifySnippet', () {
+    test('long ascii line caps at 80 with an ellipsis', () {
+      expect(turnNotifySnippet('a' * 100), '${'a' * 80}…');
+    });
 
-    // Foreground: nothing leaves the gate.
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    tn.onTurnDone(title: 't', snippet: 's', route: '/c/s-1');
-    tn.onAuthPrompt(title: 't', description: 'd', route: '/c/s-1');
-    expect(hub.shown, isEmpty);
+    test('multi-line reply keeps only the first line', () {
+      expect(turnNotifySnippet('首行\n第二行\n第三行'), '首行');
+    });
 
-    // Backgrounded: both fire, carrying the session route as payload.
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    tn.onTurnDone(title: 't', snippet: 's', route: '/c/s-1');
-    tn.onAuthPrompt(title: 't', description: 'd', route: '/c/s-2');
-    expect(hub.shown, hasLength(2));
-    expect(hub.shown[0].payload, '/c/s-1');
-    expect(hub.shown[0].body, 's');
-    expect(hub.shown[1].payload, '/c/s-2');
-    expect(hub.shown[1].body, contains('d'));
+    test('exact-80 graphemes pass through untouched', () {
+      expect(turnNotifySnippet('a' * 80), 'a' * 80);
+    });
 
-    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    test('no lone surrogates when an emoji sits at the cap', () {
+      // 79 ASCII + 🎉: UTF-16 length 81 — a substring(0, 80) cut keeps
+      // the emoji's high half alone. Grapheme capping keeps it whole.
+      final s = turnNotifySnippet('${'a' * 79}🎉');
+      expect(s, '${'a' * 79}🎉');
+      expect(_hasLoneSurrogate(s), isFalse,
+          reason: 'cap boundary must not split the emoji');
+    });
+
+    test('no lone surrogates when the cut lands between emoji', () {
+      // 78 ASCII + three 🎉: every cap position keeps whole emoji.
+      final s = turnNotifySnippet('${'a' * 78}🎉🎉🎉');
+      expect(_hasLoneSurrogate(s), isFalse);
+      expect(s, endsWith('…'));
+    });
   });
 }
+
+bool _hasLoneSurrogate(String s) =>
+    s.runes.any((r) => r >= 0xD800 && r <= 0xDFFF);

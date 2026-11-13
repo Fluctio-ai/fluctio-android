@@ -13,6 +13,7 @@ import '../share/share_receiver.dart';
 import '../theme/tokens.dart';
 import '../ui/load_states.dart';
 import '../util/app_toast.dart';
+import '../util/text.dart';
 import 'chat/panels.dart';
 
 /// Share-target picker: an inbound share lands here before anything is
@@ -77,7 +78,7 @@ class _ShareTargetPageState extends ConsumerState<ShareTargetPage> {
     // Title = first line of the flattened text (24 chars), content keeps
     // the original body.
     final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    final title = flat.length <= 24 ? flat : '${flat.substring(0, 24)}…';
+    final title = truncateChars(flat, 24);
     _runSave(
         () => ref.read(kbRepoProvider).saveNote(agentId, title: title, contentMd: text),
         AppLocalizations.of(context)!.shareNoteDone);

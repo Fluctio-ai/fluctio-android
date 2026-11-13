@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../notify/notify_hub.dart';
+import '../util/text.dart';
 
 /// Background turn alerts: while the app is not in the foreground (but
 /// its process — and with it the SSE connections — is still alive), a
@@ -16,6 +17,15 @@ import '../notify/notify_hub.dart';
 /// stop never notifies (the controller only alerts on a live `done`
 /// frame, never on the stop path).
 final turnNotifyProvider = Provider<TurnNotify>((ref) => TurnNotify(ref));
+
+/// The notification body line for a finished reply: its first line,
+/// grapheme-capped at 80 (why graphemes: [truncateChars]). Kept top-level
+/// (not a TurnNotify method) so tests can hit the truncation rule without
+/// the plugin.
+String turnNotifySnippet(String replyText) {
+  final line = replyText.trim().split('\n').first;
+  return truncateChars(line, 80);
+}
 
 class TurnNotify {
   TurnNotify(this._ref);

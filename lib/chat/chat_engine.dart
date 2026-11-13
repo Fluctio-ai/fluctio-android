@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../util/text.dart';
 import 'models.dart';
 
 /// Phase of the in-flight (or just-finished) turn. A network drop never
@@ -520,7 +521,7 @@ class ChatEngine {
       if (dbgType == 'bus') {
         final t = payload['text'];
         if (t is String && t.isNotEmpty) {
-          _debugLastBus = t.length > 48 ? t.substring(0, 48) : t;
+          _debugLastBus = truncateChars(t, 48, suffix: '');
         }
       }
       _debugLastEvent = '$dbgType$tag@${payload['seq'] ?? frameId ?? '-'}';

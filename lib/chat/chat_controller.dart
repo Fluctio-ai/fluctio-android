@@ -877,11 +877,7 @@ class ChatStoreController extends Notifier<ChatStore> {
     final engine = _engines[sessionKeyOf(agentId, sessionId)];
     if (engine == null) return '';
     for (final e in engine.entries.reversed) {
-      if (e is AssistantEntry) {
-        var line = e.text.trim().split('\n').first;
-        if (line.length > 80) line = '${line.substring(0, 80)}…';
-        return line;
-      }
+      if (e is AssistantEntry) return turnNotifySnippet(e.text);
     }
     return '';
   }
