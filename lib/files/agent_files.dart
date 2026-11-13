@@ -190,6 +190,27 @@ class AgentFilesRepo {
       _dio.delete('/api/agents/$agentId/files/${f.path}',
           queryParameters: _query(sessionId));
 
+  /// Mints a public /f/{token} link (no login needed) for one workspace
+  /// file — POST /api/agents/{id}/share/{path}. ttlHours 0 = permanent
+  /// (default 7 days server-side is only applied by the agent tool; here
+  /// the caller picks explicitly). Returns the share URL — absolute when
+  /// the server knows its host (FLUCTIO_PUBLIC_BASE_URL or request Host),
+  /// else a relative /f/… path joined against the API base URL.
+  Future<String> share(String agentId, String path,
+      {int ttlHours = 168, int maxUses = 0, String? sessionId}) async {
+    final res = await _dio.post('/api/agents/$agentId/share/$path',
+        queryParameters: _query(sessionId),
+        data: {'ttlHours': ttlHours, 'maxUses': maxUses});
+    final data = res.data is Map ? res.data as Map : const {};
+    final url = data['url'] as String? ?? '';
+    final token = data['token'] as String? ?? '';
+    if (url.startsWith('http')) return url;
+    // Relative fallback: anchor against the configured server origin
+    // (auth.baseUrl is the bare origin, e.g. https://host[:port]).
+    final base = _dio.options.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    return '$base/f/$token';
+  }
+
   /// Existence probe (HEAD) for path-candidate resolution.
   Future<void> head(String agentId, String path, {String? sessionId}) =>
       _dio.head('/api/agents/$agentId/files/$path', queryParameters: _query(sessionId));

@@ -1460,6 +1460,18 @@ abstract class AppLocalizations {
   /// **'正在准备分享…'**
   String get sharePreparing;
 
+  /// No description provided for @shareFileLink.
+  ///
+  /// In zh, this message translates to:
+  /// **'分享链接'**
+  String get shareFileLink;
+
+  /// No description provided for @shareLinkPreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在生成链接…'**
+  String get shareLinkPreparing;
+
   /// No description provided for @downloadFile.
   ///
   /// In zh, this message translates to:

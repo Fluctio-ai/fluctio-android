@@ -236,6 +236,8 @@
   "@shareImages": { "placeholders": { "n": {} } },
   "shareFileOut": "分享",
   "sharePreparing": "正在准备分享…",
+  "shareFileLink": "分享链接",
+  "shareLinkPreparing": "正在生成链接…",
   "downloadFile": "下载",
   "downloadPreparing": "正在下载…",
   "downloadDone": "已保存到系统下载目录",

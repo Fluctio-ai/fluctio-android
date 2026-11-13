@@ -154,7 +154,10 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
 
   /// Share-out: stage the file, then hand it to the system share sheet.
   /// A gateway link would be useless outside the app (cookie auth), so
-  /// receivers always get the bytes.
+  /// receivers always get the bytes. For link-based sharing (receivers
+  /// that can fetch a URL but can't log in — smart speakers, contacts on
+  /// another device) use [_shareLink], which mints a public /f/{token}
+  /// link instead.
   Future<void> _share(AgentFile f) async {
     final l = AppLocalizations.of(context)!;
     _setNotice(l.sharePreparing, busy: true);
@@ -163,6 +166,24 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
       _setNotice(null);
       if (!mounted) return;
       await shareLocalFile(staged);
+    } catch (e) {
+      _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
+    }
+  }
+
+  /// Share-as-link: mint a 7-day public link server-side and hand the URL
+  /// (text) to the system share sheet — no bytes staged, no login needed
+  /// by whoever opens it.
+  Future<void> _shareLink(AgentFile f) async {
+    final l = AppLocalizations.of(context)!;
+    _setNotice(l.shareLinkPreparing, busy: true);
+    try {
+      final url = await ref
+          .read(agentFilesRepoProvider)
+          .share(widget.agentId, f.path, sessionId: widget.sessionId);
+      _setNotice(null);
+      if (!mounted) return;
+      await shareText(url, title: f.name);
     } catch (e) {
       _setNotice(apiErrorMessage(e, l), autoClear: const Duration(seconds: 4));
     }
@@ -285,6 +306,11 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
                       ),
                       onTap: () => widget.onOpen(node.file!),
                       onLongPress: () => showRowActionsMenu(context, [
+                        RowAction(
+                          icon: LucideIcons.link2,
+                          label: l.shareFileLink,
+                          onRun: () => _shareLink(node.file!),
+                        ),
                         RowAction(
                           icon: LucideIcons.download,
                           label: l.downloadFile,

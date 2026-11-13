@@ -719,6 +719,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sharePreparing => 'Preparing to share…';
 
   @override
+  String get shareFileLink => 'Share link';
+
+  @override
+  String get shareLinkPreparing => 'Creating link…';
+
+  @override
   String get downloadFile => 'Download';
 
   @override

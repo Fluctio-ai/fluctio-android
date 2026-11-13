@@ -19,13 +19,20 @@ Future<String?> saveLocalFileToDownloads(File file) {
 }
 
 /// Shares a local file through the system share sheet with a best-effort
-/// MIME type. Workspace files need the bytes, never a gateway link —
-/// receivers can't pass the backend's cookie auth.
+/// MIME type. For receivers that can't pass the backend's cookie auth this
+/// is the byte-level path; for link-capable receivers see [shareText] +
+/// the server's public /f/{token} share links.
 Future<ShareResult> shareLocalFile(File file) {
   final n = file.uri.pathSegments.last;
   return SharePlus.instance.share(ShareParams(files: [
     XFile(file.path, name: n, mimeType: mimeTypeForFile(n)),
   ]));
+}
+
+/// Shares plain text (typically a public share URL) through the system
+/// share sheet. title names the subject where the sheet shows one.
+Future<ShareResult> shareText(String text, {String? title}) {
+  return SharePlus.instance.share(ShareParams(text: text, title: title));
 }
 
 /// Small extension → MIME table for the share intent; unknown types fall

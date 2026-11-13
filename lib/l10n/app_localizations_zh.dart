@@ -710,6 +710,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sharePreparing => '正在准备分享…';
 
   @override
+  String get shareFileLink => '分享链接';
+
+  @override
+  String get shareLinkPreparing => '正在生成链接…';
+
+  @override
   String get downloadFile => '下载';
 
   @override
