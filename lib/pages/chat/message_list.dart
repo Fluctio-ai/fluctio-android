@@ -168,6 +168,27 @@ class _MessageListState extends ConsumerState<MessageList> {
     }
     final notifier = ref.read(chatStoreProvider.notifier);
 
+    // Day dividers (web chat-screen.tsx:2757 parity): a pill precedes the
+    // first user/assistant entry of each new calendar day. Notices and
+    // tool cards carry no conversation timestamp — they neither trigger a
+    // divider nor reset the day cursor. Precomputed as a set of entries
+    // indices; itemBuilder just probes it (itemCount stays 1:1, so the
+    // seq-jump index mapping is untouched).
+    final dayDividers = <int>{};
+    int? lastDay;
+    for (var idx = 0; idx < widget.state.entries.length; idx++) {
+      final ts = switch (widget.state.entries[idx]) {
+        UserEntry e => e.ts,
+        AssistantEntry e => e.ts,
+        _ => 0,
+      };
+      if (ts <= 0) continue;
+      final d = DateTime.fromMillisecondsSinceEpoch(ts);
+      final day = d.year * 10000 + d.month * 100 + d.day;
+      if (lastDay != null && day != lastDay) dayDividers.add(idx);
+      lastDay = day;
+    }
+
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
@@ -233,7 +254,8 @@ class _MessageListState extends ConsumerState<MessageList> {
               ),
             );
           }
-          final entry = widget.state.entries[widget.state.entries.length - 1 - i];
+          final entryIndex = widget.state.entries.length - 1 - i;
+          final entry = widget.state.entries[entryIndex];
           _builtMinI = _builtMinI == null ? i : _builtMinI! < i ? _builtMinI : i;
           _builtMaxI = _builtMaxI == null ? i : _builtMaxI! > i ? _builtMaxI : i;
           if (_pendingSeq != null && i == _targetI && _anchor == null) {
@@ -241,7 +263,22 @@ class _MessageListState extends ConsumerState<MessageList> {
           }
           final showRegenerate =
               entry is AssistantEntry && i == 0 && !widget.state.turnActive;
-          return _EntryIn(
+          Widget row = switch (entry) {
+            UserEntry() => _UserBubble(entry: entry),
+            AssistantEntry() => _AssistantBubble(entry: entry, isLast: i == 0),
+            ToolEntry() => _ToolCard(entry: entry),
+            NoticeEntry() => _NoticeChip(entry: entry),
+            AuthPromptEntry() => _AuthCard(entry: entry),
+          };
+          // The entry itself is always day-owning here (see dayDividers).
+          if (dayDividers.contains(entryIndex)) {
+            final ts = switch (entry) {
+              UserEntry(:final ts) => ts,
+              AssistantEntry(:final ts) => ts,
+              _ => 0,
+            };
+            row = Column(children: [_DayDivider(ts: ts), row]);
+          }          return _EntryIn(
             animate: _animated.add(entry.key),
             child: GestureDetector(
               // Long-press actions (copy / regenerate) like the web's
@@ -249,13 +286,7 @@ class _MessageListState extends ConsumerState<MessageList> {
               onLongPress: () => _messageActions(context, entry,
                   regenerate: showRegenerate),
               behavior: HitTestBehavior.opaque,
-              child: switch (entry) {
-                UserEntry() => _UserBubble(entry: entry),
-                AssistantEntry() => _AssistantBubble(entry: entry, isLast: i == 0),
-                ToolEntry() => _ToolCard(entry: entry),
-                NoticeEntry() => _NoticeChip(entry: entry),
-                AuthPromptEntry() => _AuthCard(entry: entry),
-              },
+              child: row,
             ),
           );
         },
@@ -599,11 +630,14 @@ class _UserBubble extends ConsumerWidget {
             // Web gates the user-side time behind hover (opacity-0
             // group-hover, chat-screen.tsx:3158); touch has none, so show
             // it always — same contract as the assistant side's time.
+            // Bare time-of-day (web formatTime parity): the calendar day
+            // is owned by the day-divider pills, not the per-bubble label.
             if (entry.ts > 0)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text(
-                  formatSessionTime(entry.ts),
+                  formatTimeOfDay(
+                      DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                   style: TextStyle(fontSize: AppType.caption, color: scheme.outline),
                 ),
               ),
@@ -702,7 +736,8 @@ class _AssistantBubble extends ConsumerWidget {
                 children: [
                   if (entry.ts > 0)
                     Text(
-                      formatSessionTime(entry.ts),
+                      formatTimeOfDay(
+                          DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                       style: TextStyle(
                           fontSize: AppType.caption, color: theme.colorScheme.outline),
                     ),
@@ -1000,6 +1035,45 @@ class _NoticeChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Day divider pill (web chat-screen.tsx:2761 parity): centered capsule,
+/// muted text on a translucent muted fill, preceding the first turn of a
+/// new calendar day. Relative 今天/昨天 for near days, else MMMEd
+/// (11月2日周一) — same policy as the web formatDayDivider.
+class _DayDivider extends StatelessWidget {
+  const _DayDivider({required this.ts});
+
+  final int ts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    final d = DateTime.fromMillisecondsSinceEpoch(ts);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(d.year, d.month, d.day);
+    final label = day == today
+        ? l.chatToday
+        : day == today.subtract(const Duration(days: 1))
+            ? l.chatYesterday
+            : formatDayLabel(d, locale: l.localeName);
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.md, vertical: AppSpace.xs),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: AppType.caption, color: theme.colorScheme.outline)),
       ),
     );
   }
