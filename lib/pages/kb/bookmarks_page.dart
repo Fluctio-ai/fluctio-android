@@ -12,6 +12,7 @@ import '../../l10n/app_localizations.dart';
 import '../../ui/form_editor_page.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
+import '../../ui/fling_detector.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/load_states.dart';
 import '../../util/open_url.dart';
@@ -33,128 +34,131 @@ class KbBookmarksPage extends ConsumerWidget {
     return Scaffold(
       // Drawer on every list surface — same gesture zone as chat.
       drawer: AppDrawer.adaptive(context),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
       appBar: AppBar(title: Text(l.kbBookmarks)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _add(context, ref, agentId),
         child: const Icon(LucideIcons.plus),
       ),
-      body: bookmarks == null
-          ? const SizedBox.shrink()
-          : bookmarks.when(
-              loading: () => const SkeletonListView(),
-              error: (e, _) => ErrorPane(message: l.chatHistoryError),
-              data: (list) {
-                if (list.isEmpty) {
-                  return EmptyState(
-                    icon: LucideIcons.bookmark,
-                    message: l.kbEmpty,
-                    // The empty state carries its own entry — same as the
-                    // notes/flash lists.
-                    action: agentId == null
-                        ? null
-                        : FilledButton(
-                            onPressed: () => _add(context, ref, agentId),
-                            child: Text(l.kbAddBookmark)),
-                  );
-                }
-                return RefreshIndicator(
-                  onRefresh: () => agentId == null
-                      ? Future.value()
-                      : ref.refresh(kbBookmarksProvider(agentId).future),
-                  child: ListView.builder(
-                    // Bottom FAB clearance (56 + 16 + 16) so the last
-                    // row scrolls out from under the button.
-                    padding: const EdgeInsets.only(bottom: 88),
-                    itemCount: list.length,
-                    itemBuilder: (context, i) {
-                      final b = list[i];
-                      final scheme = theme.colorScheme;
-                      // iOS-style swipe actions — the row keeps its full
-                      // title width, no trailing menu.
-                      return Slidable(
-                        key: ValueKey('bm-${b.id}'),
-                        endActionPane: ActionPane(
-                          motion: const DrawerMotion(),
-                          extentRatio: b.promoted ? 0.4 : 0.58,
-                          children: [
-                            SlidableAction(
-                              onPressed: (_) =>
-                                  _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
-                              backgroundColor: scheme.primary,
-                              foregroundColor: scheme.onPrimary,
-                              icon: LucideIcons.penLine,
-                              label: l.kbEdit,
-                            ),
-                            if (!b.promoted)
+      // DrawerFling: rows are Slidables that eat the arena drag.
+      body: DrawerFling(
+        child: bookmarks == null
+            ? const SizedBox.shrink()
+            : bookmarks.when(
+                loading: () => const SkeletonListView(),
+                error: (e, _) => ErrorPane(message: l.chatHistoryError),
+                data: (list) {
+                  if (list.isEmpty) {
+                    return EmptyState(
+                      icon: LucideIcons.bookmark,
+                      message: l.kbEmpty,
+                      // The empty state carries its own entry — same as the
+                      // notes/flash lists.
+                      action: agentId == null
+                          ? null
+                          : FilledButton(
+                              onPressed: () => _add(context, ref, agentId),
+                              child: Text(l.kbAddBookmark)),
+                    );
+                  }
+                  return RefreshIndicator(
+                    onRefresh: () => agentId == null
+                        ? Future.value()
+                        : ref.refresh(kbBookmarksProvider(agentId).future),
+                    child: ListView.builder(
+                      // Bottom FAB clearance (56 + 16 + 16) so the last
+                      // row scrolls out from under the button.
+                      padding: const EdgeInsets.only(bottom: 88),
+                      itemCount: list.length,
+                      itemBuilder: (context, i) {
+                        final b = list[i];
+                        final scheme = theme.colorScheme;
+                        // iOS-style swipe actions — the row keeps its full
+                        // title width, no trailing menu.
+                        return Slidable(
+                          key: ValueKey('bm-${b.id}'),
+                          endActionPane: ActionPane(
+                            motion: const DrawerMotion(),
+                            extentRatio: b.promoted ? 0.4 : 0.58,
+                            children: [
                               SlidableAction(
                                 onPressed: (_) =>
-                                    _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
-                                // Gold (warning) — distinct from the cyan
-                                // edit block and the red delete block.
-                                backgroundColor: paletteOf(context).warning,
-                                foregroundColor: paletteOf(context).warningForeground,
-                                icon: LucideIcons.trendingUp,
-                                label: l.kbPromote,
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
+                                backgroundColor: scheme.primary,
+                                foregroundColor: scheme.onPrimary,
+                                icon: LucideIcons.penLine,
+                                label: l.kbEdit,
                               ),
-                            SlidableAction(
-                              onPressed: (_) =>
-                                  _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
-                              backgroundColor: scheme.error,
-                              foregroundColor: scheme.onError,
-                              icon: LucideIcons.trash2,
-                              label: l.chatDelete,
-                            ),
-                          ],
-                        ),
-                        child: ChevronListTile(
-                          title: Row(
-                            children: [
-                              if (b.promoted)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 4),
-                                  child: Icon(LucideIcons.checkCircle2,
-                                      size: 14, color: scheme.primary),
+                              if (!b.promoted)
+                                SlidableAction(
+                                  onPressed: (_) =>
+                                      _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
+                                  // Gold (warning) — distinct from the cyan
+                                  // edit block and the red delete block.
+                                  backgroundColor: paletteOf(context).warning,
+                                  foregroundColor: paletteOf(context).warningForeground,
+                                  icon: LucideIcons.trendingUp,
+                                  label: l.kbPromote,
                                 ),
-                              Expanded(
-                                child: Text(b.title.isEmpty ? b.url : b.title,
-                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                              SlidableAction(
+                                onPressed: (_) =>
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
+                                backgroundColor: scheme.error,
+                                foregroundColor: scheme.onError,
+                                icon: LucideIcons.trash2,
+                                label: l.chatDelete,
                               ),
                             ],
                           ),
-                          subtitle: Text(
-                            b.summary.isEmpty ? _host(b.url) : b.summary,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onTap: () => openExternalUrl(b.url),
-                          onLongPress: () => showRowActionsMenu(context, [
-                            RowAction(
-                              icon: LucideIcons.penLine,
-                              label: l.kbEdit,
-                              onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
+                          child: ChevronListTile(
+                            title: Row(
+                              children: [
+                                if (b.promoted)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 4),
+                                    child: Icon(LucideIcons.checkCircle2,
+                                        size: 14, color: scheme.primary),
+                                  ),
+                                Expanded(
+                                  child: Text(b.title.isEmpty ? b.url : b.title,
+                                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
+                              ],
                             ),
-                            if (!b.promoted)
+                            subtitle: Text(
+                              b.summary.isEmpty ? _host(b.url) : b.summary,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onTap: () => openExternalUrl(b.url),
+                            onLongPress: () => showRowActionsMenu(context, [
                               RowAction(
-                                icon: LucideIcons.trendingUp,
-                                label: l.kbPromote,
-                                onRun: () =>
-                                    _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
+                                icon: LucideIcons.penLine,
+                                label: l.kbEdit,
+                                onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
                               ),
-                            RowAction(
-                              icon: LucideIcons.trash2,
-                              label: l.chatDelete,
-                              destructive: true,
-                              onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
-                            ),
-                          ]),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+                              if (!b.promoted)
+                                RowAction(
+                                  icon: LucideIcons.trendingUp,
+                                  label: l.kbPromote,
+                                  onRun: () =>
+                                      _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
+                                ),
+                              RowAction(
+                                icon: LucideIcons.trash2,
+                                label: l.chatDelete,
+                                destructive: true,
+                                onRun: () => _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
+                              ),
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 

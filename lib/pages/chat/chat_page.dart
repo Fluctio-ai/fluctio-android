@@ -15,8 +15,10 @@ import '../../chat/models.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/breakpoints.dart';
+import '../../ui/fling_detector.dart';
 import '../../ui/pane_divider.dart';
 import '../../ui/load_states.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../app_drawer.dart';
 import '../../router.dart';
@@ -434,10 +436,11 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ?.where((s) => s.id == activeSessionId)
             .firstOrNull;
     final sessionTitle = activeSession?.title;
-    // Web parity (chat-screen.tsx:1399-1409): a session whose channel is
-    // an IM (wechat/telegram/…) opens read-only — this app's send path
+    // Web parity (chat-screen.tsx:1549): a session whose channel is an
+    // IM (wechat/telegram/…) opens read-only — this app's send path
     // can't deliver into the upstream messenger, so composing here would
-    // write an orphan turn the IM user never sees.
+    // write an orphan turn the IM user never sees. Empty / web /
+    // heartbeat compose normally (contract §sessions).
     final readOnly = activeSession?.isImChannel ?? false;
     final chatOnly = activeSessionId == null
         ? false
@@ -465,13 +468,16 @@ class _ChatPageState extends ConsumerState<ChatPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Transcript-size + weight (user call 2026-11-19: 和内容
+              // 一样的大小，只是加重 — body 15 still read a step larger
+              // than the 13.5 transcript next to it).
               Text(titleText,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: AppType.transcript, fontWeight: FontWeight.w600)),
               Text(subText,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: theme.colorScheme.outline)),
+                  style: AppTheme.chatMetaStyle(theme.colorScheme)),
             ],
           ),
           actions: activeSessionId == null || activeSessionId.isEmpty
@@ -624,14 +630,11 @@ class _ChatPageState extends ConsumerState<ChatPage>
         // The shell's permanent sidebar replaces the modal drawer on wide
         // layouts.
         drawer: AppDrawer.adaptive(context),
-        // Swipe-right-to-open-drawer from mid-screen (ticket 13, revised
-        // per user feedback): the default ~20px left-edge zone is hard to
-        // hit and sits inside gesture-nav's system-back strip. A 55%-wide
-        // start zone lets a right thumb drag from the middle — clear of
-        // both system back edges. The arena still awards vertical-dominant
-        // scrolls to the transcript.
-        // (edge width is moot on wide — adaptive() gives no drawer)
-        drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+        // Narrow left-edge strip (36px): slow drags open the drawer only
+        // near the edge — a full-width arena zone would out-rank every
+        // inner horizontal scroller (markdown tables/code blocks). The
+        // DrawerFling below adds the fling fallback for plain areas.
+        drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
         // Wide: no global appBar — the header renders inside the chat
         // column (chatHeader below) so it never spans the sidebar/panel.
         appBar: wide ? null : chatHeader(inline: false),
@@ -641,7 +644,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
         // bar); the phone path keeps its exact pre-shell layout.
         body: wide
             ? SafeArea(top: true, bottom: false, child: chatBody())
-            : chatBody(),
+            : DrawerFling(child: chatBody()),
     );
   }
 }

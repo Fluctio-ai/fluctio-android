@@ -7,46 +7,63 @@ import 'package:pdfrx/pdfrx.dart';
 import '../api/api_client.dart';
 import '../auth/auth_controller.dart';
 import '../chat/chat_controller.dart';
+import '../l10n/app_localizations.dart';
 import '../pages/chat/chat_image.dart';
 import '../pages/chat/image_viewer.dart';
-import '../l10n/app_localizations.dart';
+import '../ui/load_states.dart';
+import '../ui/path_line.dart';
 import '../util/open_url.dart';
 import '../util/app_toast.dart';
 import 'media_proxy.dart';
 import 'media_viewer.dart';
+import 'code_viewer.dart';
+import 'file_kind.dart';
 import '../pages/kb/kb_text_view_page.dart';
 import '../webview/web_container.dart';
 import 'agent_files.dart';
 
-/// Lowercased extension of a file name/path ('' when none). The single
-/// classifier every preview surface (push previews, docked panel,
-/// produced-file cards) keys off.
-String workspaceFileExt(String name) =>
-    name.contains('.') ? name.split('.').last.toLowerCase() : '';
+// File-kind classification (extension sets, image/markdown/text tests,
+// highlight modes) lives in file_kind.dart; re-exported so every preview
+// surface can keep importing this file.
+export 'file_kind.dart';
 
 /// Authenticated gateway URL for one workspace file — the panel's inline
 /// image preview needs the same URL the pushed previews build.
 String workspaceFileGatewayUrl(String baseUrl, String agentId, String path) =>
     '$baseUrl${WebRoutes.agentFile(agentId, path)}';
 
-const _imgExts = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'};
-const _textExts = {
-  'txt', 'md', 'markdown', 'json', 'csv', 'log', 'yaml', 'yml', 'xml',
-  'dart', 'py', 'js', 'ts', 'go', 'rs', 'java', 'kt',
-  'c', 'cpp', 'h', 'sh', 'toml', 'ini', 'conf', 'sql',
-};
-
-/// Image files by extension (file rows' icon choice, inline preview
-/// routing).
-bool isImageFileName(String name) => _imgExts.contains(workspaceFileExt(name));
-
-/// Extensions the docked workspace panel renders INLINE (image / text /
-/// pdf). Everything else (html → WebView, audio/video → player) still
-/// routes to the full-screen push previews.
-bool canInlinePreview(String name) {
-  final ext = workspaceFileExt(name);
-  return _imgExts.contains(ext) || _textExts.contains(ext) || ext == 'pdf';
-}
+/// The ONE text-family preview body behind both surfaces (docked panel
+/// inline + full-screen push): markdown renders through the transcript
+/// reader (KbTextView owns its skeleton/error chrome), every other text
+/// file through the code viewer. Adding a text family reroutes HERE and
+/// nowhere else — the two surfaces cannot diverge.
+Widget textPreviewBody(
+  BuildContext context,
+  String name,
+  Future<String> text, {
+  String? pathLine,
+}) =>
+    isMarkdownFileName(name)
+        ? KbTextView(future: text, pathLine: pathLine)
+        : FutureBuilder<String>(
+            future: text,
+            builder: (context, snap) =>
+                snap.connectionState != ConnectionState.done
+                    ? const SkeletonProse()
+                    : snap.hasError
+                        ? ErrorPane(
+                            message:
+                                AppLocalizations.of(context)!.chatHistoryError)
+                        : Column(
+                            children: [
+                              if (pathLine != null) PathLine(pathLine),
+                              Expanded(
+                                child: CodeViewer(
+                                    content: snap.data ?? '', fileName: name),
+                              ),
+                            ],
+                          ),
+          );
 
 /// Opens one workspace file for preview, routed by extension — the one
 /// shared path behind the files sheet rows and chat-message file links.
@@ -74,7 +91,7 @@ Future<void> openWorkspaceFilePreview(
   String gatewayUrl(String path) => workspaceFileGatewayUrl(
       ref.read(authControllerProvider).baseUrl, agentId, path);
   try {
-    if (_imgExts.contains(ext)) {
+    if (isImageFileName(name)) {
       final auth = ref.read(authControllerProvider);
       if (!context.mounted) return;
       openImageViewer(
@@ -122,14 +139,16 @@ Future<void> openWorkspaceFilePreview(
       ));
       return;
     }
-    if (_textExts.contains(ext)) {
-      final text = await repo.fetchText(agentId, path, sessionId: sessionId);
+    if (isTextFileName(name)) {
+      // The future flows straight into the body factory (KbTextView owns
+      // the loading/error chrome for markdown; the code branch skeletons
+      // inside the factory).
+      final text = repo.fetchText(agentId, path, sessionId: sessionId);
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => KbTextViewPage(
-          title: name,
-          loadContent: () async => text,
-          pathLine: path,
+        builder: (pageContext) => Scaffold(
+          appBar: AppBar(title: Text(name)),
+          body: textPreviewBody(pageContext, name, text, pathLine: path),
         ),
       ));
       return;

@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../pages/app_drawer.dart';
 import 'breakpoints.dart';
 
+import 'fling_detector.dart';
 import 'load_states.dart';
 import 'pane_divider.dart';
 
@@ -26,6 +27,7 @@ class MasterDetailScaffold extends StatefulWidget {
     this.placeholderIcon = LucideIcons.squareMousePointer,
     this.placeholderText = '',
     this.floatingActionButton,
+    this.drawerFling = true,
   });
 
   /// Page app bar — spans the whole content area above both panes.
@@ -43,6 +45,11 @@ class MasterDetailScaffold extends StatefulWidget {
   final String placeholderText;
 
   final Widget? floatingActionButton;
+
+  /// Fling-right opens the drawer (rows are Slidables that eat the
+  /// arena drag). Pages whose content owns horizontal flings in some
+  /// state (diary's day view) turn this off there.
+  final bool drawerFling;
 
   /// True when this page should split list|detail instead of pushing
   /// detail routes — the same wide gate as the chat split (every wide
@@ -71,36 +78,42 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold> {
   @override
   Widget build(BuildContext context) {
     final detail = widget.detail;
+    final content = !MasterDetailScaffold.isSplit(context)
+        ? widget.listPane
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ValueListenableBuilder<double>(
+                valueListenable: _mdListWidth,
+                child: widget.listPane,
+                builder: (context, w, child) => SizedBox(width: w, child: child),
+              ),
+              // Left-anchored: positive drag grows the list.
+              PaneDivider(onDrag: _onDrag),
+              Expanded(
+                child: detail ??
+                    Center(
+                      child: EmptyState(
+                          icon: widget.placeholderIcon,
+                          message: widget.placeholderText),
+                    ),
+              ),
+            ],
+          );
     return Scaffold(
       // Same drawer story as every list surface (adaptive = gone on wide,
       // where the AppShell already mounts the permanent sidebar).
       drawer: AppDrawer.adaptive(context),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
+      // The arena drag must step aside with the fling fallback — a page
+      // that owns its horizontal flings (diary's day view) would
+      // otherwise see BOTH fire on one swipe (drawer + day switch).
+      drawerEnableOpenDragGesture: widget.drawerFling,
       appBar: widget.appBar,
       floatingActionButton: widget.floatingActionButton,
-      body: !MasterDetailScaffold.isSplit(context)
-          ? widget.listPane
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ValueListenableBuilder<double>(
-                  valueListenable: _mdListWidth,
-                  child: widget.listPane,
-                  builder: (context, w, child) =>
-                      SizedBox(width: w, child: child),
-                ),
-                // Left-anchored: positive drag grows the list.
-                PaneDivider(onDrag: _onDrag),
-                Expanded(
-                  child: detail ??
-                      Center(
-                        child: EmptyState(
-                            icon: widget.placeholderIcon,
-                            message: widget.placeholderText),
-                      ),
-                ),
-              ],
-            ),
+      // Always mounted, [DrawerFling.active] flips it inert — remounting
+      // would rebuild the whole body subtree (scroll positions lost).
+      body: DrawerFling(active: widget.drawerFling, child: content),
     );
   }
 }

@@ -48,17 +48,23 @@ abstract final class AppTheme {
         // DESIGN.md §4). Built once here instead of per markdown call.
         GptMarkdownThemeData(
           brightness: brightness,
-          h1: TextStyle(fontSize: AppType.headline, fontWeight: FontWeight.w600, height: 1.4, color: scheme.onSurface),
-          h2: TextStyle(fontSize: AppType.docH2, fontWeight: FontWeight.w600, height: 1.4, color: scheme.onSurface),
-          h3: TextStyle(fontSize: AppType.docH3, fontWeight: FontWeight.w600, height: 1.45, color: scheme.onSurface),
-          h4: TextStyle(fontSize: AppType.body, fontWeight: FontWeight.w600, color: scheme.onSurface),
-          h5: TextStyle(fontSize: AppType.docH5, fontWeight: FontWeight.w600, color: scheme.onSurface),
+          // Reader headings share the chat surface's w500 (one weight
+          // policy app-wide, user sync call 2026-11-19); the doc ladder
+          // keeps its larger sizes — long-form readers earn them.
+          h1: TextStyle(fontSize: AppType.headline, fontWeight: FontWeight.w500, height: 1.4, color: scheme.onSurface),
+          h2: TextStyle(fontSize: AppType.docH2, fontWeight: FontWeight.w500, height: 1.4, color: scheme.onSurface),
+          h3: TextStyle(fontSize: AppType.docH3, fontWeight: FontWeight.w500, height: 1.45, color: scheme.onSurface),
+          h4: TextStyle(fontSize: AppType.body, fontWeight: FontWeight.w500, color: scheme.onSurface),
+          h5: TextStyle(fontSize: AppType.docH5, fontWeight: FontWeight.w500, color: scheme.onSurface),
           h6: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500, color: scheme.onSurface),
           linkColor: scheme.primary,
           styleSheet: GptMarkdownStyleSheet(
             blockSpacing: 8,
             blockQuote: BlockQuoteStyle(
               barColor: scheme.outlineVariant,
+              // Soft tinted card behind the quote (Doubao parity — a bare
+              // side bar reads as an error stripe on a chat surface).
+              backgroundColor: scheme.secondaryContainer.withValues(alpha: 0.45),
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             ),
             codeBlock: CodeBlockStyle(
@@ -70,7 +76,19 @@ abstract final class AppTheme {
             ),
             table: TableStyle(borderColor: scheme.outlineVariant),
             hr: HrStyle(color: scheme.outlineVariant),
-            inlineCode: const InlineCodeStyle(fontFamily: 'monospace'),
+            // Inline code as a quiet whisper, not a badge (Doubao parity):
+            // slightly smaller than the body, tinted fill, no border.
+            // borderWidth: 0 must be explicit — the fork's resolve()
+            // defaults to a 1px outline when the field is unset (copyWith
+            // can't express "unset" later).
+            inlineCode: InlineCodeStyle(
+              fontSizeFactor: 0.9,
+              color: scheme.onSurfaceVariant,
+              backgroundColor: scheme.secondaryContainer.withValues(alpha: 0.6),
+              borderWidth: 0,
+              borderRadius: const Radius.circular(4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+            ),
           ),
         ),
       ],
@@ -84,15 +102,16 @@ abstract final class AppTheme {
       appBarTheme: AppBarTheme(
         // Tight top-bar rhythm — the M3 defaults (leadingWidth 56,
         // titleSpacing 16) leave wide gutters between menu/back icon
-        // and title on a phone. One title spec app-wide (design
-        // decision 1): the 17px title step. The M3 default (titleLarge,
-        // 22px) towers over a 15px body column; 22px stays reserved for
-        // display/headline surfaces (setup, empty states).
+        // and title on a phone. One title RULE app-wide (user sync call
+        // 2026-11-19: 大标题同正文尺寸只加字重) — each surface's title
+        // is that surface's body size + w600: AppBar pages use body 15
+        // (the 17px step read as a second app bar inside the page); the
+        // chat header uses transcript 13.5 (chat_page).
         titleSpacing: 8,
         leadingWidth: 48,
         titleTextStyle: TextStyle(
-          fontSize: AppType.title,
-          fontWeight: FontWeight.w500,
+          fontSize: AppType.body,
+          fontWeight: FontWeight.w600,
           height: 1.45,
           color: colors.cardForeground,
         ),
@@ -163,4 +182,10 @@ abstract final class AppTheme {
       labelSmall: TextStyle(fontSize: AppType.caption, height: 1.4, fontWeight: w500),
     );
   }
+
+  /// Chat chrome metadata line (chat header's agent·model, drawer agent
+  /// header's model) — the chatMeta step in the outline color. Single
+  /// source so the two chrome surfaces can't drift apart.
+  static TextStyle chatMetaStyle(ColorScheme colors) =>
+      TextStyle(fontSize: AppType.chatMeta, color: colors.outline);
 }

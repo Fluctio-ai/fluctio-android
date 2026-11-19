@@ -124,11 +124,17 @@ class Composer extends StatelessWidget {
               controller: controller,
               onChanged: (_) => onChanged(),
               readOnly: readOnly,
+              // IM/readonly sessions: no cursor, no keyboard — tapping the
+              // field must not summon a focus round-trip that goes nowhere.
+              canRequestFocus: !readOnly,
               minLines: 1,
               maxLines: 6,
               keyboardType: TextInputType.multiline,
               textCapitalization: TextCapitalization.sentences,
-              style: const TextStyle(fontSize: AppType.body, height: 1.4),
+              // Transcript size, not body: the composer is the chat
+              // surface's other half — bubble text and typed text must
+              // match (user call 2026-11-19).
+              style: const TextStyle(fontSize: AppType.transcript, height: 1.5),
               decoration: InputDecoration(
                 hintText: readOnly ? l.chatImReadOnlyHint : l.chatEmpty,
                 border: InputBorder.none,

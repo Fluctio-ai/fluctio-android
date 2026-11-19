@@ -12,6 +12,7 @@ import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
 import '../ui/settings_list.dart';
 import '../util/app_toast.dart';
+import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 import '../ui/breakpoints.dart';
 import 'chat/chat_image.dart';
@@ -37,15 +38,15 @@ class AppDrawer extends ConsumerStatefulWidget {
   static Widget? adaptive(BuildContext context) =>
       hasPermanentSidebar(context) ? null : const AppDrawer();
 
-  /// The drawer gesture zone every surface shares: the full screen width
-  /// (user request 2026-11-11, supersedes ticket 13's quarter-width zone).
-  /// Conflicts resolve in favor of the innermost recognizer — swipeable
-  /// rows keep their own gesture; horizontal drags on anything else open
-  /// the drawer. The system back-gesture edges still win at the OS level.
-  /// Every Scaffold that mounts this drawer sizes its edge drag with
-  /// this, so the zone never drifts between pages.
-  static double edgeDragWidth(BuildContext context) =>
-      MediaQuery.sizeOf(context).width;
+  /// The drawer gesture zone every surface shares. Narrow left-edge
+  /// strip (2026-11-19, supersedes both the quarter-width ticket 13 zone
+  /// AND the 2026-11-11 full-width request): the arena recognizer for a
+  /// full-width zone out-ranks EVERY inner horizontal scroller in the
+  /// hit path — markdown tables and code blocks lost their horizontal
+  /// swipe app-wide. Fast flings anywhere still open the drawer via
+  /// `DrawerFling` (raw pointer, outside the arena); this strip keeps
+  /// slow edge drags working clear of the system back strip.
+  static const double edgeDragWidth = 36.0;
 
   @override
   ConsumerState<AppDrawer> createState() => _AppDrawerState();
@@ -141,7 +142,11 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                     title: Text(l.seeAllChats),
                     onTap: () {
                       _closeIfModal(context);
-                      context.push('/chats');
+                      // Replacement, not push: the chat↔list lap (chat →
+                      // drawer → list → open chat) must not grow the
+                      // stack by two live ChatPages per lap — each pushed
+                      // page fully rebuilds on every streaming delta.
+                      context.pushReplacement('/chats');
                     },
                   ),
                 ],
@@ -161,12 +166,14 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
         ),
     );
     if (widget.embedded) return body;
-    // Full-screen modal drawer (user request): the phone menu takes the
-    // whole width instead of Material's 304dp sheet — still closable by
-    // horizontal drag or back.
+    // Near-full modal drawer (QQ parity, revises the 2026-11-11
+    // full-screen request): the exposed 15% of the page closes on tap
+    // and keeps the context visible, so closing no longer depends on
+    // the back key or an in-drawer swipe (whose right-edge start the
+    // system gesture strip eats). Still closable by drag or back.
     return Drawer(
       shape: const RoundedRectangleBorder(),
-      width: MediaQuery.sizeOf(context).width,
+      width: MediaQuery.sizeOf(context).width * 0.85,
       child: body,
     );
   }
@@ -350,11 +357,16 @@ class _AgentHeader extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Transcript-size + weight, same as the chat header —
+                  // the drawer is the chat's sibling surface.
                   Text(agent?.name ?? '',
-                      maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: AppType.transcript, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(agent?.model.isEmpty == false ? agent!.model : '',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: AppTheme.chatMetaStyle(theme.colorScheme)),
                 ],
               ),
             ),

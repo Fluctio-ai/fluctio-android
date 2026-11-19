@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.2.0+11
+version: 1.3.0+12
 
 environment:
   sdk: ^3.13.4
@@ -75,6 +75,13 @@ dependencies:
   share_plus: ^12.0.2
   file_saver: ^0.7.0
   fluttertoast: ^10.0.2
+
+# Local fork of the pinned gpt_markdown — bold runs render at w600, not
+# the package's hardcoded w700 (CJK w700 reads as a black slab). See
+# third_party/gpt_markdown/PATCHNOTES.md before touching this.
+dependency_overrides:
+  gpt_markdown:
+    path: third_party/gpt_markdown
 
 dev_dependencies:
   flutter_test:

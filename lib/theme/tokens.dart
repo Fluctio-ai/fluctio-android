@@ -136,6 +136,12 @@ BoxDecoration surfaceCardDecoration(ColorScheme scheme) => BoxDecoration(
       border: Border.all(color: scheme.outlineVariant),
     );
 
+/// Mono family for metadata (timestamps, tool-card names) and code —
+/// bundled by the gpt_markdown fork. The fully-qualified name is how
+/// FontManifest registers the package font; a bare 'JetBrainsMono'
+/// resolves to nothing and silently falls back to the system sans.
+const codeMonoFamily = 'packages/gpt_markdown/JetBrainsMono';
+
 /// Type ladder (sp, DESIGN.md §3): display 28 / headline 22 / title 17 /
 /// body 15 / secondary 13 / caption 12, plus a data-annotation step used
 /// only inside dense chart/calendar cells (gantt hour ruler, week chips).
@@ -158,11 +164,20 @@ abstract final class AppType {
   static const docH5 = 14.0;
 
   /// Chat transcript scale (web chat-markdown.tsx `chat-md
-  /// text-[13.5px]`, headings capped at 15/14 and descending into the
-  /// body) — one notch under the doc ladder the KB/wiki readers keep.
+  /// text-[13.5px]`) — one notch under the doc ladder the KB/wiki readers
+  /// keep. Headings sit ~1.2/1.11× the body (Doubao-parity hierarchy;
+  /// the old 15/14 caps landed barely above the body and bold carried
+  /// all the weight).
   static const transcript = 13.5;
-  static const chatH1 = 15.0;
-  static const chatH2 = 14.0;
+  static const chatH1 = 16.0;
+  static const chatH2 = 15.0;
+
+  /// Chat chrome metadata (chat header's agent·model line, drawer agent
+  /// header's model line) — a chat-surface interpolation like
+  /// [transcript]: at the caption 12 the tier scaling still made it read
+  /// as a second title next to the body-weight chat title (user call
+  /// 2026-11-19: 大标题同正文尺寸，只加字重；屏幕就这么大).
+  static const chatMeta = 11.0;
 }
 
 /// Radius families pinned like the web (globals.css @theme): 4px nested,

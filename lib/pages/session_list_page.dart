@@ -5,7 +5,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/fling_detector.dart';
 import '../ui/load_states.dart';
+import '../theme/tokens.dart';
 import 'app_drawer.dart';
 import 'chat/panels.dart';
 
@@ -13,6 +15,21 @@ import 'chat/panels.dart';
 /// target, the mobile take on the web `/agents/<id>/chats` page. Tapping
 /// a row opens the conversation at `/c/<sessionId>`, so the back gesture
 /// / leading arrow returns here.
+
+/// Double-tap guard for the page's taps (stateless page): push and
+/// newChat() are not idempotent — a second tap inside the window would
+/// stack a duplicate ChatPage or create a second (orphan) server
+/// session. 600ms covers the fastest repeated taps.
+var _lastTapAt = DateTime.fromMillisecondsSinceEpoch(0);
+bool _debounceTap() {
+  final now = DateTime.now();
+  if (now.difference(_lastTapAt) < const Duration(milliseconds: 600)) {
+    return true;
+  }
+  _lastTapAt = now;
+  return false;
+}
+
 class SessionListPage extends ConsumerWidget {
   const SessionListPage({super.key});
 
@@ -77,7 +94,10 @@ class SessionListPage extends ConsumerWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(selected.name, style: theme.textTheme.titleMedium),
+                // Same chrome rule as the chat header: transcript-size + weight.
+                Text(selected.name,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        fontSize: AppType.transcript, fontWeight: FontWeight.w600)),
                 if (agents.agents.length > 1) const Icon(LucideIcons.chevronDown),
               ],
             ),
@@ -87,16 +107,19 @@ class SessionListPage extends ConsumerWidget {
           IconButton(
             tooltip: l.chatNew,
             onPressed: () async {
+              if (_debounceTap()) return;
               final sid = await ref.read(chatStoreProvider.notifier).newChat();
               if (sid.isNotEmpty && context.mounted) {
-                context.go('/c/${Uri.encodeComponent(sid)}');
+                context.push('/c/${Uri.encodeComponent(sid)}');
               }
             },
             icon: const Icon(LucideIcons.messageSquarePlus),
           ),
         ],
       ),
-      body: _SessionListView(agentId: selected.id),
+      // DrawerFling: the rows are Slidables that eat the Scaffold's
+      // arena drag — fling fallback keeps swipe-right-drawer alive.
+      body: DrawerFling(child: _SessionListView(agentId: selected.id)),
     );
   }
 }
@@ -190,10 +213,14 @@ class _SessionListViewState extends ConsumerState<_SessionListView> {
                           ref.watch(chatStoreProvider.select((st) => st.activeKey)) ==
                               '${widget.agentId}|${s.id}',
                       onTap: () {
+                        if (_debounceTap()) return;
                         ref
                             .read(chatStoreProvider.notifier)
                             .openSession(widget.agentId, s.id);
-                        context.go('/c/${Uri.encodeComponent(s.id)}');
+                        // Push (not go): back from the conversation
+                        // returns here — the list↔conversation flow
+                        // keeps its stack shape like QQ's.
+                        context.push('/c/${Uri.encodeComponent(s.id)}');
                       },
                     );
                   },

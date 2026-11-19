@@ -53,16 +53,22 @@ class ChatSessionInfo {
   final bool pinned;
   final String projectId;
 
-  /// Owning IM channel (wechat/telegram/…). Empty or `web` = a chat this
-  /// app can compose into; anything else is read-only — the app/web send
-  /// path can't deliver into upstream messengers (web parity,
-  /// chat-screen.tsx:1399-1414).
+  /// Owning channel (contract §sessions, 2026-11-19 revision): empty /
+  /// `web` / `heartbeat` compose normally — heartbeat sessions run on
+  /// their own cron channel and compose lands IN the session
+  /// (internal/cron/scheduler.go:340-344; the backend has no channel
+  /// guard, read-only is client policy). Everything else — real IM
+  /// channels, plugin manifest IDs, `api`, `subagent`, unknown — is
+  /// read-only: the app/web send path can't deliver upstream, so
+  /// composing would write an orphan turn (web lags on heartbeat,
+  /// chat-screen.tsx:1549 still read-only there).
   final String channel;
   final String thumbnailUrl;
   final int createdAt;
   final int updatedAt;
 
-  bool get isImChannel => channel.isNotEmpty && channel != 'web';
+  bool get isImChannel =>
+      channel.isNotEmpty && channel != 'web' && channel != 'heartbeat';
 
   factory ChatSessionInfo.fromJson(Map<String, dynamic> json) => ChatSessionInfo(
         id: json['id'] as String? ?? '',

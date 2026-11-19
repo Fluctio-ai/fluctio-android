@@ -10,6 +10,7 @@ import '../auth/session_cookie.dart';
 import '../files/agent_files.dart';
 import '../l10n/app_localizations.dart';
 import '../pages/app_drawer.dart';
+import '../ui/fling_detector.dart';
 import 'local_web_server.dart';
 
 /// Web-app routes the native app embeds in the fallback container — the
@@ -208,38 +209,43 @@ class _WebContainerPageState extends ConsumerState<WebContainerPage> {
       appBar: widget.showTitle ? AppBar(title: Text(widget.title)) : null,
       drawer: widget.showDrawer ? AppDrawer.adaptive(context) : null,
       // (edge width is moot when showDrawer=false — there is no drawer)
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
-      body: IndexedStack(
-        index: _stackIndex,
-        children: [
-          // 0: loading — blank in local mode (assets answer in
-          // milliseconds; a spinner flash is pure noise). Online keeps
-          // the progress view.
-          _local
-              ? const SizedBox.expand()
-              : Center(
-                  child: SizedBox(
-                    width: 180,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        LinearProgressIndicator(value: _progress == 0 ? null : _progress),
-                        const SizedBox(height: 8),
-                        Text(l.webLoading, style: theme.textTheme.bodySmall),
-                      ],
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
+      // DrawerFling: the WebView's horizontal drags bubble scroll
+      // notifications that would eat the arena drag — same fallback as
+      // the list surfaces (the 36px strip alone is not enough).
+      body: DrawerFling(
+        child: IndexedStack(
+          index: _stackIndex,
+          children: [
+            // 0: loading — blank in local mode (assets answer in
+            // milliseconds; a spinner flash is pure noise). Online keeps
+            // the progress view.
+            _local
+                ? const SizedBox.expand()
+                : Center(
+                    child: SizedBox(
+                      width: 180,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          LinearProgressIndicator(value: _progress == 0 ? null : _progress),
+                          const SizedBox(height: 8),
+                          Text(l.webLoading, style: theme.textTheme.bodySmall),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-          // 1: content
-          _controller == null
-              ? const SizedBox.shrink()
-              : WebViewWidget(controller: _controller!),
-          // 2: error
-          _ErrorView(
-            onRetry: _load,
-            onRelogin: () => ref.read(authControllerProvider.notifier).logout(),
-          ),
-        ],
+            // 1: content
+            _controller == null
+                ? const SizedBox.shrink()
+                : WebViewWidget(controller: _controller!),
+            // 2: error
+            _ErrorView(
+              onRetry: _load,
+              onRelogin: () => ref.read(authControllerProvider.notifier).logout(),
+            ),
+          ],
+        ),
       ),
       ),
     );

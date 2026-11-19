@@ -12,6 +12,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../todo/todo_reminders.dart';
 import '../../ui/adaptive_tab_bar.dart';
+import '../../ui/fling_detector.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
@@ -50,7 +51,7 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
     return Scaffold(
       // Drawer on every list surface — same gesture zone as chat.
       drawer: AppDrawer.adaptive(context),
-      drawerEdgeDragWidth: AppDrawer.edgeDragWidth(context),
+      drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
       appBar: AppBar(title: Text(l.kbTodos)),
       floatingActionButton: FloatingActionButton(
         onPressed: agentId == null ? null : () => _edit(context, ref, agentId, null),
@@ -58,7 +59,11 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
       ),
       body: todos == null
           ? const SizedBox.shrink()
-          : todos.when(
+          // DrawerFling: the list rows are Slidables that eat the
+          // Scaffold's arena drag — same fallback as every sibling list
+          // surface, or swipe-right-drawer dies with the 36px strip.
+          : DrawerFling(
+              child: todos.when(
               loading: () => const SkeletonListView(),
               error: (e, _) => ErrorPane(message: l.chatHistoryError),
               data: (list) {
@@ -132,6 +137,7 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
                 );
               },
             ),
+          ),
     );
   }
 

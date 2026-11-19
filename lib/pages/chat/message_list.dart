@@ -15,6 +15,7 @@ import '../../ui/load_states.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
 import 'typing_dots.dart';
+import '../../theme/font_scale.dart';
 import '../../theme/tokens.dart';
 import '../../files/file_preview.dart';
 import '../../files/agent_files.dart';
@@ -388,14 +389,22 @@ class _JumpToLatest extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Rounded square (send-button shape family, user call 2026-11-19) but
+    // the ORIGINAL quiet colors — surface fill + hairline border; a filled
+    // primary block floating over the transcript was too loud.
     return Material(
       color: scheme.surface,
-      shape: CircleBorder(side: BorderSide(color: scheme.outlineVariant)),
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.controlBorder,
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: const Padding(
-          padding: EdgeInsets.all(10),
+        child: Padding(
+          // 12 + 20px icon = 44dp — the app-wide touch-target floor
+          // (DESIGN.md); 9+18 (36dp) undershot it.
+          padding: const EdgeInsets.all(AppSpace.md),
           child: Icon(LucideIcons.arrowDown, size: 20),
         ),
       ),
@@ -511,8 +520,11 @@ class _UserBubble extends ConsumerWidget {
     final scheme = Theme.of(context).colorScheme;
     final auth = ref.watch(authControllerProvider);
     final l = AppLocalizations.of(context)!;
+    // Rhythm breathes with the font tier (WeChat parity) — see
+    // fontLayoutScale.
+    final f = fontLayoutScale(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.symmetric(vertical: 4 * f),
       child: Align(
         alignment: Alignment.centerRight,
         child: Column(
@@ -520,7 +532,7 @@ class _UserBubble extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: EdgeInsets.fromLTRB(12 * f, 10 * f, 12 * f, 10 * f),
               constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.82),
               decoration: BoxDecoration(
                 // Web: primary/10 tint with primary text (light theme = our
@@ -600,7 +612,14 @@ class _UserBubble extends ConsumerWidget {
                     ),
                   if (entry.text.isNotEmpty)
                     Text(entry.text,
-                        style: TextStyle(color: scheme.onPrimaryContainer, height: 1.5)),
+                        // Transcript size: the user bubble is the other
+                        // half of the conversation — it rendered at the
+                        // ambient bodyMedium (15) and read a step larger
+                        // than the assistant's 13.5 (user call).
+                        style: TextStyle(
+                            fontSize: AppType.transcript,
+                            color: scheme.onPrimaryContainer,
+                            height: 1.7)),
                   if (entry.pendingSteer)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -638,7 +657,12 @@ class _UserBubble extends ConsumerWidget {
                 child: Text(
                   formatTimeOfDay(
                       DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                  style: TextStyle(fontSize: AppType.caption, color: scheme.outline),
+                  // Mono metadata per DESIGN §3; scales with the tier
+                  // like everything else.
+                  style: TextStyle(
+                      fontSize: AppType.caption,
+                      fontFamily: codeMonoFamily,
+                      color: scheme.outline),
                 ),
               ),
           ],
@@ -663,9 +687,12 @@ class _AssistantBubble extends ConsumerWidget {
     // Quick-reply chips (```options fenced block): rendering-time split,
     // entry.text stays raw (web parity, chat-screen.tsx:3111).
     final reply = splitReplyOptions(entry.text);
+    // Rhythm breathes with the font tier (WeChat parity) — see
+    // fontLayoutScale.
+    final f = fontLayoutScale(context);
     return Padding(
       // Web transcript rhythm: space-y-3 (12px) between turns.
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: EdgeInsets.symmetric(vertical: 6 * f),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -674,7 +701,7 @@ class _AssistantBubble extends ConsumerWidget {
           // rounded-bl-md). Accidentally flattened in 35273ff's layout
           // pass — restored per the web contract.
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: EdgeInsets.fromLTRB(12 * f, 10 * f, 12 * f, 10 * f),
             decoration: BoxDecoration(
               color: theme.colorScheme.secondaryContainer,
               borderRadius: const BorderRadius.only(
@@ -739,7 +766,9 @@ class _AssistantBubble extends ConsumerWidget {
                       formatTimeOfDay(
                           DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                       style: TextStyle(
-                          fontSize: AppType.caption, color: theme.colorScheme.outline),
+                          fontSize: AppType.caption,
+                          fontFamily: codeMonoFamily,
+                          color: theme.colorScheme.outline),
                     ),
                   if (canRegenerate) _RegenerateButton(),
                 ],
@@ -870,11 +899,18 @@ class _ToolCardState extends ConsumerState<_ToolCard> {
                   Icon(LucideIcons.terminal, size: 15, color: theme.colorScheme.outline),
                   const SizedBox(width: 8),
                   Expanded(
+                    // Metadata stays quiet by ROLE, not by freeze: a
+                    // labelMedium rung under the body keeps it below the
+                    // transcript at every tier, and everything scales
+                    // with the root TextScaler together (user
+                    // consistency call 2026-11-19 — one system, no
+                    // per-site overrides).
                     child: Text(
                       entry.name.isEmpty ? l.chatToolCalling : entry.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge?.copyWith(fontFamily: 'monospace'),
+                      style: theme.textTheme.labelMedium
+                          ?.copyWith(fontFamily: codeMonoFamily),
                     ),
                   ),
                   const SizedBox(width: 8),

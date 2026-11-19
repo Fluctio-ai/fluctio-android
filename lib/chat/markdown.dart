@@ -3,6 +3,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/font_scale.dart';
 import '../theme/tokens.dart';
 import '../webview/web_container.dart';
 
@@ -166,27 +167,35 @@ GptMarkdownConfig markdownConfig(
           ?.copyWith(height: _zhBodyHeight(context)),
     );
 
+/// The shared GptMarkdown construction — every boxed surface in this
+/// file goes through here so a fork-parameter change (normalize, KaTeX
+/// dollars, link/image wiring) lands once, not once per wrapper.
+Widget _gptBody(GptMarkdownConfig config, String data, {TextStyle? style}) =>
+    GptMarkdown(
+      normalizeMarkdownBlocks(data),
+      // The backend's math dialect is the web's @streamdown/math:
+      // `$...$` inline, `$$ ... $$` block (KaTeX style).
+      useDollarSignsForLatex: true,
+      onLinkTap: config.onLinkTap,
+      imageBuilder: config.imageBuilder,
+      latexWorkaround: config.latexWorkaround,
+      blockComponents: config.blockComponents,
+      style: style ?? config.style,
+    );
+
 /// Non-scrolling markdown body for chat bubbles and other inline
-/// surfaces.
-GptMarkdown transcriptMarkdown(
+/// surfaces. Paragraph rhythm needs no tier wiring: the fork renders
+/// blockSpacing as an em-height span, so the root TextScaler scales it
+/// with the glyphs — constant in line-height units by construction.
+Widget transcriptMarkdown(
   BuildContext context,
   String data, {
   void Function(String href)? onTapLink,
   ImageBuilder? imageBuilder,
-}) {
-  final config = markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder);
-  return GptMarkdown(
-    normalizeMarkdownBlocks(data),
-    // The backend's math dialect is the web's @streamdown/math:
-    // `$...$` inline, `$$ ... $$` block (KaTeX style).
-    useDollarSignsForLatex: true,
-    onLinkTap: config.onLinkTap,
-    imageBuilder: config.imageBuilder,
-    latexWorkaround: config.latexWorkaround,
-    blockComponents: config.blockComponents,
-    style: config.style,
-  );
-}
+}) =>
+    _gptBody(
+        markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder),
+        data);
 
 /// Chat-bubble variant: the web's chat-md scale (chat-markdown.tsx) —
 /// body 13.5 with headings capped at 15/14 — while KB/wiki readers
@@ -198,27 +207,47 @@ Widget chatTranscript(
   ImageBuilder? imageBuilder,
 }) {
   final scheme = Theme.of(context).colorScheme;
+  final f = fontLayoutScale(context);
+  // Headings damped (user feedback 2026-11-19): the uniform TextScaler
+  // balloons headings into banners at 大 — hierarchy should whisper, not
+  // shout. `damp` pre-divides the factor (the root TextScaler
+  // multiplies every fontSize afterwards); effective heading scale is
+  // 1 + (f−1)/2.
+  final damp = (1 + (f - 1) * 0.5) / f;
   TextStyle heading(double size, FontWeight weight, double? height) => TextStyle(
-      fontSize: size, fontWeight: weight, height: height, color: scheme.onSurface);
+      fontSize: size * damp, fontWeight: weight, height: height, color: scheme.onSurface);
   final config = markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder);
+  final base = GptMarkdownTheme.of(context);
+  // Code blocks default to the ambient bodyMedium (15) — a notch above
+  // the transcript body — and quotes inherit the same ambient. Both get
+  // pinned to the transcript size here (user call 2026-11-19: 引用/代码
+  // 字号反而更大); the KB/wiki readers keep their doc-ladder defaults.
+  // Paragraph spacing scales via the TextScaler on its own (em-height
+  // spans in the fork) — see transcriptMarkdown.
+  final sheet = base.styleSheet.copyWith(
+    codeBlock: (base.styleSheet.codeBlock ?? const CodeBlockStyle())
+        .copyWith(fontSize: AppType.transcript),
+    blockQuote: (base.styleSheet.blockQuote ?? const BlockQuoteStyle())
+        .copyWith(textStyle: TextStyle(fontSize: AppType.transcript, height: 1.7)),
+  );
   return GptMarkdownTheme(
-    gptThemeData: GptMarkdownTheme.of(context).copyWith(
-      h1: heading(AppType.chatH1, FontWeight.w600, 1.4),
-      h2: heading(AppType.chatH2, FontWeight.w600, 1.4),
-      h3: heading(AppType.transcript, FontWeight.w600, 1.45),
-      h4: heading(AppType.transcript, FontWeight.w600, null),
-      h5: heading(AppType.transcript, FontWeight.w600, null),
+    gptThemeData: base.copyWith(
+      // Chat headings at w500 (user ladder 2026-11-19: 700/600 black
+      // slabs, bare 400 indistinguishable — Medium is the visible-but-
+      // quiet landing). Hierarchy = w500 + the size ladder (16/15/14) +
+      // spacing; reader surfaces keep their own weights.
+      h1: heading(AppType.chatH1, FontWeight.w500, 1.4),
+      h2: heading(AppType.chatH2, FontWeight.w500, 1.4),
+      h3: heading(AppType.docH5, FontWeight.w500, 1.45),
+      // h4-h6 stay body-sized: below h3 the ladder gives nothing and
+      // chat-md almost never emits them; w500 keeps them findable.
+      h4: heading(AppType.transcript, FontWeight.w500, null),
+      h5: heading(AppType.transcript, FontWeight.w500, null),
       h6: heading(AppType.transcript, FontWeight.w500, null),
+      styleSheet: sheet,
     ),
-    child: GptMarkdown(
-      normalizeMarkdownBlocks(data),
-      useDollarSignsForLatex: true,
-      onLinkTap: config.onLinkTap,
-      imageBuilder: config.imageBuilder,
-      latexWorkaround: config.latexWorkaround,
-      blockComponents: config.blockComponents,
-      style: config.style?.copyWith(fontSize: AppType.transcript),
-    ),
+    child: _gptBody(config, data,
+        style: config.style?.copyWith(fontSize: AppType.transcript)),
   );
 }
 

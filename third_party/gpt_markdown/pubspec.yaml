@@ -1,0 +1,27 @@
+name: gpt_markdown
+description: >-
+  Local fork of gpt_markdown 1.3.1 (pinned upstream). Single patch: bold
+  runs render at FontWeight.w600 instead of the hardcoded w700 — CJK w700
+  reads as a black slab; w600 is the Doubao-parity "confident but quiet"
+  bold. See PATCHNOTES.md for the diff and resync procedure.
+version: 1.3.1+fluctio.1
+publish_to: none
+homepage: https://gptmarkdown.com
+repository: https://github.com/useval/gpt_markdown
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  val_latex_flutter: ^0.1.1
+  val_highlight: ^0.1.0
+  val_highlight_flutter: ^0.1.0
+
+flutter:
+  fonts:
+    - family: JetBrainsMono
+      fonts:
+        - asset: lib/fonts/JetBrainsMono-Regular.ttf

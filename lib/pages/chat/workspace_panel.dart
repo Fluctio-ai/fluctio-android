@@ -1,5 +1,4 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -11,7 +10,6 @@ import '../../files/file_preview.dart';
 import '../../files/workspace_files.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/breakpoints.dart';
-import '../kb/kb_text_view_page.dart';
 import 'chat_image.dart';
 
 /// Docked workspace panel state (tablet split layout only — nothing reads
@@ -176,7 +174,8 @@ class WorkspacePanel extends ConsumerWidget {
 }
 
 /// Inline preview for the panel: image via the authenticated gateway,
-/// text/markdown via [KbTextView], pdf via pdfrx. Fetches start once in
+/// text family via [textPreviewBody] (markdown → transcript reader /
+/// other text → code viewer), pdf via pdfrx. Fetches start once in
 /// initState (keyed by path from the parent) so rebuilds don't refetch.
 /// [canInlinePreview] gates what reaches here.
 class _InlineFilePreview extends ConsumerStatefulWidget {
@@ -224,7 +223,12 @@ class _InlineFilePreviewState extends ConsumerState<_InlineFilePreview> {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
     if (_textFuture != null) {
-      return KbTextView(future: _textFuture, pathLine: widget.path);
+      // The shared text-family factory in file_preview.dart picks the
+      // renderer (markdown → transcript reader, everything else → code
+      // viewer) and owns the async chrome — same rule as the push
+      // previews, one decision point.
+      return textPreviewBody(context, widget.path, _textFuture!,
+          pathLine: widget.path);
     }
     final bytesFuture = _bytesFuture;
     if (bytesFuture != null) {

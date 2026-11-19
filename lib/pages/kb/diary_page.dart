@@ -11,6 +11,7 @@ import '../../kb/shelved_actions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
+import '../../ui/fling_detector.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
@@ -46,6 +47,11 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
   /// cleared when the reader returns to the top or back to the list.
   bool _collapsed = false;
 
+  /// Last seen split flag — the fold is phone-only, so entering the wide
+  /// layout must reset [_collapsed] or the visual (always-expanded
+  /// calendar) and the gates (drawerFling, enableRefresh) decouple.
+  bool? _lastSplit;
+
   @override
   void initState() {
     super.initState();
@@ -61,25 +67,48 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
 
   /// Fold/unfold driver for the day pane's scroll: a downward read (finger
   /// up) collapses once the gesture's accumulated travel passes a small
-  /// threshold — per-frame deltas never fire on a slow drag — and coming
-  /// to rest at the top unfolds. The month list (nothing selected) never
-  /// folds — the calendar stays put there.
+  /// threshold — per-frame deltas never fire on a slow drag. Days with no
+  /// or shorter-than-viewport content never produce scroll deltas, so the
+  /// fold also listens at the bottom edge: a damped upward overscroll
+  /// (≥90px) collapses those (user report 2026-11-19). Unfolding stays
+  /// the deliberate damped top pull; the pull-to-refresh only mounts in
+  /// the expanded state, so the three gestures never fight.
+  ///
+  /// Invariant: the bottom-edge pull rides the SAME accumulator as scroll
+  /// travel, and the two paths can never compete — taller content folds
+  /// at the tiny >12 travel in ScrollUpdate (before any overscroll can
+  /// happen), shorter content accumulates only overscroll and folds at
+  /// the ScrollEnd ≥90px check.
   double _readScroll = 0;
+  double _expandPull = 0;
 
   bool _onDayPaneScroll(ScrollNotification n) {
     if (n.depth != 0 || _selected == null) return false;
     if (n is ScrollStartNotification) {
       _readScroll = 0;
+      _expandPull = 0;
     } else if (n is ScrollUpdateNotification) {
       _readScroll += n.scrollDelta ?? 0;
       if (_readScroll > 12 && !_collapsed) {
         setState(() => _collapsed = true);
       }
+    } else if (n is OverscrollNotification) {
+      // ClampingScrollPhysics reports a top-edge pull as NEGATIVE
+      // overscroll (value - pixels < 0 at min extent) and a bottom-edge
+      // pull as positive (at max extent).
+      if (n.overscroll < 0 && n.metrics.pixels <= 0 && _collapsed) {
+        _expandPull += -n.overscroll;
+      } else if (n.overscroll > 0 &&
+          n.metrics.pixels >= n.metrics.maxScrollExtent &&
+          !_collapsed) {
+        _readScroll += n.overscroll;
+      }
     } else if (n is ScrollEndNotification) {
-      if (n.metrics.pixels <= 8 && _collapsed) {
-        setState(() => _collapsed = false);
+      if (_collapsed ? _expandPull >= 90 : _readScroll >= 90) {
+        setState(() => _collapsed = !_collapsed);
       }
       _readScroll = 0;
+      _expandPull = 0;
     }
     return false;
   }
@@ -89,6 +118,22 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
         _selected = null;
         _collapsed = false;
       });
+
+  /// Fling left/right inside the open day = next/previous day (calendar
+  /// convention: right = back a day), clamped at today. The month view
+  /// follows across month boundaries so the heat calendar stays in sync.
+  void _shiftDay(int deltaDays) {
+    final s = _selected;
+    if (s == null) return;
+    final d = DateTime.parse('$s 00:00:00').add(Duration(days: deltaDays));
+    final today = DateTime.parse('${_todayCST()} 00:00:00');
+    if (d.isAfter(today)) return;
+    setState(() {
+      _genDate = _ymd(d);
+      _selected = _genDate;
+      _month = DateTime(d.year, d.month, 1);
+    });
+  }
 
   Future<void> _pickDate() async {
     final today = DateTime.tryParse(_todayCST());
@@ -111,6 +156,12 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
     final ym = _ymd(_month).substring(0, 7);
     final diaries = ref.watch(diaryMonthProvider((agentId, ym)));
     final split = MasterDetailScaffold.isSplit(context);
+    // The fold is phone-only — reset it when entering the wide layout
+    // (plain field mutation before the widgets build; no setState).
+    if (_lastSplit == false && split && _collapsed) {
+      _collapsed = false;
+    }
+    _lastSplit = split;
 
     // A run that just finished → reload the month (and the selected
     // day's entry, if shown).
@@ -127,130 +178,154 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
     // calendar + generate row + the month entries ALWAYS visible; the
     // selected day's pane docks right (no fold, no swap). Phone keeps the
     // original fold-on-scroll swap behavior.
-    final body = diaries.when(
-      loading: () => const SkeletonListView(itemCount: 6),
-      error: (e, _) => ErrorPane(message: l.chatHistoryError),
-      data: (list) {
-        final byDate = {for (final d in list) d.date: d};
-        final entries =
-            list.where((d) => !d.isEmptyDay).toList()..sort((a, b) => b.date.compareTo(a.date));
-        final genRunning =
-            ref.watch(diaryGeneratingProvider.select((s) => s.contains(_genDate)));
-        // An already-empty day yields nothing on regeneration — the
-        // server had no summaries for it (web genDateIsEmpty).
-        final genDateEmpty = byDate[_genDate]?.isEmptyDay ?? false;
-        // The fold applies only with a day open — one boolean, three
-        // readers (calendar, generate row, scroll listener's gate).
-        // Phone-only: the wide layout never folds (nothing swaps).
-        final folded = !split && _collapsed && _selected != null;
-        final head = Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Column(
-            children: [
-              _MonthNav(month: _month, onShift: _shiftMonth),
-              AnimatedSize(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? AppMotion.reducedFade
-                    : const Duration(milliseconds: 300),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _HeatCalendar(
-                      month: _month,
-                      byDate: byDate,
-                      selected: _selected ?? _genDate,
-                      collapsed: folded,
-                      onTapDay: (date) => setState(() {
-                        _genDate = date;
-                        _selected = date;
-                      }),
-                    ),
-                    if (!folded) ...[
-                      const SizedBox(height: 6),
-                      _GenerateRow(
-                        date: _genDate,
-                        running: genRunning,
-                        disabled: genRunning || genDateEmpty,
-                        onPick: _pickDate,
-                        onGenerate: () => ref
-                            .read(diaryGeneratingProvider.notifier)
-                            .start(agentId, _genDate),
-                      ),
-                    ],
-                  ],
+    //
+    // The open day pane renders from its own entry provider and stays
+    // mounted across a month load (a cross-month day fling swaps the
+    // month provider to loading) — a whole-body skeleton here used to
+    // blank out the text being read.
+    final list = diaries.value ?? const <DailyDiary>[];
+    final byDate = {for (final d in list) d.date: d};
+    final entries =
+        list.where((d) => !d.isEmptyDay).toList()..sort((a, b) => b.date.compareTo(a.date));
+    final genRunning =
+        ref.watch(diaryGeneratingProvider.select((s) => s.contains(_genDate)));
+    // An already-empty day yields nothing on regeneration — the
+    // server had no summaries for it (web genDateIsEmpty).
+    final genDateEmpty = byDate[_genDate]?.isEmptyDay ?? false;
+    // The fold applies only with a day open — one boolean, three
+    // readers (calendar, generate row, scroll listener's gate).
+    // Phone-only: the wide layout never folds (nothing swaps).
+    final folded = !split && _collapsed && _selected != null;
+    final head = Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: Column(
+        children: [
+          _MonthNav(month: _month, onShift: _shiftMonth),
+          AnimatedSize(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? AppMotion.reducedFade
+                : const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _HeatCalendar(
+                  month: _month,
+                  byDate: byDate,
+                  selected: _selected ?? _genDate,
+                  collapsed: folded,
+                  onTapDay: (date) => setState(() {
+                    _genDate = date;
+                    _selected = date;
+                  }),
                 ),
-              ),
-            ],
+                if (!folded) ...[
+                  const SizedBox(height: 6),
+                  _GenerateRow(
+                    date: _genDate,
+                    running: genRunning,
+                    disabled: genRunning || genDateEmpty,
+                    onPick: _pickDate,
+                    onGenerate: () => ref
+                        .read(diaryGeneratingProvider.notifier)
+                        .start(agentId, _genDate),
+                  ),
+                ],
+              ],
+            ),
           ),
-        );
-        final entriesPane = entries.isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(l.diaryNoDiaryMonth,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                              color: Theme.of(context).colorScheme.outline)),
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: () =>
-                    ref.refresh(diaryMonthProvider((agentId, ym)).future),
-                child: ListView.builder(
-                  itemCount: entries.length,
-                  itemBuilder: (context, i) {
-                    final d = entries[i];
-                    return ChevronListTile(
-                      selected: _selected == d.date,
-                      title: Text(d.overview.isNotEmpty ? d.overview : d.date,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                          l.diaryListMeta(
-                              d.date, d.themes.length, d.blindspots.length),
-                          maxLines: 1),
-                      onTap: () => setState(() {
-                        _genDate = d.date;
-                        _selected = d.date;
-                      }),
-                    );
-                  },
-                ),
-              );
-        // Left column always: the list + entries (the wide detail pane
-        // lives outside this builder; phone swaps a day pane in below).
-        return Column(
-          children: [
-            head,
-            Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
-            Expanded(
-              // Phone swap area: the selected day's content, or the list.
-              child: split
-                  ? entriesPane
-                  : NotificationListener<ScrollNotification>(
-                      onNotification: _onDayPaneScroll,
-                      child: _selected != null
-                          ? _DayPane(agentId: agentId, date: _selected!,
+        ],
+      ),
+    );
+    final entriesPane = entries.isEmpty
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(l.diaryNoDiaryMonth,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                          color: Theme.of(context).colorScheme.outline)),
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: () =>
+                ref.refresh(diaryMonthProvider((agentId, ym)).future),
+            child: ListView.builder(
+              itemCount: entries.length,
+              itemBuilder: (context, i) {
+                final d = entries[i];
+                return ChevronListTile(
+                  selected: _selected == d.date,
+                  title: Text(d.overview.isNotEmpty ? d.overview : d.date,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: Text(
+                      l.diaryListMeta(
+                          d.date, d.themes.length, d.blindspots.length),
+                      maxLines: 1),
+                  onTap: () => setState(() {
+                    _genDate = d.date;
+                    _selected = d.date;
+                  }),
+                );
+              },
+            ),
+          );
+    // Month-data chrome for the list area (error / first load); the open
+    // day pane bypasses it entirely.
+    Widget monthArea() {
+      if (diaries.hasError) return ErrorPane(message: l.chatHistoryError);
+      if (diaries.isLoading && list.isEmpty) {
+        return const SkeletonListView(itemCount: 6);
+      }
+      return entriesPane;
+    }
+
+    // Left column always: the list + entries (the wide detail pane
+    // lives outside this builder; phone swaps a day pane in below).
+    final body = Column(
+      children: [
+        head,
+        Divider(height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+        Expanded(
+          // Phone swap area: the selected day's content, or the list.
+          child: split
+              ? monthArea()
+              : NotificationListener<ScrollNotification>(
+                  onNotification: _onDayPaneScroll,
+                  child: _selected != null
+                      // Day flings (left = next day, right = previous)
+                      // own the horizontal space only once the reader
+                      // scrolled and the calendar folded to its week
+                      // (reading mode); with the month calendar still
+                      // expanded, swipe-right keeps the drawer (see
+                      // drawerFling below) — no double binding.
+                      ? HorizontalFlingDetector(
+                          onFlingLeft: _collapsed ? () => _shiftDay(1) : null,
+                          onFlingRight: _collapsed ? () => _shiftDay(-1) : null,
+                          child: _DayPane(agentId: agentId, date: _selected!,
+                              enableRefresh: !_collapsed,
                               onClose: () => setState(() {
                                     _selected = null;
                                     _collapsed = false;
-                                  }))
-                          : entriesPane,
-                    ),
-            ),
-          ],
-        );
-      },
+                                  })),
+                        )
+                      : monthArea(),
+                ),
+        ),
+      ],
     );
 
     // MasterDetailScaffold renders BOTH layouts: wide = list|detail with
     // the selected day docked right; phone = the list alone (the day
-    // swap already lives inside `body` above).
+    // swap already lives inside `body` above). The folded day view
+    // (week calendar, reading mode) owns horizontal flings for date
+    // switching; every other state keeps the drawer gesture.
     return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbDiary)),
+      drawerFling: _selected == null || !_collapsed,
       placeholderIcon: LucideIcons.calendarDays,
       placeholderText: l.kbSelectToView,
       listPane: body,
@@ -499,11 +574,16 @@ class _GenerateRow extends StatelessWidget {
 /// back-to-list + regenerate) and the diary body, inline like the web's
 /// right pane.
 class _DayPane extends ConsumerWidget {
-  const _DayPane({required this.agentId, required this.date, required this.onClose});
+  const _DayPane(
+      {required this.agentId, required this.date, required this.onClose, this.enableRefresh = true});
 
   final String agentId;
   final String date;
   final VoidCallback onClose;
+
+  /// Pull-to-refresh mounts only in the expanded state — folded (week
+  /// view), the top pull belongs to the damped calendar expansion.
+  final bool enableRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -558,28 +638,66 @@ class _DayPane extends ConsumerWidget {
           child: entry.when(
             loading: () => const SkeletonProse(),
             error: (e, _) => ErrorPane(message: l.chatHistoryError),
-            data: (d) => RefreshIndicator(
-              onRefresh: () => ref.refresh(diaryEntryProvider((agentId, date)).future),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                children: [
-                  if (generating)
-                    _GeneratingHint()
-                  else if (d == null)
-                    EmptyState(icon: LucideIcons.calendarDays, message: l.diaryNoDiary)
-                  else if (d.isEmptyDay)
-                    EmptyState(
-                        icon: LucideIcons.calendarOff,
-                        message: d.overview.isEmpty ? l.diaryNoThemes : d.overview)
-                  else
-                    DiaryContent(diary: d, agentId: agentId),
-                ],
-              ),
+            data: (d) => _DayPaneBody(
+              agentId: agentId,
+              enableRefresh: enableRefresh,
+              onRefresh: () =>
+                  ref.refresh(diaryEntryProvider((agentId, date)).future),
+              generating: generating,
+              d: d,
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DayPaneBody extends StatelessWidget {
+  const _DayPaneBody(
+      {required this.agentId,
+      required this.enableRefresh,
+      required this.onRefresh,
+      required this.generating,
+      this.d});
+
+  final String agentId;
+  final bool enableRefresh;
+  final Future<void> Function() onRefresh;
+  final bool generating;
+  final DailyDiary? d;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    // Local promotion — `this.d` can't flow-narrow after the null branch.
+    final day = d;
+    final list = ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      children: [
+        if (generating)
+          _GeneratingHint()
+        else if (day == null)
+          EmptyState(icon: LucideIcons.calendarDays, message: l.diaryNoDiary)
+        else if (day.isEmptyDay)
+          EmptyState(
+              icon: LucideIcons.calendarOff,
+              message: day.overview.isEmpty ? l.diaryNoThemes : day.overview)
+        else
+          DiaryContent(diary: day, agentId: agentId),
+      ],
+    );
+    // The indicator stays mounted in both modes: flipping this slot
+    // between RefreshIndicator(ListView) and bare ListView swaps the
+    // runtimeType and rebuilds the whole subtree — scroll position and an
+    // in-progress drag lost mid-fold. The pull is disarmed via the
+    // notification predicate instead.
+    return RefreshIndicator(
+      onRefresh: onRefresh,
+      notificationPredicate:
+          enableRefresh ? defaultScrollNotificationPredicate : (_) => false,
+      child: list,
     );
   }
 }

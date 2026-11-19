@@ -6,6 +6,7 @@ import '../../chat/markdown.dart';
 import '../../files/file_preview.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
+import '../../ui/path_line.dart';
 import '../chat/chat_image.dart';
 
 /// Read-only content viewer for KB text items (flash/note): loads the
@@ -96,20 +97,7 @@ class KbTextView extends ConsumerWidget {
     return Column(
       children: [
         ?topSection,
-        if (pathLine != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: SelectableText(
-                pathLine!,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: Theme.of(context).colorScheme.outline),
-              ),
-            ),
-          ),
+        if (pathLine != null) PathLine(pathLine!),
         Expanded(
           child: FutureBuilder<String>(
             future: future,
