@@ -788,12 +788,6 @@ abstract class AppLocalizations {
   /// **'昨天'**
   String get timeYesterday;
 
-  /// No description provided for @timeDayBefore.
-  ///
-  /// In zh, this message translates to:
-  /// **'前天'**
-  String get timeDayBefore;
-
   /// No description provided for @diaryPrevMonth.
   ///
   /// In zh, this message translates to:

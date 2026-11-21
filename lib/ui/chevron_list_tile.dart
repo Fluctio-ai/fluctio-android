@@ -38,7 +38,10 @@ class ChevronListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 8),
+      // Tight chevron gutters (user feedback 2026-11-21: the pointer is
+      // an affordance, not content) — 12px edges like the session rows,
+      // 4px to the title.
+      contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 12),
       horizontalTitleGap: 4,
       dense: dense,
       selected: selected,

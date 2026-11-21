@@ -23,20 +23,27 @@ String formatSessionTime(int tsMs, {String locale = 'en_US'}) {
 }
 
 /// WeChat-style list timestamp (user feedback 2026-11-21): today shows
-/// the time of day, yesterday/day-before read as words, anything older
+/// the time of day; yesterday reads as a word; earlier in the same
+/// Monday-start week reads as the weekday (周一/Mon); anything older
 /// falls back to the plain date (M/d; yyyy/ prefixed across years) —
-/// never HH:mm glued to a distant date. [yesterday]/[dayBefore] are the
-/// localized words.
+/// never HH:mm glued to a distant date. Relative words stop at
+/// yesterday (a "day before" word was too long in English and hogged
+/// the title). [yesterday] is the localized word. [now] is injectable
+/// for tests.
 String formatListTime(int tsMs,
-    {String locale = 'en_US', required String yesterday, required String dayBefore}) {
+    {String locale = 'en_US', required String yesterday, DateTime? now}) {
   final local = DateTime.fromMillisecondsSinceEpoch(tsMs).toLocal();
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
+  final now0 = now ?? DateTime.now();
+  final today = DateTime(now0.year, now0.month, now0.day);
   final diff = today.difference(DateTime(local.year, local.month, local.day)).inDays;
   if (diff <= 0) return _hm(locale).format(local);
   if (diff == 1) return yesterday;
-  if (diff == 2) return dayBefore;
-  if (local.year == now.year) return _md(locale).format(local);
+  DateTime weekStart(DateTime d) =>
+      DateTime(d.year, d.month, d.day).subtract(Duration(days: d.weekday - 1));
+  if (weekStart(local) == weekStart(today)) {
+    return weekdayShortLabels(locale)[local.weekday - 1];
+  }
+  if (local.year == now0.year) return _md(locale).format(local);
   return '${local.year}/${_md(locale).format(local)}';
 }
 

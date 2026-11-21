@@ -117,7 +117,6 @@
   "diaryNoDiaryMonth": "本月还没有日记",
   "diaryHeatHint": "颜色越深，当天内容越多",
   "timeYesterday": "昨天",
-  "timeDayBefore": "前天",
   "diaryPrevMonth": "上一月",
   "diaryNextMonth": "下一月",
   "diaryListMeta": "{themes} 主题 · {blindspots} 盲区",

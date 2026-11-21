@@ -37,9 +37,8 @@ class RowMetaTime extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final text = dayStr != null
         ? formatListTime(DateTime.parse(dayStr!).millisecondsSinceEpoch,
-            locale: locale, yesterday: l.timeYesterday, dayBefore: l.timeDayBefore)
-        : formatListTime(tsMs,
-            locale: locale, yesterday: l.timeYesterday, dayBefore: l.timeDayBefore);
+            locale: locale, yesterday: l.timeYesterday)
+        : formatListTime(tsMs, locale: locale, yesterday: l.timeYesterday);
     return Text(
       text,
       maxLines: 1,

@@ -359,9 +359,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get timeYesterday => '昨天';
 
   @override
-  String get timeDayBefore => '前天';
-
-  @override
   String get diaryPrevMonth => '上一月';
 
   @override

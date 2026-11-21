@@ -105,7 +105,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                       if (list.isEmpty)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.xs, AppSpace.lg, AppSpace.xs),
-                          child: Text(l.noProjects,
+                      child: Text(l.noProjects,
                               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
                         ),
                       for (final p in list)
@@ -537,9 +537,9 @@ class _ProjectRow extends StatelessWidget {
         ListTile(
           dense: true,
           visualDensity: VisualDensity.compact,
-          // Right gutter narrowed — the ⋯ hugs the edge like the chat
-          // rows below.
-          contentPadding: const EdgeInsets.fromLTRB(AppSpace.lg, 0, AppSpace.sm, 0),
+          // Same 12px gutters as the session rows below (user feedback
+          // 2026-11-21: the default 16+4 wasted both row edges).
+          contentPadding: const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, 0),
           leading: Icon(expanded ? LucideIcons.folderOpen : LucideIcons.folder, size: 18),
           title: Text.rich(
             TextSpan(

@@ -19,8 +19,11 @@ import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 
-/// One session row (used in the navigation drawer): title/preview/time,
-/// per-item menu (rename / delete / chat-only toggle).
+/// One session row (drawer, chat list, share picker): WeChat layout —
+/// timestamp on the title line's right, channel/chat-only marks where
+/// WeChat puts the mute icon (descriptor line's right). No per-row ⋯:
+/// long-press opens the same actions (pin / rename / delete), so the
+/// button only burned row-edge space (user feedback 2026-11-21).
 class SessionTile extends ConsumerWidget {
   const SessionTile({
     super.key,
@@ -37,104 +40,42 @@ class SessionTile extends ConsumerWidget {
   final Widget? leading;
   final Widget? trailing;
 
-  /// Chat-list rows replace the ⋯ trailing menu with iOS-style swipe
-  /// actions (full-width titles); the drawer keeps the menu (too narrow).
+  /// Whether the host wraps the row in Slidable swipe actions (the
+  /// chat list); the drawer rows stay plain - their horizontal space
+  /// belongs to the drawer fling.
   final bool slideActions;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final tile = ListTile(
-      dense: true,
-      selected: selected,
-      // Chevron rhythm shared with the KB lists (ChevronListTile) —
-      // rows without an explicit leading still carry the pointer.
-      leading: leading ??
-          Icon(LucideIcons.chevronRight,
-              size: 16, color: Theme.of(context).colorScheme.outline),
-      horizontalTitleGap: 4,
-      // Tight gutters like the KB rows (user feedback 2026-11-21);
-      // right stays 8 — the ⋯ menu hugs the row edge (its own box adds
-      // a few px).
-      contentPadding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-      title: Text.rich(
-        TextSpan(
-          text: session.title.isEmpty ? l.chatNew : session.title,
-          // Keep-at-top marker after the name (web chat-row marker:
-          // 12px pin icon in the muted color, shrink-0 past truncation).
-          children: [
-            if (session.pinned)
-              WidgetSpan(
-                alignment: PlaceholderAlignment.middle,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: Icon(LucideIcons.pin,
-                      size: 12, color: Theme.of(context).colorScheme.outline),
-                ),
-              ),
-          ],
-        ),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        // Same size as the transcript body (web runs sidebar text-sm 14
-        // next to chat-md 13.5) — the dense ListTile default ran ~2px
-        // smaller and the sidebar read disconnected from the chat.
-        style: const TextStyle(fontSize: AppType.transcript),
-      ),
-      // Subtitle is the content preview only — the timestamp lives in
-      // trailing (RowMetaTime family, user sync call 2026-11-21) so a
-      // long preview can never ellipsize it away.
-      subtitle: session.preview.isEmpty
-          ? null
-          : Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitleTextStyle: AppTheme.listSubtitleStyle(Theme.of(context).colorScheme),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+    final scheme = Theme.of(context).colorScheme;
+    final title = Text.rich(
+      TextSpan(
+        text: session.title.isEmpty ? l.chatNew : session.title,
+        // Keep-at-top marker after the name (web chat-row marker:
+        // 12px pin icon in the muted color, shrink-0 past truncation).
         children: [
-          RowMetaTime(tsMs: session.updatedAt),
-          const SizedBox(width: 6),
-          // IM-channel mark (web parity: ChannelIcon next to the title).
-          // No brand assets on the app side — a text chip names the
-          // channel and flags the read-only chat.
-          if (session.isImChannel)
-            Padding(
-              padding: const EdgeInsets.only(right: 6),
-              child: Tooltip(
-                message: '${channelLabel(session.channel)} · ${l.chatImChannelBadge}',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(AppRadius.nested),
-                    border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                  child: Text(
-                    channelLabel(session.channel),
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: Theme.of(context).colorScheme.outline),
-                  ),
-                ),
+          if (session.pinned)
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 5),
+                child: Icon(LucideIcons.pin, size: 12, color: scheme.outline),
               ),
             ),
-          if (session.chatOnly)
-            Padding(
-              padding: const EdgeInsets.only(right: 2),
-              child: Tooltip(
-                message: l.chatOnlyMode,
-                child: Icon(LucideIcons.messageCircle,
-                    size: 16, color: Theme.of(context).colorScheme.outline),
-              ),
-            ),
-          if (!slideActions) _SessionMenu(session: session),
-          ?trailing,
         ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      // titleMedium (17), same as the KB rows - WeChat's list is
+      // big-title / grey-small descriptor (user feedback 2026-11-21).
+      style: Theme.of(context).textTheme.titleMedium,
+    );
+    final tile = InkWell(
       onTap: onTap,
-      // Long-press menu mirrors the swipe actions — the discoverable
-      // channel; drawer rows (no swipe) get it too, their ⋯ menu
-      // stays as the visual affordance.
+      // Long-press menu is the only row action channel (pin / rename /
+      // delete) - the ⋯ button was redundant with it.
       onLongPress: () => showRowActionsMenu(context, [
         RowAction(
           icon: session.pinned ? LucideIcons.pinOff : LucideIcons.pin,
@@ -153,14 +94,91 @@ class SessionTile extends ConsumerWidget {
           onRun: () => _SessionMenu.run(context, ref, session, 'delete'),
         ),
       ]),
+      child: Container(
+        color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Row(
+          children: [
+            // Chevron rhythm shared with the KB lists (ChevronListTile).
+            leading ??
+                Icon(LucideIcons.chevronRight, size: 16, color: scheme.outline),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title line: title + timestamp at the right, like
+                  // WeChat's time-on-the-title-line.
+                  Row(children: [
+                    Expanded(child: title),
+                    const SizedBox(width: 8),
+                    RowMetaTime(tsMs: session.updatedAt),
+                  ]),
+                  // Descriptor line: preview + the channel / chat-only
+                  // marks in WeChat's mute-icon slot.
+                  if (session.preview.isNotEmpty ||
+                      session.isImChannel ||
+                      session.chatOnly)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(children: [
+                        Expanded(
+                          child: Text(session.preview,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTheme.listSubtitleStyle(scheme)),
+                        ),
+                        if (session.chatOnly)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Tooltip(
+                              message: l.chatOnlyMode,
+                              child: Icon(LucideIcons.messageCircle,
+                                  size: 14, color: scheme.outline),
+                            ),
+                          ),
+                        if (session.isImChannel)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Tooltip(
+                              message:
+                                  '${channelLabel(session.channel)} · ${l.chatImChannelBadge}',
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  borderRadius:
+                                      BorderRadius.all(AppRadius.nested),
+                                  border: Border.all(
+                                      color: scheme.outlineVariant),
+                                ),
+                                child: Text(
+                                  channelLabel(session.channel),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(color: scheme.outline),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ]),
+                    ),
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
     );
     if (!slideActions) return tile;
-    final scheme = Theme.of(context).colorScheme;
     return Slidable(
       key: ValueKey('session-${session.id}'),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        // Three actions now (pin / rename / delete) — delete stays at the
+        // Three actions (pin / rename / delete) - delete stays at the
         // edge, ~80dp per pane at phone widths.
         extentRatio: 0.6,
         children: [
@@ -194,27 +212,10 @@ class SessionTile extends ConsumerWidget {
 
 
 
-class _SessionMenu extends ConsumerWidget {
-  const _SessionMenu({required this.session});
-
-  final ChatSessionInfo session;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context)!;
-    return RowMenuButton(
-      onSelected: (action) => run(context, ref, session, action),
-      itemBuilder: (_) => [
-        // Pin first — mirrors the web row menu (pin → edit → delete).
-        PopupMenuItem(
-            value: 'pin',
-            child: Text(session.pinned ? l.chatUnpin : l.chatPin)),
-        PopupMenuItem(value: 'rename', child: Text(l.chatRename)),
-        PopupMenuItem(value: 'delete', child: Text(l.chatDelete)),
-      ],
-    );
-  }
-
+/// The session row actions, shared by the long-press menu and the
+/// chat-list swipe pane. (The per-row ⋯ button was dropped 2026-11-21:
+/// long-press covers it and it only burned row-edge space.)
+abstract final class _SessionMenu {
   static Future<void> run(BuildContext context, WidgetRef ref,
       ChatSessionInfo session, String action) async {
     final l = AppLocalizations.of(context)!;

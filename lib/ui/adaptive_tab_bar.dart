@@ -43,6 +43,7 @@ class AdaptiveTabBar extends StatelessWidget implements PreferredSizeWidget {
   bool _labelsOverflow(BuildContext context, double maxWidth) {
     final style =
         TabBarTheme.of(context).labelStyle ?? Theme.of(context).textTheme.titleSmall;
+    final scaler = MediaQuery.textScalerOf(context);
     final perTab = maxWidth / tabs.length;
     for (final t in tabs) {
       final text = t.text;
@@ -50,6 +51,7 @@ class AdaptiveTabBar extends StatelessWidget implements PreferredSizeWidget {
       final tp = TextPainter(
         text: TextSpan(text: text, style: style),
         textDirection: TextDirection.ltr,
+        textScaler: scaler,
         maxLines: 1,
       )..layout();
       final w = tp.width;
