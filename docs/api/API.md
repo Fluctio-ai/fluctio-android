@@ -155,7 +155,7 @@ data: {"seq":42,"type":"content_delta","data":{"delta":"增量文本"}}
 端点组 `/api/agents/{id}/kb/*`（`handlers_kb.go`；形状见 `internal/kb/types.go`）：
 
 **通用形状**
-- `KBSource`：`{id, agent_id, title, source_type("text"|"url"|"file"), source_ref, entry_count, total_chars, created_at, updated_at, wiki_generated_at?, type?("article"|"flash"|"todo"), status?(todo: pending/in_progress/done/cancelled), start_at?/end_at?(todo，RFC3339 必须带时区：写路径原样入库，读路径 internal/kb/store_types.go:60 parseRFC3339Ptr 用 time.Parse(time.RFC3339) 解析，无时区串写入后读回即丢弃), reminded_at?}`
+- `KBSource`：`{id, agent_id, title, source_type("text"|"url"|"file"), source_ref, entry_count, total_chars, created_at, updated_at, wiki_generated_at?, insights_generated_at?（深读已生成时间 = kb_article_insights.generated_at，未深读缺省；列表查询在 internal/kb/store.go:1024 ListSources 带出——app 文章列表行用它区分星星态）, type?("article"|"flash"|"todo"), status?(todo: pending/in_progress/done/cancelled), start_at?/end_at?(todo，RFC3339 必须带时区：写路径原样入库，读路径 internal/kb/store_types.go:60 parseRFC3339Ptr 用 time.Parse(time.RFC3339) 解析，无时区串写入后读回即丢弃), reminded_at?}`
 - `KBEntry`：`{id, source_id, chunk_index, content}`（详情 = chunks 拼接）
 - `KBBookmark`：`{id, agent_id, url, title, summary, content?, fetched_at?, source?, created_at, updated_at, promoted_to_article_id?}`
 - `KBResult`：`{source_id, source_title, source_kind("kb"|"wiki"), content_type?("flash"|"todo"), chunk_index, content, snippet, rank}`

@@ -254,7 +254,7 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                               child: ChevronListTile(
                                 selected: _selected?.id == c.id,
                                 title: Text(c.question,
-                                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis),
                                 subtitle: Row(
                                   children: [
                                     Expanded(

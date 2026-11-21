@@ -16,6 +16,7 @@ class KbSource {
     this.endAt,
     this.createdAt = '',
     this.updatedAt = '',
+    this.insightsGeneratedAt = '',
   });
 
   final String id;
@@ -35,6 +36,12 @@ class KbSource {
   final String createdAt;
   final String updatedAt;
 
+  /// Deep-reading (深度解读) generated at (API.md KBSource
+  /// `insights_generated_at`, from kb_article_insights.generated_at).
+  /// Empty = not processed yet — the article row shows the actionable
+  /// sparkles instead of the static mark.
+  final String insightsGeneratedAt;
+
   factory KbSource.fromJson(Map<String, dynamic> j) => KbSource(
         id: j['id'] as String? ?? '',
         title: j['title'] as String? ?? '',
@@ -48,6 +55,7 @@ class KbSource {
         endAt: DateTime.tryParse(j['end_at'] as String? ?? ''),
         createdAt: j['created_at'] as String? ?? '',
         updatedAt: j['updated_at'] as String? ?? '',
+        insightsGeneratedAt: j['insights_generated_at'] as String? ?? '',
       );
 }
 

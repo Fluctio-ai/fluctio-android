@@ -40,11 +40,32 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
   String? _selectedId;
   String _selectedTitle = '';
 
+  /// Article ids with a deep-reading request in flight — the row star
+  /// renders a spinner and ignores re-taps.
+  final _insightBusy = <String>{};
+
   @override
   void dispose() {
     _debounce?.cancel();
     _search.dispose();
     super.dispose();
+  }
+
+  /// Row star tap: run the deep-reading pass, then refresh the list so
+  /// the star flips from the actionable slot to the processed mark.
+  Future<void> _generateInsights(String sourceId) async {
+    final agentId = ref.read(agentsProvider).selectedId;
+    if (agentId == null || !_insightBusy.add(sourceId)) return;
+    setState(() {});
+    try {
+      await ref.read(kbRepoProvider).generateInsights(agentId, sourceId);
+      ref.invalidate(kbSourcesProvider(agentId));
+    } catch (e) {
+      if (mounted) showApiError(context, e);
+    } finally {
+      _insightBusy.remove(sourceId);
+      if (mounted) setState(() {});
+    }
   }
 
   /// Row tap: wide selects into the detail pane, phone pushes the route.
@@ -181,8 +202,52 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   selected: _selectedId == s.id,
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  subtitle: Text(chars, maxLines: 1),
-                                  trailing: RowMetaTime.iso(s.updatedAt),
+                                  // Processed articles (deep reading done)
+                                  // carry a quiet sparkles mark on the
+                                  // descriptor line's right, under the time.
+                                  subtitle: Row(
+                                    children: [
+                                      Expanded(child: Text(chars, maxLines: 1)),
+                                      if (s.insightsGeneratedAt.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 6),
+                                          child: Tooltip(
+                                            message: l.kbInsights,
+                                            child: Icon(LucideIcons.sparkles,
+                                                size: 14, color: scheme.outline),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  // Unprocessed ones expose the actionable
+                                  // sparkles on the title line instead —
+                                  // tap runs the deep-reading pass.
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      RowMetaTime.iso(s.updatedAt),
+                                      if (s.insightsGeneratedAt.isEmpty)
+                                        Tooltip(
+                                          message: l.kbGenerateInsights,
+                                          child: GestureDetector(
+                                            onTap: () => _generateInsights(s.id),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.only(left: 4),
+                                              child: _insightBusy.contains(s.id)
+                                                  ? const SizedBox(
+                                                      width: 14,
+                                                      height: 14,
+                                                      child: CircularProgressIndicator(
+                                                          strokeWidth: 2))
+                                                  : Icon(LucideIcons.sparkles,
+                                                      size: 16,
+                                                      color: scheme.primary),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                   onTap: () => _open(s.id, s.title),
                                   onLongPress: () => showRowActionsMenu(context, [
                                     RowAction(
