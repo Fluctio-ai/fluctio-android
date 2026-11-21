@@ -13,6 +13,7 @@ import '../../files/file_preview.dart';
 import '../../files/workspace_files.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
@@ -87,6 +88,7 @@ class SessionTile extends ConsumerWidget {
       subtitle: session.preview.isEmpty
           ? null
           : Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitleTextStyle: AppTheme.listSubtitleStyle(Theme.of(context).colorScheme),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

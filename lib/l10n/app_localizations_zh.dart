@@ -356,6 +356,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diaryHeatHint => '颜色越深，当天内容越多';
 
   @override
+  String get timeYesterday => '昨天';
+
+  @override
+  String get timeDayBefore => '前天';
+
+  @override
   String get diaryPrevMonth => '上一月';
 
   @override

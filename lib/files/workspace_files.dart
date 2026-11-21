@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import '../api/api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../share/share_out.dart';
+import '../theme/app_theme.dart';
 import '../ui/dialogs.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
@@ -296,6 +297,8 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
                       title: Text(node.name,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(formatWorkspaceSize(node.size), maxLines: 1),
+                      subtitleTextStyle:
+                          AppTheme.listSubtitleStyle(theme.colorScheme),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [

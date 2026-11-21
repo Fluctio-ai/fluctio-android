@@ -361,6 +361,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diaryHeatHint => 'Darker means more content that day';
 
   @override
+  String get timeYesterday => 'Yesterday';
+
+  @override
+  String get timeDayBefore => 'Day before yesterday';
+
+  @override
   String get diaryPrevMonth => 'Previous month';
 
   @override

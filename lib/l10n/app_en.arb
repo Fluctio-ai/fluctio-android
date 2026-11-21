@@ -116,6 +116,8 @@
   "diaryNoDiary": "No diary for this date yet",
   "diaryNoDiaryMonth": "No diary this month yet",
   "diaryHeatHint": "Darker means more content that day",
+  "timeYesterday": "Yesterday",
+  "timeDayBefore": "Day before yesterday",
   "diaryPrevMonth": "Previous month",
   "diaryNextMonth": "Next month",
   "diaryListMeta": "{themes} themes · {blindspots} blindspots",

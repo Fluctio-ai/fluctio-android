@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../theme/app_theme.dart';
+
 /// KB list row: wiki-style leading chevron over the web row rhythm
 /// (web knowledge-views: ChevronRight h-3, muted; px-3 padding, gap-2
 /// to the title) — the single home for the look shared by the KB
@@ -36,8 +38,6 @@ class ChevronListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return ListTile(
-      // Tight chevron gutters (user feedback 2026-11-21: the pointer is
-      // an affordance, not content — 8px edges / 4px to the title).
       contentPadding: padding ?? const EdgeInsets.symmetric(horizontal: 8),
       horizontalTitleGap: 4,
       dense: dense,
@@ -45,6 +45,7 @@ class ChevronListTile extends StatelessWidget {
       leading: Icon(LucideIcons.chevronRight, size: 16, color: scheme.outline),
       title: title,
       subtitle: subtitle,
+      subtitleTextStyle: AppTheme.listSubtitleStyle(scheme),
       trailing: trailing,
       onTap: onTap,
       onLongPress: onLongPress,

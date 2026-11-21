@@ -180,4 +180,10 @@ abstract final class AppTheme {
   /// source so the two chrome surfaces can't drift apart.
   static TextStyle chatMetaStyle(ColorScheme colors) =>
       TextStyle(fontSize: AppType.chatMeta, color: colors.outline);
+
+  /// List-row subtitle (the gray descriptor under the title): one notch
+  /// under bodySmall (user feedback 2026-11-21) — the timestamp family
+  /// stays the smallest metadata role.
+  static TextStyle listSubtitleStyle(ColorScheme colors) =>
+      TextStyle(fontSize: AppType.caption, color: colors.onSurfaceVariant);
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
 import '../theme/tokens.dart';
 import '../util/dates.dart';
 
@@ -9,9 +10,11 @@ import '../util/dates.dart';
 /// (message_list): caption 12 + mono + outline — metadata stays quiet,
 /// the subtitle keeps the content preview, and the time can never be
 /// ellipsized away by a long preview.
+///
+/// The text is WeChat-style relative (formatListTime): time of day for
+/// today, words for yesterday/day-before, plain date otherwise.
 class RowMetaTime extends StatelessWidget {
-  /// Milliseconds-since-epoch → formatSessionTime (MM-dd HH:mm; yyyy-
-  /// prefixed for other years) — the one granularity everywhere.
+  /// Milliseconds-since-epoch → formatListTime.
   const RowMetaTime({super.key, required this.tsMs})
       : dayStr = null;
 
@@ -21,7 +24,7 @@ class RowMetaTime extends StatelessWidget {
       : this(tsMs: DateTime.tryParse(iso)?.millisecondsSinceEpoch ?? -1, key: key);
 
   /// Day-granular entities (diary): aggregated per calendar day, no
-  /// time-of-day to show — formatShortDate instead.
+  /// time-of-day — the date portion of the same WeChat-style rule.
   const RowMetaTime.day(String this.dayStr, {super.key}) : tsMs = 0;
 
   final int tsMs;
@@ -31,9 +34,12 @@ class RowMetaTime extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tsMs <= 0 && dayStr == null) return const SizedBox.shrink();
     final locale = Localizations.localeOf(context).toString();
+    final l = AppLocalizations.of(context)!;
     final text = dayStr != null
-        ? formatShortDate(DateTime.parse(dayStr!), locale: locale)
-        : formatSessionTime(tsMs, locale: locale);
+        ? formatListTime(DateTime.parse(dayStr!).millisecondsSinceEpoch,
+            locale: locale, yesterday: l.timeYesterday, dayBefore: l.timeDayBefore)
+        : formatListTime(tsMs,
+            locale: locale, yesterday: l.timeYesterday, dayBefore: l.timeDayBefore);
     return Text(
       text,
       maxLines: 1,

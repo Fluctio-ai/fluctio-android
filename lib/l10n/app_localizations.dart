@@ -782,6 +782,18 @@ abstract class AppLocalizations {
   /// **'颜色越深，当天内容越多'**
   String get diaryHeatHint;
 
+  /// No description provided for @timeYesterday.
+  ///
+  /// In zh, this message translates to:
+  /// **'昨天'**
+  String get timeYesterday;
+
+  /// No description provided for @timeDayBefore.
+  ///
+  /// In zh, this message translates to:
+  /// **'前天'**
+  String get timeDayBefore;
+
   /// No description provided for @diaryPrevMonth.
   ///
   /// In zh, this message translates to:

@@ -22,6 +22,24 @@ String formatSessionTime(int tsMs, {String locale = 'en_US'}) {
   return _named(locale, pattern).format(local);
 }
 
+/// WeChat-style list timestamp (user feedback 2026-11-21): today shows
+/// the time of day, yesterday/day-before read as words, anything older
+/// falls back to the plain date (M/d; yyyy/ prefixed across years) —
+/// never HH:mm glued to a distant date. [yesterday]/[dayBefore] are the
+/// localized words.
+String formatListTime(int tsMs,
+    {String locale = 'en_US', required String yesterday, required String dayBefore}) {
+  final local = DateTime.fromMillisecondsSinceEpoch(tsMs).toLocal();
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final diff = today.difference(DateTime(local.year, local.month, local.day)).inDays;
+  if (diff <= 0) return _hm(locale).format(local);
+  if (diff == 1) return yesterday;
+  if (diff == 2) return dayBefore;
+  if (local.year == now.year) return _md(locale).format(local);
+  return '${local.year}/${_md(locale).format(local)}';
+}
+
 /// Compact M/d (yyyy/ prefixed for other years), optional HH:mm suffix.
 String formatShortDate(DateTime d, {String locale = 'en_US', bool withTime = false}) {
   final local = d.toLocal();
