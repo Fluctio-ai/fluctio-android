@@ -376,21 +376,36 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
           ),
         ),
       ),
-      title: Text(
-        _fullText ?? todo.title,
-        // Full text wraps — the list is the primary surface for reading
-        // todo content, so nothing is ellipsized away.
-        style: done
-            ? TextStyle(
-                decoration: TextDecoration.lineThrough,
-                decorationColor: scheme.outline,
-                color: scheme.outline,
-              )
-            : null,
+      // Timestamp rides the title line's right (WeChat layout, same as
+      // the ChevronListTile rows) — it used to hang off the trailing,
+      // vertically centered between the lines.
+      title: DefaultTextStyle(
+        style: theme.textTheme.titleMedium!,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                _fullText ?? todo.title,
+                // Full text wraps — the list is the primary surface for reading
+                // todo content, so nothing is ellipsized away.
+                style: done
+                    ? TextStyle(
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: scheme.outline,
+                        color: scheme.outline,
+                      )
+                    : null,
+              ),
+            ),
+            if (todo.startAt != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8, top: 4),
+                child: RowMetaTime(tsMs: todo.startAt!.millisecondsSinceEpoch),
+              ),
+          ],
+        ),
       ),
-      trailing: todo.startAt == null
-          ? null
-          : RowMetaTime(tsMs: todo.startAt!.millisecondsSinceEpoch),
       onLongPress: () => showRowActionsMenu(context, [
         RowAction(
           icon: LucideIcons.penLine,
