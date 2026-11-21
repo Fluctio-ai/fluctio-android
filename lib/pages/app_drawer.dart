@@ -560,6 +560,9 @@ class _ProjectRow extends StatelessWidget {
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            // Transcript size — one title size across the drawer, the
+            // session rows below included (round-5 size reference).
+            style: const TextStyle(fontSize: AppType.transcript),
           ),
           trailing: RowMenuButton(
             onSelected: (a) => switch (a) {

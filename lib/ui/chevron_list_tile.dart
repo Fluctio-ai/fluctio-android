@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../theme/app_theme.dart';
+import '../theme/font_scale.dart';
+import '../theme/tokens.dart';
 
 /// KB list row (articles / notes / flash / diary / cards / wiki):
 /// the same WeChat geometry as SessionTile — timestamp on the title
 /// line's right (user feedback 2026-11-21: it used to hang off the
 /// ListTile trailing, vertically centered BETWEEN the two lines), the
-/// type/preview line below, tight 12px gutters. Titles render at
-/// titleMedium (17): the bare Texts used to fall through to ListTile's
-/// bodyLarge default, so the KB lists ran a visible size below the
-/// session rows — every list surface now shares one title size and one
-/// row rhythm, with the paddings scaled to it.
+/// type/preview line below, tight 12px gutters. Titles render at the
+/// transcript size (13.5): the session rows are the size reference
+/// (user correction, round 5 — the KB rows ran bigger and the whole
+/// list family is unified DOWN onto the session size, never up), with
+/// the paddings scaled to it.
 ///
 /// [padding] overrides the shared rhythm where the host list already
 /// pads its children (cards_page).
@@ -43,12 +45,16 @@ class ChevronListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Vertical rhythm breathes with the font tier (user feedback
+    // 2026-11-21: fixed dp gaps read oversized at 小 and cramped at 大);
+    // horizontal gutters stay fixed screen margins.
+    final s = fontLayoutScale(context);
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
         color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
-        padding: padding ?? const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: padding ?? EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
         child: Row(
           children: [
             // Tight chevron gutters (user feedback 2026-11-21: the
@@ -69,21 +75,23 @@ class ChevronListTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child: DefaultTextStyle(
-                          style: Theme.of(context).textTheme.titleMedium!,
+                        // merge, not replace: only the size is pinned,
+                        // color/weight stay ambient (like ListTile did).
+                        child: DefaultTextStyle.merge(
+                          style: const TextStyle(fontSize: AppType.transcript),
                           child: title,
                         ),
                       ),
                       if (trailing != null)
                         Padding(
-                          padding: const EdgeInsets.only(left: 8, top: 4),
+                          padding: EdgeInsets.only(left: 8, top: 2 * s),
                           child: trailing,
                         ),
                     ],
                   ),
                   if (subtitle != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: EdgeInsets.only(top: 2 * s),
                       child: DefaultTextStyle(
                         style: AppTheme.listSubtitleStyle(scheme),
                         child: subtitle!,

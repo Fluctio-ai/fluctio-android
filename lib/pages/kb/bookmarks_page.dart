@@ -14,6 +14,7 @@ import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/fling_detector.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 import '../../util/open_url.dart';
 import '../../util/app_toast.dart';
@@ -111,24 +112,28 @@ class KbBookmarksPage extends ConsumerWidget {
                             ],
                           ),
                           child: ChevronListTile(
-                            title: Row(
+                            title: Text(b.title.isEmpty ? b.url : b.title,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            trailing: RowMetaTime.iso(b.createdAt),
+                            subtitle: Row(
                               children: [
+                                Expanded(
+                                  child: Text(
+                                    b.summary.isEmpty ? _host(b.url) : b.summary,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                // "Promoted to article" mark in the
+                                // descriptor line's right slot (WeChat's
+                                // mute-icon position), not before the title.
                                 if (b.promoted)
                                   Padding(
-                                    padding: const EdgeInsets.only(right: 4),
+                                    padding: const EdgeInsets.only(left: 6),
                                     child: Icon(LucideIcons.checkCircle2,
                                         size: 14, color: scheme.primary),
                                   ),
-                                Expanded(
-                                  child: Text(b.title.isEmpty ? b.url : b.title,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                                ),
                               ],
-                            ),
-                            subtitle: Text(
-                              b.summary.isEmpty ? _host(b.url) : b.summary,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                             onTap: () => openExternalUrl(b.url),
                             onLongPress: () => showRowActionsMenu(context, [

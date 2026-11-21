@@ -10,6 +10,8 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/font_scale.dart';
+import '../../theme/tokens.dart';
 import '../../todo/todo_reminders.dart';
 import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/fling_detector.dart';
@@ -378,9 +380,10 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
       ),
       // Timestamp rides the title line's right (WeChat layout, same as
       // the ChevronListTile rows) — it used to hang off the trailing,
-      // vertically centered between the lines.
-      title: DefaultTextStyle(
-        style: theme.textTheme.titleMedium!,
+      // vertically centered between the lines. Transcript-size title:
+      // the session rows are the size reference (round-5 correction).
+      title: DefaultTextStyle.merge(
+        style: const TextStyle(fontSize: AppType.transcript),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -400,7 +403,7 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
             ),
             if (todo.startAt != null)
               Padding(
-                padding: const EdgeInsets.only(left: 8, top: 4),
+                padding: EdgeInsets.only(left: 8, top: 2 * fontLayoutScale(context)),
                 child: RowMetaTime(tsMs: todo.startAt!.millisecondsSinceEpoch),
               ),
           ],

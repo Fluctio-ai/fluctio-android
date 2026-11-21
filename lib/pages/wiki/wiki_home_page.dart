@@ -66,7 +66,25 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
       length: _tabs.length,
       child: MasterDetailScaffold(
         appBar: AppBar(
-          title: Text(l.navWiki),
+          // Stats ride the title row (cards-page pattern) instead of a
+          // caption line under the search box.
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(l.navWiki),
+              if (inv != null && inv.hasValue && inv.value?.stats != null) ...[
+                const SizedBox(width: 8),
+                Text(
+                  l.wikiStats(
+                      inv.value!.stats!.totalPages, inv.value!.stats!.totalEdges),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
+            ],
+          ),
           actions: [
             IconButton(
               tooltip: l.wikiKnowledgeGraph,
@@ -102,18 +120,6 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
                 ),
               ),
             ),
-            if (inv != null && inv.hasValue && inv.value?.stats != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    l.wikiStats(inv.value!.stats!.totalPages, inv.value!.stats!.totalEdges),
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                ),
-              ),
             Expanded(
               child: inv == null
                   ? const SizedBox.shrink()

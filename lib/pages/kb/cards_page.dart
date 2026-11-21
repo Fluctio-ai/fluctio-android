@@ -222,8 +222,9 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                     // Card library filtered by the active tab
                     // (GET /kb/cards?filter=).
                     : ListView(
-                        // 88 bottom = the usual 16 plus FAB clearance (56 + 16).
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                        // Rows own their 12px gutters like the sibling KB
+                        // lists; 88 bottom = FAB clearance (56 + 16 + some).
+                        padding: const EdgeInsets.only(top: 8, bottom: 88),
                         children: [
                           for (final c in _cards)
                             Slidable(
@@ -251,15 +252,32 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                 ],
                               ),
                               child: ChevronListTile(
-                                padding: EdgeInsets.zero,
                                 selected: _selected?.id == c.id,
-                                // Not dense — the 12px title read too small on
-                                // device (user feedback); matches the wiki /
-                                // article rows.
                                 title: Text(c.question,
                                     maxLines: 2, overflow: TextOverflow.ellipsis),
-                                subtitle: Text(c.answer,
-                                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                                subtitle: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(c.answer,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis),
+                                    ),
+                                    // Origin in the descriptor line's right
+                                    // slot (diary/wiki generation — manual
+                                    // cards carry no badge).
+                                    if (c.sourceType == 'diary' ||
+                                        c.sourceType == 'wiki')
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Text(
+                                          c.sourceType == 'diary'
+                                              ? l.kbDiary
+                                              : l.kbWiki,
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                  ],
+                                ),
                                 trailing: c.dueAt == null
                                     ? null
                                     : RowMetaTime(

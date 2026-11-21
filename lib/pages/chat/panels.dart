@@ -14,6 +14,7 @@ import '../../files/workspace_files.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/font_scale.dart';
 import '../../theme/tokens.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
@@ -50,6 +51,9 @@ class SessionTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    // Vertical rhythm breathes with the font tier (fontLayoutScale) —
+    // fixed dp gaps read oversized at 小 and cramped at 大.
+    final s = fontLayoutScale(context);
     final title = Text.rich(
       TextSpan(
         text: session.title.isEmpty ? l.chatNew : session.title,
@@ -68,9 +72,11 @@ class SessionTile extends ConsumerWidget {
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      // titleMedium (17), same as the KB rows - WeChat's list is
-      // big-title / grey-small descriptor (user feedback 2026-11-21).
-      style: Theme.of(context).textTheme.titleMedium,
+      // Transcript size (13.5), the list-title size reference for the
+      // whole app (user correction 2026-11-21: the round-3 titleMedium
+      // bump made every list family grow to match and the rows read
+      // oversized — unify DOWN onto the session size, never up).
+      style: const TextStyle(fontSize: AppType.transcript),
     );
     final tile = InkWell(
       onTap: onTap,
@@ -96,7 +102,7 @@ class SessionTile extends ConsumerWidget {
       ]),
       child: Container(
         color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        padding: EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
         child: Row(
           children: [
             // Chevron rhythm shared with the KB lists (ChevronListTile).
@@ -121,7 +127,7 @@ class SessionTile extends ConsumerWidget {
                       session.isImChannel ||
                       session.chatOnly)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: EdgeInsets.only(top: 2 * s),
                       child: Row(children: [
                         Expanded(
                           child: Text(session.preview,
