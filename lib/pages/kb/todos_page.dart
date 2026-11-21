@@ -97,9 +97,9 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
                       child: AdaptiveTabBar(
                         onTap: (i) => setState(() => _view = _TodoView.values[i]),
                         tabs: [
-                          Tab(text: l.kbViewList),
-                          Tab(text: l.kbViewCalendar),
-                          Tab(text: l.kbViewGantt),
+                          (label: l.kbViewList, count: null),
+                          (label: l.kbViewCalendar, count: null),
+                          (label: l.kbViewGantt, count: null),
                         ],
                       ),
                     ),

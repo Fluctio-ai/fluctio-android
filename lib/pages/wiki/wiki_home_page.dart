@@ -95,7 +95,7 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
           bottom: AdaptiveTabBar(
             tabs: [
               for (final t in _tabs)
-                Tab(text: '${_tabLabel(l, t)}${_tabCount(inv, t)}'),
+                (label: _tabLabel(l, t), count: _tabCount(inv, t)),
             ],
           ),
         ),
@@ -146,11 +146,11 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
 
   /// Web shows each section header's total (independent of the visible
   /// window) — tabs carry the same count.
-  String _tabCount(AsyncValue<WikiInventory>? inv, String type) {
+  int? _tabCount(AsyncValue<WikiInventory>? inv, String type) {
     final n = inv?.value?.stats?.pageCounts[type] ??
         inv?.value?.pages.where((p) => p.pageType == type).length ??
         0;
-    return n > 0 ? ' $n' : '';
+    return n > 0 ? n : null;
   }
 
   Widget _typeList(BuildContext context, List<WikiPageInfo> pages, String type) {

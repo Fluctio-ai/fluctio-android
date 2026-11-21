@@ -115,13 +115,13 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
                     // longer/localized sets scroll horizontally instead
                     // of clipping (AdaptiveTabBar).
                     tabs: [
-                      Tab(text: l.kbOriginal),
+                      (label: l.kbOriginal, count: null),
                       if (hasInsights) ...[
-                        Tab(text: l.kbCoreSummary),
-                        Tab(text: l.kbChapters),
-                        Tab(text: l.kbQuotes),
-                        Tab(text: l.kbActions),
-                        Tab(text: l.kbSprouts),
+                        (label: l.kbCoreSummary, count: null),
+                        (label: l.kbChapters, count: null),
+                        (label: l.kbQuotes, count: null),
+                        (label: l.kbActions, count: null),
+                        (label: l.kbSprouts, count: null),
                       ],
                     ],
                   ),

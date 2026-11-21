@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../theme/tokens.dart';
+
 /// A TabBar that keeps the app's even-spread tab rhythm while the labels
 /// fit the available width, and degrades to a horizontally scrolling
 /// strip when they don't (many tabs, long labels, live counts). A fixed
 /// TabBar clips overflowing labels to slivers and hides the rest — this
 /// measures first and only scrolls when the math says it must.
 ///
-/// Text tabs only (the app's tab bars are all `Tab(text:)`); a child
-/// tab keeps the fixed spread, as its width can't be estimated.
+/// Tabs are (label, count?) records: a count rides one typographic step
+/// below the label (chart 10, muted) so "Due 11" reads as a label plus
+/// quiet metadata, not one word (user feedback 2026-11-21). Counts at or
+/// below zero don't render.
 class AdaptiveTabBar extends StatelessWidget implements PreferredSizeWidget {
   const AdaptiveTabBar({super.key, required this.tabs, this.onTap});
 
-  final List<Tab> tabs;
+  final List<({String label, int? count})> tabs;
   final ValueChanged<int>? onTap;
 
   /// AppBar.bottom wants a PreferredSizeWidget — a text TabBar's own
@@ -25,13 +29,35 @@ class AdaptiveTabBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final style =
+        TabBarTheme.of(context).labelStyle ?? Theme.of(context).textTheme.titleSmall;
     return LayoutBuilder(builder: (context, constraints) {
-      final scrollable = _labelsOverflow(context, constraints.maxWidth);
+      final scrollable = _labelsOverflow(context, style, constraints.maxWidth);
       return TabBar(
         onTap: onTap,
         isScrollable: scrollable,
         tabAlignment: scrollable ? TabAlignment.start : null,
-        tabs: tabs,
+        tabs: [
+          for (final t in tabs)
+            Tab(
+              child: Text.rich(
+                TextSpan(
+                  text: t.label,
+                  children: [
+                    if (t.count != null && t.count! > 0)
+                      TextSpan(
+                        text: ' ${t.count}',
+                        style: TextStyle(
+                            fontSize: AppType.chart,
+                            color: Theme.of(context).colorScheme.outline),
+                      ),
+                  ],
+                ),
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ),
+        ],
       );
     });
   }
@@ -40,16 +66,25 @@ class AdaptiveTabBar extends StatelessWidget implements PreferredSizeWidget {
   /// surplus never flows to a long one, so one label wider than its
   /// share ("学习中 112" next to "归档 4") clips. Scroll as soon as any
   /// single label outgrows its slice; if none does, the total fits too.
-  bool _labelsOverflow(BuildContext context, double maxWidth) {
-    final style =
-        TabBarTheme.of(context).labelStyle ?? Theme.of(context).textTheme.titleSmall;
+  /// Measured with the same spans the tabs render (count one step down).
+  bool _labelsOverflow(BuildContext context, TextStyle? style, double maxWidth) {
     final scaler = MediaQuery.textScalerOf(context);
     final perTab = maxWidth / tabs.length;
     for (final t in tabs) {
-      final text = t.text;
-      if (text == null) return false;
       final tp = TextPainter(
-        text: TextSpan(text: text, style: style),
+        text: TextSpan(
+          text: t.label,
+          style: style,
+          children: [
+            if (t.count != null && t.count! > 0)
+              const TextSpan(
+                  text: ' ', style: TextStyle(fontSize: AppType.chart)),
+            if (t.count != null && t.count! > 0)
+              TextSpan(
+                  text: '${t.count}',
+                  style: const TextStyle(fontSize: AppType.chart)),
+          ],
+        ),
         textDirection: TextDirection.ltr,
         textScaler: scaler,
         maxLines: 1,

@@ -155,7 +155,7 @@ class _AgentSettingsPageState extends ConsumerState<AgentSettingsPage> {
           // horizontally instead of clipping.
           bottom: AdaptiveTabBar(
             onTap: (i) => setState(() => _tab = _tabs[i].id),
-            tabs: [for (final t in _tabs) Tab(text: t.labelKey(l))],
+            tabs: [for (final t in _tabs) (label: t.labelKey(l), count: null)],
           ),
         ),
         body: _scope == null || _config == null

@@ -199,10 +199,10 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
           bottom: AdaptiveTabBar(
             onTap: (i) => _switchFilter(_filters[i]),
             tabs: [
-              Tab(text: _tabLabel(l.cardDue, stats?.dueToday)),
-              Tab(text: _tabLabel(l.cardActive, stats?.active)),
-              Tab(text: _tabLabel(l.cardMastered, stats?.mastered)),
-              Tab(text: _tabLabel(l.cardArchived, stats?.archived)),
+              (label: l.cardDue, count: stats?.dueToday),
+              (label: l.cardActive, count: stats?.active),
+              (label: l.cardMastered, count: stats?.mastered),
+              (label: l.cardArchived, count: stats?.archived),
             ],
           ),
         ),
@@ -314,13 +314,10 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
       ),
     );
   }
-
-  /// Tab label with the wiki-tab count convention (blank until stats land).
-  String _tabLabel(String label, int? count) => count == null || count == 0 ? label : '$label $count';
 }
 
-/// Read-only card view: question / answer rendered as markdown plus the
-/// schedule metadata row. The pushed page wraps [CardViewBody] in a
+  /// Read-only card view: question / answer rendered as markdown plus the
+  /// schedule metadata row. The pushed page wraps [CardViewBody] in a
 /// Scaffold; the master-detail pane renders the body directly.
 class _CardViewPage extends StatelessWidget {
   const _CardViewPage({required this.card});
