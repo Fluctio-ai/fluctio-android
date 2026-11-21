@@ -445,7 +445,13 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
           ),
         ],
       ),
-      child: tile,
+      child: Container(
+        // WeChat-style hairline between rows (user feedback 2026-11-21).
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: tile,
+      ),
     );
   }
 

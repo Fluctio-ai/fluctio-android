@@ -195,7 +195,7 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                           child: Tooltip(
                                             message: l.kbInsights,
                                             child: Icon(LucideIcons.sparkles,
-                                                size: 14, color: scheme.outline),
+                                                size: 12, color: scheme.outline),
                                           ),
                                         ),
                                     ],

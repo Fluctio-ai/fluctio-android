@@ -6,10 +6,16 @@ import '../util/dates.dart';
 
 /// Right-aligned list-row timestamp — ONE family for every list surface
 /// (user sync call 2026-11-21: rows had two positions × two styles ×
-/// three granularities). Same styling as the chat bubble stamp
-/// (message_list): caption 12 + mono + outline — metadata stays quiet,
-/// the subtitle keeps the content preview, and the time can never be
-/// ellipsized away by a long preview.
+/// three granularities). Same family as the chat bubble stamp
+/// (message_list): mono + outline — metadata stays quiet, the subtitle
+/// keeps the content preview, and the time can never be ellipsized away
+/// by a long preview.
+///
+/// List rows ride the chart step (10): one notch under the caption-12
+/// descriptor line — mono digits read a size larger than their px, so
+/// at 12 the stamp visually matched the transcript title (user feedback
+/// 2026-11-21). The chat-bubble stamp keeps caption 12 (bubbles are not
+/// list rows).
 ///
 /// The text is WeChat-style relative (formatListTime): time of day for
 /// today, words for yesterday/day-before, plain date otherwise.
@@ -43,7 +49,7 @@ class RowMetaTime extends StatelessWidget {
       text,
       maxLines: 1,
       style: TextStyle(
-          fontSize: AppType.caption, fontFamily: codeMonoFamily, color: Theme.of(context).colorScheme.outline),
+          fontSize: AppType.chart, fontFamily: codeMonoFamily, color: Theme.of(context).colorScheme.outline),
     );
   }
 }

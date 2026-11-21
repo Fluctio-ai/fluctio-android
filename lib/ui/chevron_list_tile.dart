@@ -53,7 +53,12 @@ class ChevronListTile extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+        // WeChat-style hairline between rows (user feedback 2026-11-21)
+        // — full-bleed, painted at the container edge past the padding.
+        decoration: BoxDecoration(
+          color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
         padding: padding ?? EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
         child: Row(
           children: [

@@ -66,23 +66,22 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
       length: _tabs.length,
       child: MasterDetailScaffold(
         appBar: AppBar(
-          // Stats ride the title row (cards-page pattern) instead of a
-          // caption line under the search box.
+          // Stats sit centered between the title and the graph action
+          // (user feedback 2026-11-21) — not left-aligned under it.
           title: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
               Text(l.navWiki),
-              if (inv != null && inv.hasValue && inv.value?.stats != null) ...[
-                const SizedBox(width: 8),
-                Text(
-                  l.wikiStats(
-                      inv.value!.stats!.totalPages, inv.value!.stats!.totalEdges),
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.outline),
+              if (inv != null && inv.hasValue && inv.value?.stats != null)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      l.wikiStats(inv.value!.stats!.totalPages,
+                          inv.value!.stats!.totalEdges),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                  ),
                 ),
-              ],
             ],
           ),
           actions: [

@@ -131,7 +131,7 @@ class KbBookmarksPage extends ConsumerWidget {
                                   Padding(
                                     padding: const EdgeInsets.only(left: 6),
                                     child: Icon(LucideIcons.checkCircle2,
-                                        size: 14, color: scheme.primary),
+                                        size: 12, color: scheme.primary),
                                   ),
                               ],
                             ),
