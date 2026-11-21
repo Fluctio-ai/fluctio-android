@@ -11,6 +11,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/form_editor_page.dart';
 import '../../theme/tokens.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/fling_detector.dart';
 import '../../ui/row_actions_menu.dart';
@@ -18,6 +19,7 @@ import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 import '../../util/open_url.dart';
 import '../../util/app_toast.dart';
+import 'kb_editor_page.dart';
 
 /// Web bookmarks: newest first, save URL (server fetches the page body
 /// so the link survives rot), edit metadata, promote into a full KB
@@ -37,9 +39,9 @@ class KbBookmarksPage extends ConsumerWidget {
       drawer: AppDrawer.adaptive(context),
       drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
       appBar: AppBar(title: Text(l.kbBookmarks)),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         onPressed: agentId == null ? null : () => _add(context, ref, agentId),
-        child: const Icon(LucideIcons.plus),
+        icon: LucideIcons.plus,
       ),
       // DrawerFling: rows are Slidables that eat the arena drag.
       body: DrawerFling(
@@ -169,8 +171,9 @@ class KbBookmarksPage extends ConsumerWidget {
 
   Future<void> _add(BuildContext context, WidgetRef ref, String agentId) async {
     final l = AppLocalizations.of(context)!;
-    // Full-page editor — same surface as the bookmark edit above; the
-    // old add dialog split the two flows.
+    // URL capture stays a form (typed input + validation, no prose to
+    // read back); editing an existing bookmark goes through KbEditorPage
+    // like the other KB items' bodies.
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => FormEditorPage<bool>(
         heading: l.kbAddBookmark,
@@ -204,21 +207,23 @@ class _BookmarkActions {
       switch (action) {
         case 'edit':
           if (!context.mounted) return;
-          // Full-page editor (title + summary) instead of the old
-          // dialog. Plain-text form — the summary is one field, the
-          // markdown editor (line numbers, lint) was overkill here.
+          // The notes-style full-screen editor (user feedback
+          // 2026-11-21): the summary is prose the user reads back, not a
+          // metadata stub — it gets the big editing surface like
+          // note/flash bodies, title row on top. A cleared summary is a
+          // legitimate state (the repo drops empty strings), hence the
+          // always-true canSave.
           await Navigator.of(context).push<bool>(MaterialPageRoute(
-            builder: (_) => FormEditorPage<bool>(
+            builder: (_) => KbEditorPage(
               heading: l.kbEdit,
-              fields: [
-                EditorField(label: l.kbTitleOptional, initial: bookmark.title),
-                EditorField(
-                    label: l.kbSummary, initial: bookmark.summary, maxLines: 5),
-              ],
-              onSave: (v) async {
+              titleLabel: l.kbTitleOptional,
+              initialTitle: bookmark.title,
+              initialText: bookmark.summary,
+              canSave: (_, _) => true,
+              onSave: (text, title, date, endDate, {status}) async {
                 try {
                   await repo.updateBookmark(agentId, bookmark.id,
-                      title: v[0].trim(), summary: v[1].trim());
+                      title: title.trim(), summary: text.trim());
                   ref.invalidate(kbBookmarksProvider(agentId));
                   return true;
                 } catch (e) {

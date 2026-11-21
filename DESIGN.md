@@ -146,11 +146,17 @@ Mono（随 gpt_markdown fork 打包）——代码、时间戳、会话计数、
 - **Body** (400, 15, 1.5)：表单、设置、列表正文。
 - **Label** (500, 13, 1.4)：分段控件、按钮、行主文案。
 - **Caption** (400, 12, 1.4)：辅助说明、时间戳（配 mono）。
-- **Transcript** (400, 13.5, **1.7**)：聊天 markdown 正文（web chat-md
-  对齐；行高 1.7 是 zh 铁律）。**markdown 标题档全表面一致**（user sync
-  call 2026-11-21，取代 per-surface doc 大阶梯 22/18/16，与 web doc 阅读
-  面有意分离）：h1/h2/h3 = 16/15/14，h4+ 收回各表面正文字号（聊天
-  13.5、阅读面 15）——层级一律"低声"。
+- **Transcript** (400, 13.5, **1.7**)：一切 markdown 正文——聊天气泡与
+  阅读面（文章/笔记/灵感/wiki/卡片）同档（user call 2026-11-21：阅读面
+  从 15 并轨，全 app 一种 markdown 正文；行高 1.7 是 zh 铁律）。
+  **markdown 标题档全表面一致**（user sync call 2026-11-21，取代
+  per-surface doc 大阶梯 22/18/16，与 web doc 阅读面有意分离）：
+  h1/h2/h3 = 16/15/14，h4+ 收回正文 13.5——层级一律"低声"。
+  **阅读面手写 chrome**（markdown 段落之外、同一屏内的文字）四档：
+  正文 = `AppTheme.readerBody`（13.5 + zh 1.7，与 markdown 段落逐字
+  对齐）；节标题 = titleSmall（15 w500，即 whisper h2 档）；元信息 =
+  bodySmall + outline；标签/徽章/时间 = labelSmall + outline（w600 节
+  标签见 `LabeledSection`）。
 - **Data annotation** (12, `AppType.chart`)：仅图表/日历格内部刻度，是
   唯一豁免字号档同步的表面（固定几何格）。
 
@@ -208,14 +214,29 @@ Rule.** 表面静止即平；层级确需抬升才用分组卡，高密度列表
 ### Buttons
 - **Shape:** 6px 圆角。**Primary** = Surge Cyan 实填充 + `#FAFAFA` 字；
   **tonal/ghost** 次级，不与 primary 抢。
+- **悬浮钮**（各列表页添加、对话回到底部）：统一 `AppFab`
+  （`lib/ui/app_fab.dart`）——44dp 圆角方块、6px 控制半径、surface 底 +
+  发丝边、20px 字形，quiet 不抢内容（主色实块浮在内容上是历史否决项，
+  回到底部钮同款几何）。位置固定右下 Scaffold 槽，全 app 同一标准
+  （user call 2026-11-21）。
 
 ### Inputs / Composer
-- 无边框多行输入（聊天 composer）：contentPadding 10，hint 用 caption 灰；
-  行高 **1.5**（有意比气泡的 1.7 紧——web composer 同样如此，
-  `text-[15px] leading-6`；输入面是操作件不是阅读面，发送后落到气泡的
+- 无边框多行输入（聊天 composer）：**transcript 13.5**（与气泡同尺寸，
+  user call 2026-11-19：打字与发出后必须一样大），contentPadding 10，
+  hint 用 caption 灰；行高 **1.5**（有意比气泡的 1.7 紧——web composer
+  同样如此，`leading-6`；输入面是操作件不是阅读面，发送后落到气泡的
   1.7 是两端一致的既定行为）；focus 态 Surge Cyan 环；表单 label 在上、
   错误文本 destructive 在下。
-- 编辑器类全屏（`FormEditorPage`/`KbEditorPage`），弹窗只留确认类。
+- 编辑器类全屏（`FormEditorPage`/`KbEditorPage`）：**有 markdown 渲染的
+  内容体**（笔记/灵感/待办正文、wiki 页、书签 summary、卡片答案）一律走
+  `KbEditorPage`（标题行 + `MarkdownField` 大编辑面，必填策略走 `canSave`）；
+  **纯元数据**（书签 URL、项目名称/描述）走 `FormEditorPage`。正文编辑面
+  （`MarkdownField`）与代码查看器（`CodeViewer`）同走 **transcript
+  13.5**——编辑面是对应阅读面的另一半（笔记/wiki 存下后按 13.5 读，
+  工作区代码与气泡里同文件的代码块同档）；行号 gutter 恒 caption 12。
+  re_editor 系不读 ambient TextScaler，字号在输入端显式乘档。纯表单
+  控件（标题输入、设置 JSON 表单、日期行等）维持 body 15（表单档）。
+  弹窗只留确认类。
 
 ### Chat 消息（签名表面）
 - **助手气泡**：secondaryContainer 底 + 发丝边，发送侧内角收回；内边距
@@ -224,7 +245,7 @@ Rule.** 表面静止即平；层级确需抬升才用分组卡，高密度列表
   卡片等阅读面同走此出口）：段落距随档线性呼吸（fork em-span）；引用块 =
   竖条 + 浅青灰底卡；行内代码 = 0.9× 浅底无边框；标题 16/15/14 递降
   （h4+ 收回正文）+ 大档阻尼（有效缩放 1+(f−1)/2），代码块/引用钉在
-  表面正文档（user sync call 2026-11-21 阅读面加入）。
+  transcript 档（全表面一致，user sync call 2026-11-21）。
 - **工具卡**：名字 = JetBrains Mono labelMedium（比正文小的元数据角色），
   完成态 caption + ✓；展开的输出是内容，随档缩放。
 

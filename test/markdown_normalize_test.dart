@@ -61,7 +61,7 @@ void main() {
     expect(normalizeMarkdownBlocks(md), md);
   });
 
-  testWidgets('end-to-end: glued table renders as a Table widget through chatTranscript',
+  testWidgets('end-to-end: glued table renders as a Table widget through transcriptMarkdown',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
       theme: AppTheme.dark(),
@@ -72,7 +72,7 @@ void main() {
           body: SingleChildScrollView(
             // The exact shape the user hit: LLM emits the table right
             // under its lead-in sentence, no blank line.
-            child: chatTranscript(context, '对比如下：\n| 项 | 值 |\n| --- | --- |\n| a | 1 |\n'),
+            child: transcriptMarkdown(context, '对比如下：\n| 项 | 值 |\n| --- | --- |\n| a | 1 |\n'),
           ),
         ),
       ),

@@ -186,7 +186,6 @@
   "kbDeduped": "与已有内容重复，未保存",
   "kbAddBookmark": "保存书签",
   "kbTitleOptional": "标题（可选）",
-  "kbSummary": "摘要",
   "kbPromote": "升格为文章",
   "kbPromoted": "已升格为文章",
   "kbGenerateInsights": "生成深度解读",

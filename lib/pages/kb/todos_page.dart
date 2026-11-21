@@ -14,6 +14,7 @@ import '../../theme/font_scale.dart';
 import '../../theme/tokens.dart';
 import '../../todo/todo_reminders.dart';
 import '../../ui/adaptive_tab_bar.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/fling_detector.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
@@ -56,9 +57,9 @@ class _KbTodosPageState extends ConsumerState<KbTodosPage> {
       drawer: AppDrawer.adaptive(context),
       drawerEdgeDragWidth: AppDrawer.edgeDragWidth,
       appBar: AppBar(title: Text(l.kbTodos)),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         onPressed: agentId == null ? null : () => _edit(context, ref, agentId, null),
-        child: const Icon(LucideIcons.plus),
+        icon: LucideIcons.plus,
       ),
       body: todos == null
           ? const SizedBox.shrink()

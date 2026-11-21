@@ -9,6 +9,7 @@ import '../../kb/diary_models.dart';
 import '../../kb/diary_repo.dart';
 import '../../kb/shelved_actions.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/fling_detector.dart';
@@ -753,7 +754,7 @@ class DiaryContent extends StatelessWidget {
               borderRadius: AppRadius.cardBorder,
               border: Border.all(color: scheme.outlineVariant),
             ),
-            child: Text(diary.overview, style: theme.textTheme.bodyMedium),
+            child: Text(diary.overview, style: AppTheme.readerBody(context)),
           ),
         ],
         const SizedBox(height: 16),
@@ -791,7 +792,7 @@ class DiaryContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(b.point, style: theme.textTheme.bodyMedium),
+                  Text(b.point, style: AppTheme.readerBody(context)),
                   if (b.reason.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(b.reason,
@@ -827,7 +828,7 @@ class DiaryContent extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
               child: Text('· $a',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: scheme.outline)),
+                  style: AppTheme.readerBody(context, color: scheme.outline)),
             ),
         ],
       ],
@@ -927,7 +928,7 @@ class _ShelvedCard extends ConsumerWidget {
                         const SizedBox(width: 4),
                       ],
                       Expanded(
-                          child: Text(item.topic, style: theme.textTheme.bodyMedium)),
+                          child: Text(item.topic, style: AppTheme.readerBody(context))),
                     ],
                   ),
                   if (item.context.isNotEmpty) ...[
@@ -980,13 +981,13 @@ class _ThemeCard extends StatelessWidget {
           if (item.summary.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(item.summary,
-                style: theme.textTheme.bodyMedium?.copyWith(color: scheme.outline)),
+                style: AppTheme.readerBody(context, color: scheme.outline)),
           ],
           if (item.points.isNotEmpty)
             for (final p in item.points)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('· $p', style: theme.textTheme.bodyMedium),
+                child: Text('· $p', style: AppTheme.readerBody(context)),
               ),
           if (item.segments.isNotEmpty) ...[
             const SizedBox(height: 8),

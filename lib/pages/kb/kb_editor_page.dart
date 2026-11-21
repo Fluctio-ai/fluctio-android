@@ -28,6 +28,7 @@ class KbEditorPage extends StatefulWidget {
     this.endDateLabel,
     this.initialEndDate,
     required this.onSave,
+    this.canSave,
   });
 
   /// AppBar heading (e.g. "新建闪记" / "重命名").
@@ -61,6 +62,13 @@ class KbEditorPage extends StatefulWidget {
   final Future<bool> Function(String text, String title, DateTime? date,
       DateTime? endDate, {String? status}) onSave;
 
+  /// Save enablement over the current (text, title); null keeps the
+  /// default document policy (non-empty body). Callers whose required
+  /// field differs — cards require the question, which lives in the
+  /// title row — or whose metadata body may be empty (a bookmark
+  /// summary) pass their own policy.
+  final bool Function(String text, String title)? canSave;
+
   @override
   State<KbEditorPage> createState() => _KbEditorPageState();
 }
@@ -89,8 +97,12 @@ class _KbEditorPageState extends State<KbEditorPage> {
     super.dispose();
   }
 
+  bool get _canSave =>
+      widget.canSave?.call(_text.text, _title.text) ??
+      _text.text.trim().isNotEmpty;
+
   Future<void> _save() async {
-    if (_saving || _text.text.trim().isEmpty) return;
+    if (_saving || !_canSave) return;
     setState(() => _saving = true);
     final ok = await widget.onSave(_text.text, _title.text, _date, _endDate,
         status: _status.isEmpty ? null : _status);
@@ -286,7 +298,8 @@ class _KbEditorPageState extends State<KbEditorPage> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilledButton(
-                onPressed: _saving ? null : _save,
+                // Disabled (not a silent no-op) while [canSave] fails.
+                onPressed: _saving || !_canSave ? null : _save,
                 child: _saving
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                     : Text(l.settingsSave),

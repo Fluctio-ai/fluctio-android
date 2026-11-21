@@ -562,9 +562,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get kbTitleOptional => '标题（可选）';
 
   @override
-  String get kbSummary => '摘要';
-
-  @override
   String get kbPromote => '升格为文章';
 
   @override

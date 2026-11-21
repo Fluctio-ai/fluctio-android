@@ -186,7 +186,6 @@
   "kbDeduped": "Duplicate of an existing entry — skipped",
   "kbAddBookmark": "Save bookmark",
   "kbTitleOptional": "Title (optional)",
-  "kbSummary": "Summary",
   "kbPromote": "Promote to article",
   "kbPromoted": "Promoted to article",
   "kbGenerateInsights": "Generate deep reading",

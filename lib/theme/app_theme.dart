@@ -175,6 +175,23 @@ abstract final class AppTheme {
     );
   }
 
+  /// zh long-form leading (DESIGN.md: 中文正文行高 1.7 是铁律); en stays
+  /// 1.5. Shared by markdownConfig and [readerBody] so markdown bodies and
+  /// their handwritten neighbors can never drift apart (ticket M4-10).
+  static double zhBodyHeight(BuildContext context) =>
+      Localizations.localeOf(context).languageCode == 'zh' ? 1.7 : 1.5;
+
+  /// Handwritten-prose rung sitting next to a markdown body: reader
+  /// chrome (article insights, diary detail, card/wiki surfaces), the
+  /// chat user bubble — anywhere plain Text renders what a neighboring
+  /// transcriptMarkdown would. Derived from the SAME bodyMedium base
+  /// markdownConfig starts from, plus the transcript size and zh
+  /// leading — the two "identical" styles can't drift apart (user call
+  /// 2026-11-21: readers join the chat size).
+  static TextStyle? readerBody(BuildContext context, {Color? color}) =>
+      Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontSize: AppType.transcript, height: zhBodyHeight(context), color: color);
+
   /// Chat chrome metadata line (chat header's agent·model, drawer agent
   /// header's model) — the chatMeta step in the outline color. Single
   /// source so the two chrome surfaces can't drift apart.

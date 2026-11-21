@@ -72,8 +72,11 @@ class _MarkdownFieldState extends State<MarkdownField> {
     // re_editor never consults the ambient TextScaler (code_viewer.dart
     // wires the same rule) — the tier must scale the editor and gutter
     // explicitly, or a note's editor stays put while its reader grows.
+    // Transcript size, not body: the editor is the reader's other half
+    // (same call as the composer, 2026-11-19) — typed text and the
+    // rendered note must match.
     final scaler = MediaQuery.textScalerOf(context);
-    final editorSize = scaler.scale(AppType.body);
+    final editorSize = scaler.scale(AppType.transcript);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

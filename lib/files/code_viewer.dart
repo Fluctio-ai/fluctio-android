@@ -108,7 +108,10 @@ class _CodeViewerState extends State<CodeViewer> {
     // text out), so the One Scale Rule is wired here: the tier scales
     // the input sizes.
     final scaler = MediaQuery.textScalerOf(context);
-    final bodySize = scaler.scale(AppType.secondary);
+    // Transcript step, not secondary: a workspace file previewed here
+    // must match the same file's fenced block in a chat bubble (markdown
+    // pins code to the surface body — ticket 10 made that 13.5 everywhere).
+    final bodySize = scaler.scale(AppType.transcript);
     final gutterSize = scaler.scale(AppType.caption);
     return CodeEditor(
       controller: _controller,

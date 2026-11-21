@@ -11,6 +11,8 @@ import '../../chat/markdown.dart';
 import '../../chat/produced_files.dart';
 import '../../chat/reply_options.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/load_states.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../util/dates.dart';
@@ -307,8 +309,9 @@ class _MessageListState extends ConsumerState<MessageList> {
               child: AnimatedOpacity(
                 opacity: _awayFromBottom ? 1 : 0,
                 duration: AppMotion.entrance,
-                child: _JumpToLatest(
-                  onTap: () {
+                child: AppFab(
+                  icon: LucideIcons.arrowDown,
+                  onPressed: () {
                     if (_scroll.hasClients) {
                       _scroll.animateTo(0,
                           duration: const Duration(milliseconds: 300),
@@ -376,39 +379,6 @@ class _MessageListState extends ConsumerState<MessageList> {
           onRun: () => ref.read(chatStoreProvider.notifier).regenerate(),
         ),
     ]);
-  }
-}
-
-/// Circular outline pill with a down-arrow — the jump-to-latest
-/// affordance pinned at the transcript's bottom-right.
-class _JumpToLatest extends StatelessWidget {
-  const _JumpToLatest({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    // Rounded square (send-button shape family, user call 2026-11-19) but
-    // the ORIGINAL quiet colors — surface fill + hairline border; a filled
-    // primary block floating over the transcript was too loud.
-    return Material(
-      color: scheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.controlBorder,
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          // 12 + 20px icon = 44dp — the app-wide touch-target floor
-          // (DESIGN.md); 9+18 (36dp) undershot it.
-          padding: const EdgeInsets.all(AppSpace.md),
-          child: Icon(LucideIcons.arrowDown, size: 20),
-        ),
-      ),
-    );
   }
 }
 
@@ -612,14 +582,14 @@ class _UserBubble extends ConsumerWidget {
                     ),
                   if (entry.text.isNotEmpty)
                     Text(entry.text,
-                        // Transcript size: the user bubble is the other
-                        // half of the conversation — it rendered at the
-                        // ambient bodyMedium (15) and read a step larger
-                        // than the assistant's 13.5 (user call).
-                        style: TextStyle(
-                            fontSize: AppType.transcript,
-                            color: scheme.onPrimaryContainer,
-                            height: 1.7)),
+                        // The user bubble is the other half of the
+                        // conversation — it rendered at the ambient
+                        // bodyMedium (15) and read a step larger than
+                        // the assistant's 13.5 (user call). readerBody
+                        // also puts the locale leading in step (en was
+                        // pinned at 1.7 here while assistant text ran 1.5).
+                        style: AppTheme.readerBody(context,
+                            color: scheme.onPrimaryContainer)),
                   if (entry.pendingSteer)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -715,7 +685,7 @@ class _AssistantBubble extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                chatTranscript(
+                transcriptMarkdown(
                   context,
                   reply.text,
                   onTapLink: (href) {

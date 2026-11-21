@@ -7,10 +7,11 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
+import 'kb_editor_page.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/adaptive_tab_bar.dart';
-import '../../ui/form_editor_page.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
@@ -119,20 +120,20 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
 
   Future<void> _addCard() async {
     final l = AppLocalizations.of(context)!;
-    // Full-page editor (question + answer) — same surface as the other
-    // KB edits; the old AlertDialog squeezed the answer behind it.
+    // The notes-style full-screen editor — the answer renders as
+    // markdown in the card view, so it gets the markdown editing
+    // surface like note/flash bodies; question rides the title row.
+    // canSave: the question is the required field, the answer may be
+    // empty (the old form allowed that too).
     final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => FormEditorPage<bool>(
+      builder: (_) => KbEditorPage(
         heading: l.cardAdd,
-        fields: [
-          EditorField(label: l.cardQuestion, autofocus: true),
-          EditorField(label: l.cardAnswer, maxLines: 8),
-        ],
-        canSave: (v) => v[0].trim().isNotEmpty,
-        onSave: (v) async {
-          await ref
-              .read(kbRepoProvider)
-              .saveCard(ref.read(agentsProvider).selectedId!, v[0].trim(), v[1].trim());
+        titleLabel: l.cardQuestion,
+        hint: l.cardAnswer,
+        canSave: (text, title) => title.trim().isNotEmpty,
+        onSave: (text, title, date, endDate, {status}) async {
+          await ref.read(kbRepoProvider).saveCard(
+              ref.read(agentsProvider).selectedId!, title.trim(), text.trim());
           return true;
         },
       ),
@@ -206,9 +207,9 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton(
+        floatingActionButton: AppFab(
           onPressed: _addCard,
-          child: const Icon(LucideIcons.plus),
+          icon: LucideIcons.plus,
         ),
         placeholderIcon: LucideIcons.layers,
         placeholderText: l.kbSelectToView,

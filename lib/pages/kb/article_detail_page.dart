@@ -7,6 +7,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
 import '../../ui/adaptive_tab_bar.dart';
 import '../../ui/load_states.dart';
 import '../../chat/markdown.dart';
@@ -178,7 +179,6 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
   }
 
   Widget _quotesTab(BuildContext context) {
-    final theme = Theme.of(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -189,7 +189,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
               padding: const EdgeInsets.only(bottom: 12),
               child: _QuoteRow(
                   text: '${q.text} — ${q.tag}',
-                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+                  style: AppTheme.readerBody(context)),
             ),
         ],
       ),
@@ -220,8 +220,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(a,
-                        style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+                    child: Text(a, style: AppTheme.readerBody(context)),
                   ),
                 ],
               ),
@@ -242,8 +241,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (ins.sproutsIntro.isNotEmpty)
-            Text(ins.sproutsIntro,
-                style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+            Text(ins.sproutsIntro, style: AppTheme.readerBody(context)),
           for (final s in ins.sprouts) ...[
             const SizedBox(height: 16),
             Text(s.title, style: theme.textTheme.titleSmall),
@@ -252,20 +250,19 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(s.seed,
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline, height: 1.5)),
+                        ?.copyWith(color: theme.colorScheme.outline)),
               ),
             if (s.body.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(s.body,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+                child: Text(s.body, style: AppTheme.readerBody(context)),
               ),
             if (s.aha.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text('Aha: ${s.aha}',
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.primary, height: 1.5)),
+                        ?.copyWith(color: theme.colorScheme.primary)),
               ),
           ],
           if (ins.echoSeed.isNotEmpty) ...[
@@ -279,7 +276,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(ins.echoSeedComment,
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline, height: 1.5)),
+                        ?.copyWith(color: theme.colorScheme.outline)),
               ),
             for (final e in ins.echoItems) ...[
               const SizedBox(height: 12),
@@ -287,7 +284,7 @@ class _KbArticleDetailPageState extends ConsumerState<KbArticleDetailPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('${e.quote} — ${e.source}',
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.6)),
+                    style: AppTheme.readerBody(context)),
               ),
             ],
           ],

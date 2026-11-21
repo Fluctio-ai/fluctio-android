@@ -3,6 +3,7 @@ import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
 import '../theme/font_scale.dart';
 import '../theme/tokens.dart';
 import '../webview/web_container.dart';
@@ -146,13 +147,13 @@ String normalizeMarkdownBlocks(String md) {
   return changed ? out.join('\n') : md;
 }
 
-double _zhBodyHeight(BuildContext context) =>
-    Localizations.localeOf(context).languageCode == 'zh' ? 1.7 : 1.5;
-
 /// The shared renderer configuration. [onLinkTap] receives the href
 /// verbatim (`https://…`, `/workspace/…`) — exactly what openChatLink
 /// needs. Note: passing it via `onLinkTap` (NOT `inlineLinkBuilder`,
-/// which runs at span-build time, not tap time).
+/// which runs at span-build time, not tap time). The body is pinned to
+/// AppType.transcript with no per-surface size param — the surfaces
+/// can't silently re-diverge (user call 2026-11-21: readers joined the
+/// chat size).
 GptMarkdownConfig markdownConfig(
   BuildContext context, {
   void Function(String href)? onTapLink,
@@ -163,16 +164,14 @@ GptMarkdownConfig markdownConfig(
       imageBuilder: imageBuilder,
       latexWorkaround: _normalizeTex,
       blockComponents: markdownBlockComponents,
-      style: Theme.of(context)
-          .textTheme
-          .bodyMedium
-          ?.copyWith(height: _zhBodyHeight(context)),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontSize: AppType.transcript, height: AppTheme.zhBodyHeight(context)),
     );
 
 /// The shared GptMarkdown construction — every boxed surface in this
 /// file goes through here so a fork-parameter change (normalize, KaTeX
 /// dollars, link/image wiring) lands once, not once per wrapper.
-Widget _gptBody(GptMarkdownConfig config, String data, {TextStyle? style}) =>
+Widget _gptBody(GptMarkdownConfig config, String data) =>
     GptMarkdown(
       normalizeMarkdownBlocks(data),
       // The backend's math dialect is the web's @streamdown/math:
@@ -182,13 +181,16 @@ Widget _gptBody(GptMarkdownConfig config, String data, {TextStyle? style}) =>
       imageBuilder: config.imageBuilder,
       latexWorkaround: config.latexWorkaround,
       blockComponents: config.blockComponents,
-      style: style ?? config.style,
+      style: config.style,
     );
 
-/// Non-scrolling markdown body for chat bubbles and other inline
-/// surfaces. Paragraph rhythm needs no tier wiring: the fork renders
-/// blockSpacing as an em-height span, so the root TextScaler scales it
-/// with the glyphs — constant in line-height units by construction.
+/// Non-scrolling markdown body — chat bubbles and reader surfaces alike
+/// (article/note/flash/card bodies). One transcript step everywhere
+/// (13.5, zh 1.7; user call 2026-11-21 retired the 15sp reader body), the
+/// shared whisper headings on top. Paragraph rhythm needs no tier wiring:
+/// the fork renders blockSpacing as an em-height span, so the root
+/// TextScaler scales it with the glyphs — constant in line-height units
+/// by construction.
 Widget transcriptMarkdown(
   BuildContext context,
   String data, {
@@ -196,21 +198,19 @@ Widget transcriptMarkdown(
   ImageBuilder? imageBuilder,
 }) =>
     GptMarkdownTheme(
-      // Reader surfaces (article/note/flash/card bodies): surface body
-      // 15, headings on the shared whisper ladder.
-      gptThemeData: _whisperHeadingTheme(context, AppType.body),
+      gptThemeData: _whisperHeadingTheme(context),
       child: _gptBody(
-          markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder),
+          markdownConfig(context,
+              onTapLink: onTapLink, imageBuilder: imageBuilder),
           data),
     );
 
 /// The one markdown heading policy (user sync call 2026-11-21: readers
-/// join the chat ladder — the old per-surface doc ladder 22/18/16 is
-/// retired): h1-h3 descend 16/15/14 at w500, h4+ collapse to the
-/// surface body, code blocks and quotes pinned to it. [bodySize] is the
-/// surface's body step — transcript 13.5 for chat bubbles, AppType.body
-/// 15 for readers.
-GptMarkdownThemeData _whisperHeadingTheme(BuildContext context, double bodySize) {
+/// joined the chat ladder — and later that day the chat body step too, so
+/// every surface now renders AppType.transcript 13.5): h1-h3 descend
+/// 16/15/14 at w500, h4+ collapse to the transcript body, code blocks and
+/// quotes pinned to it.
+GptMarkdownThemeData _whisperHeadingTheme(BuildContext context) {
   final scheme = Theme.of(context).colorScheme;
   final f = fontLayoutScale(context);
   // Headings damped (user feedback 2026-11-19): the uniform TextScaler
@@ -223,15 +223,18 @@ GptMarkdownThemeData _whisperHeadingTheme(BuildContext context, double bodySize)
       fontSize: size * damp, fontWeight: weight, height: height, color: scheme.onSurface);
   final base = GptMarkdownTheme.of(context);
   // Code blocks default to the ambient bodyMedium (15) — a notch above
-  // the chat body — and quotes inherit the same ambient. Both get
-  // pinned to the surface body here (user call 2026-11-19: 引用/代码
+  // the transcript body — and quotes inherit the same ambient. Both get
+  // pinned to the transcript step here (user call 2026-11-19: 引用/代码
   // 字号反而更大). Paragraph spacing scales via the TextScaler on its
   // own (em-height spans in the fork) — see transcriptMarkdown.
   final sheet = base.styleSheet.copyWith(
     codeBlock: (base.styleSheet.codeBlock ?? const CodeBlockStyle())
-        .copyWith(fontSize: bodySize),
+        .copyWith(fontSize: AppType.transcript),
     blockQuote: (base.styleSheet.blockQuote ?? const BlockQuoteStyle())
-        .copyWith(textStyle: TextStyle(fontSize: bodySize, height: 1.7)),
+        .copyWith(
+            textStyle: TextStyle(
+                fontSize: AppType.transcript,
+                height: AppTheme.zhBodyHeight(context))),
   );
   return base.copyWith(
     // Markdown headings at w500 (user ladder 2026-11-19: 700/600 black
@@ -243,37 +246,20 @@ GptMarkdownThemeData _whisperHeadingTheme(BuildContext context, double bodySize)
     h3: heading(AppType.chatH3, FontWeight.w500, 1.45),
     // h4-h6 stay body-sized: below h3 the ladder gives nothing and
     // chat-md almost never emits them; w500 keeps them findable.
-    h4: heading(bodySize, FontWeight.w500, null),
-    h5: heading(bodySize, FontWeight.w500, null),
-    h6: heading(bodySize, FontWeight.w500, null),
+    h4: heading(AppType.transcript, FontWeight.w500, null),
+    h5: heading(AppType.transcript, FontWeight.w500, null),
+    h6: heading(AppType.transcript, FontWeight.w500, null),
     styleSheet: sheet,
-  );
-}
-
-/// Chat-bubble variant: the web's chat-md scale (chat-markdown.tsx) —
-/// body 13.5 over the same shared whisper headings; readers pass their
-/// own body step through transcriptMarkdown/sliverMarkdown.
-Widget chatTranscript(
-  BuildContext context,
-  String data, {
-  void Function(String href)? onTapLink,
-  ImageBuilder? imageBuilder,
-}) {
-  final config = markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder);
-  return GptMarkdownTheme(
-    gptThemeData: _whisperHeadingTheme(context, AppType.transcript),
-    child: _gptBody(config, data,
-        style: config.style?.copyWith(fontSize: AppType.transcript)),
   );
 }
 
 /// Lazy-scrolling sliver twin for reader surfaces (KB text view, wiki
 /// detail): the same dialect wiring (normalize + config + KaTeX dollars)
-/// and the same whisper heading theme as the boxed variants — the
-/// factory family in this file is the single chokepoint, so no surface
-/// can silently skip a pass. The GptMarkdownTheme wrap around a sliver
-/// is legal (the fork itself wraps slivers in Directionality). The
-/// caller wraps it in a SliverPadding (the sliver takes no padding).
+/// and the same whisper heading theme as the boxed variant — the factory
+/// family in this file is the single chokepoint, so no surface can
+/// silently skip a pass. The GptMarkdownTheme wrap around a sliver is
+/// legal (the fork itself wraps slivers in Directionality). The caller
+/// wraps it in a SliverPadding (the sliver takes no padding).
 Widget sliverMarkdown(
   BuildContext context,
   String data, {
@@ -281,10 +267,11 @@ Widget sliverMarkdown(
   ImageBuilder? imageBuilder,
 }) =>
     GptMarkdownTheme(
-      gptThemeData: _whisperHeadingTheme(context, AppType.body),
+      gptThemeData: _whisperHeadingTheme(context),
       child: SliverGptMarkdown(
         normalizeMarkdownBlocks(data),
-        config: markdownConfig(context, onTapLink: onTapLink, imageBuilder: imageBuilder),
+        config: markdownConfig(context,
+            onTapLink: onTapLink, imageBuilder: imageBuilder),
         useDollarSignsForLatex: true,
       ),
     );

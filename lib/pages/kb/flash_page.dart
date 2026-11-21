@@ -8,6 +8,7 @@ import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
 import '../../ui/master_detail.dart';
@@ -46,9 +47,9 @@ class _KbFlashPageState extends ConsumerState<KbFlashPage> {
 
     return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbIdeas)),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         onPressed: agentId == null ? null : () => _new(context, ref, agentId),
-        child: const Icon(LucideIcons.plus),
+        icon: LucideIcons.plus,
       ),
       placeholderIcon: LucideIcons.zap,
       placeholderText: l.kbSelectToView,

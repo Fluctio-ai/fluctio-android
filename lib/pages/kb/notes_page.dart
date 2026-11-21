@@ -12,6 +12,7 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../pages/chat/chat_image.dart';
 import '../../theme/tokens.dart';
+import '../../ui/app_fab.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/master_detail.dart';
@@ -48,9 +49,9 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
 
     return MasterDetailScaffold(
       appBar: AppBar(title: Text(l.kbNotes)),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: AppFab(
         onPressed: agentId == null ? null : () => _new(context, ref, agentId),
-        child: const Icon(LucideIcons.plus),
+        icon: LucideIcons.plus,
       ),
       placeholderIcon: LucideIcons.notebookPen,
       placeholderText: l.kbSelectToView,

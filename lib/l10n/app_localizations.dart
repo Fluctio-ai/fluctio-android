@@ -1172,12 +1172,6 @@ abstract class AppLocalizations {
   /// **'标题（可选）'**
   String get kbTitleOptional;
 
-  /// No description provided for @kbSummary.
-  ///
-  /// In zh, this message translates to:
-  /// **'摘要'**
-  String get kbSummary;
-
   /// No description provided for @kbPromote.
   ///
   /// In zh, this message translates to:

@@ -570,9 +570,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kbTitleOptional => 'Title (optional)';
 
   @override
-  String get kbSummary => 'Summary';
-
-  @override
   String get kbPromote => 'Promote to article';
 
   @override

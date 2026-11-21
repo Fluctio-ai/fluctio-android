@@ -8,6 +8,7 @@ import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/load_states.dart';
 import '../../ui/labeled_section.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import 'card_source_link.dart';
 
@@ -157,7 +158,7 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
                               Text(
                                 card.question,
                                 textAlign: TextAlign.center,
-                                style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+                                style: theme.textTheme.titleMedium,
                               ),
                               Padding(
                                 padding: const EdgeInsets.only(top: 24),
@@ -230,15 +231,14 @@ class _KbCardReviewPageState extends ConsumerState<KbCardReviewPage> {
         if (card.sourceExcerpt.isNotEmpty) ...[
           LabeledSection(
               label: l.cardExcerpt,
-              child: Text(card.sourceExcerpt,
-                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.6))),
+              child: Text(card.sourceExcerpt, style: AppTheme.readerBody(context))),
           const SizedBox(height: 16),
         ],
         LabeledSection(
             label: l.cardExplanation,
             child: Text(card.answer,
-                style: theme.textTheme.bodyLarge
-                    ?.copyWith(height: 1.6, color: theme.colorScheme.primary))),
+                style: AppTheme.readerBody(context,
+                    color: theme.colorScheme.primary))),
         if (CardSourceLink.navigable(card.sourceType, card.sourceRef)) ...[
           const SizedBox(height: 16),
           LabeledSection(
