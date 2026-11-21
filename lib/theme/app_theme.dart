@@ -41,22 +41,14 @@ abstract final class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       extensions: [
-        // Markdown reading surface: compact heading ladder (the web
-        // contract's tokens — fromTheme display-scale made h1 tower
-        // over a 15px body), the surge-cyan link color, and the block
-        // styles (tinted code/table/quote, hairline borders per
-        // DESIGN.md §4). Built once here instead of per markdown call.
+        // Markdown base: link color + block styles (tinted code/table/
+        // quote, hairline borders per DESIGN.md §4), built once here.
+        // Headings are NOT set here — every markdown surface wraps
+        // itself in markdown.dart's whisper heading theme (shared
+        // ladder 16/15/14, w500, tier-damped; user sync call
+        // 2026-11-21).
         GptMarkdownThemeData(
           brightness: brightness,
-          // Reader headings share the chat surface's w500 (one weight
-          // policy app-wide, user sync call 2026-11-19); the doc ladder
-          // keeps its larger sizes — long-form readers earn them.
-          h1: TextStyle(fontSize: AppType.headline, fontWeight: FontWeight.w500, height: 1.4, color: scheme.onSurface),
-          h2: TextStyle(fontSize: AppType.docH2, fontWeight: FontWeight.w500, height: 1.4, color: scheme.onSurface),
-          h3: TextStyle(fontSize: AppType.docH3, fontWeight: FontWeight.w500, height: 1.45, color: scheme.onSurface),
-          h4: TextStyle(fontSize: AppType.body, fontWeight: FontWeight.w500, color: scheme.onSurface),
-          h5: TextStyle(fontSize: AppType.docH5, fontWeight: FontWeight.w500, color: scheme.onSurface),
-          h6: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500, color: scheme.onSurface),
           linkColor: scheme.primary,
           styleSheet: GptMarkdownStyleSheet(
             blockSpacing: 8,

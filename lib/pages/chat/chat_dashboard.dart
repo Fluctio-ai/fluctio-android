@@ -13,6 +13,7 @@ import '../../kb/shelved_actions.dart';
 import '../../l10n/app_localizations.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
+import '../../ui/row_meta.dart';
 import '../../util/dates.dart';
 import 'chat_image.dart';
 
@@ -578,12 +579,7 @@ class _RecentPane extends ConsumerWidget {
                         if (s.updatedAt > 0)
                           Padding(
                             padding: const EdgeInsets.only(left: 8),
-                            child: Text(
-                              formatSessionTime(s.updatedAt,
-                                  locale: Localizations.localeOf(context).toString()),
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: theme.colorScheme.outline),
-                            ),
+                            child: RowMetaTime(tsMs: s.updatedAt),
                           ),
                       ],
                     ),

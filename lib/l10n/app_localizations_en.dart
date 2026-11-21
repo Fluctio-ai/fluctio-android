@@ -367,8 +367,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get diaryNextMonth => 'Next month';
 
   @override
-  String diaryListMeta(Object date, int themes, int blindspots) {
-    return '$date · $themes themes · $blindspots blindspots';
+  String diaryListMeta(int themes, int blindspots) {
+    return '$themes themes · $blindspots blindspots';
   }
 
   @override

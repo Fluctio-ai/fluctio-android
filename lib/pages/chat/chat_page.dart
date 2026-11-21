@@ -512,16 +512,27 @@ class _ChatPageState extends ConsumerState<ChatPage>
                   Expanded(
                     // Keyed by session: entrance-animation bookkeeping lives
                     // in MessageList's state and must reset on switch.
-                    child: _input.text.isEmpty &&
-                            _pendingImages.isEmpty &&
-                            !active.turnActive &&
-                            !active.historyLoading &&
-                            active.entries.isEmpty
-                        ? const ChatDashboard()
-                        : MessageList(
-                            key: ValueKey(ref.watch(chatStoreProvider).activeKey),
-                            state: active,
-                            jumpSeq: widget.jumpSeq),
+                    //
+                    // Tapping anywhere in the transcript drops the
+                    // composer's focus (user feedback 2026-11-21: the
+                    // keyboard otherwise never yields). opaque so blank
+                    // areas hit too; deeper recognizers (links, image
+                    // taps, long-press, scroll drags) still win the
+                    // arena — only an unclaimed tap unfocuses.
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                      child: _input.text.isEmpty &&
+                              _pendingImages.isEmpty &&
+                              !active.turnActive &&
+                              !active.historyLoading &&
+                              active.entries.isEmpty
+                          ? const ChatDashboard()
+                          : MessageList(
+                              key: ValueKey(ref.watch(chatStoreProvider).activeKey),
+                              state: active,
+                              jumpSeq: widget.jumpSeq),
+                    ),
                   ),
                   _SlashPalette(
                     matches: readOnly

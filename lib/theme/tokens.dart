@@ -156,21 +156,14 @@ abstract final class AppType {
   static const caption = 12.0;
   static const chart = 10.0;
 
-  /// Chat markdown document-heading interpolation (DESIGN.md §3): the
-  /// doc ladder 22/18/16/15/14/13 descends into body with weight — h2,
-  /// h3 and h5 are the steps between the named screen sizes.
-  static const docH2 = 18.0;
-  static const docH3 = 16.0;
-  static const docH5 = 14.0;
-
-  /// Chat transcript scale (web chat-markdown.tsx `chat-md
-  /// text-[13.5px]`) — one notch under the doc ladder the KB/wiki readers
-  /// keep. Headings sit ~1.2/1.11× the body (Doubao-parity hierarchy;
-  /// the old 15/14 caps landed barely above the body and bold carried
-  /// all the weight).
+  /// Markdown heading ladder (DESIGN.md §3) — shared by EVERY markdown
+  /// surface, chat bubbles and readers alike (user sync call 2026-11-21:
+  /// the old per-surface doc ladder 22/18/16 retired; hierarchy whispers
+  /// app-wide). h1-h3 descend 16/15/14, h4+ collapse to the surface body.
   static const transcript = 13.5;
   static const chatH1 = 16.0;
   static const chatH2 = 15.0;
+  static const chatH3 = 14.0;
 
   /// Chat chrome metadata (chat header's agent·model line, drawer agent
   /// header's model line) — a chat-surface interpolation like

@@ -69,6 +69,11 @@ class _MarkdownFieldState extends State<MarkdownField> {
 
   @override
   Widget build(BuildContext context) {
+    // re_editor never consults the ambient TextScaler (code_viewer.dart
+    // wires the same rule) — the tier must scale the editor and gutter
+    // explicitly, or a note's editor stays put while its reader grows.
+    final scaler = MediaQuery.textScalerOf(context);
+    final editorSize = scaler.scale(AppType.body);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -78,13 +83,13 @@ class _MarkdownFieldState extends State<MarkdownField> {
             wordWrap: true,
             autofocus: widget.autofocus,
             hint: widget.hint,
-            style: _styleOf(context),
+            style: _styleOf(context, editorSize),
             indicatorBuilder: (context, editingController, chunkController, notifier) =>
                 DefaultCodeLineNumber(
               controller: editingController,
               notifier: notifier,
               textStyle: TextStyle(
-                fontSize: AppType.caption,
+                fontSize: scaler.scale(AppType.caption),
                 color: Theme.of(context).colorScheme.outline,
               ),
             ),
@@ -97,11 +102,15 @@ class _MarkdownFieldState extends State<MarkdownField> {
 
   /// The style (highlight theme included) must be a stable instance:
   /// a fresh one per build makes the editor re-highlight the whole
-  /// document on every keystroke. Cached per brightness.
-  CodeEditorStyle _styleOf(BuildContext context) {
+  /// document on every keystroke. Cached per brightness and size (the
+  /// size carries the font tier).
+  CodeEditorStyle _styleOf(BuildContext context, double fontSize) {
     final brightness = Theme.of(context).brightness;
-    if (_cachedStyle != null && _cachedBrightness == brightness) {
-      return _cachedStyle!;
+    final cached = _cachedStyle;
+    if (cached != null &&
+        _cachedBrightness == brightness &&
+        cached.fontSize == fontSize) {
+      return cached;
     }
     final theme = Theme.of(context);
     final base =
@@ -110,7 +119,7 @@ class _MarkdownFieldState extends State<MarkdownField> {
     final colors = {...base, 'root': base['root']!.copyWith(backgroundColor: null)};
     final style = CodeEditorStyle(
       fontFamily: 'monospace',
-      fontSize: AppType.body,
+      fontSize: fontSize,
       textColor: theme.colorScheme.onSurface,
       backgroundColor: Colors.transparent,
       cursorColor: theme.colorScheme.primary,

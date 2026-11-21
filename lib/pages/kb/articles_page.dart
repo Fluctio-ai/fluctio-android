@@ -9,13 +9,13 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
-import '../../util/dates.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 import 'article_detail_page.dart';
 
@@ -181,10 +181,8 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                   selected: _selectedId == s.id,
                                   title: Text(s.title,
                                       maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  subtitle: Text(
-                                    '$chars · ${DateTime.tryParse(s.updatedAt) == null ? '' : formatShortDate(DateTime.parse(s.updatedAt))}',
-                                    maxLines: 1,
-                                  ),
+                                  subtitle: Text(chars, maxLines: 1),
+                                  trailing: RowMetaTime.iso(s.updatedAt),
                                   onTap: () => _open(s.id, s.title),
                                   onLongPress: () => showRowActionsMenu(context, [
                                     RowAction(

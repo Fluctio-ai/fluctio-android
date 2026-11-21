@@ -362,8 +362,8 @@ class AppLocalizationsZh extends AppLocalizations {
   String get diaryNextMonth => '下一月';
 
   @override
-  String diaryListMeta(Object date, int themes, int blindspots) {
-    return '$date · $themes 主题 · $blindspots 盲区';
+  String diaryListMeta(int themes, int blindspots) {
+    return '$themes 主题 · $blindspots 盲区';
   }
 
   @override

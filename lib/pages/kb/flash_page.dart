@@ -13,7 +13,7 @@ import '../../ui/load_states.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
-import '../../util/dates.dart';
+import '../../ui/row_meta.dart';
 import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
@@ -118,9 +118,7 @@ class _KbFlashPageState extends ConsumerState<KbFlashPage> {
                         child: ChevronListTile(
                           selected: _selectedId == s.id,
                           title: Text(s.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(DateTime.tryParse(s.updatedAt) == null
-                              ? ''
-                              : formatShortDate(DateTime.parse(s.updatedAt))),
+                          trailing: RowMetaTime.iso(s.updatedAt),
                           onTap: () => _view(context, ref, agentId!, s),
                           onLongPress: () => showRowActionsMenu(context, [
                             RowAction(

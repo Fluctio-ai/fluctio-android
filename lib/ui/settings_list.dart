@@ -106,18 +106,39 @@ class SettingsSegmentedTile<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsTile(
-      icon: icon,
-      label: label,
-      trailing: SegmentedButton<T>(
-        style: const ButtonStyle(
-          visualDensity: VisualDensity.compact,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        showSelectedIcon: false,
-        segments: segments,
-        selected: {selected},
-        onSelectionChanged: onSelectionChanged,
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: AppSpace.lg),
+            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+          ]),
+          const SizedBox(height: 8),
+          // Full-width segment row on its own line: at the 大 tier the
+          // three labels alone outgrow a trailing slot and squeezed the
+          // label into a vertical strip ("Fo/nt/siz/e"). Indented to
+          // align with the label (icon 20 + gap 16).
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<T>(
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                showSelectedIcon: false,
+                segments: segments,
+                selected: {selected},
+                onSelectionChanged: onSelectionChanged,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

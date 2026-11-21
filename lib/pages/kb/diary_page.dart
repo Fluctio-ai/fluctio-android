@@ -14,6 +14,7 @@ import '../../ui/chevron_list_tile.dart';
 import '../../ui/fling_detector.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/load_states.dart';
+import '../../ui/row_meta.dart';
 import '../../util/dates.dart';
 
 /// Diary (web `agents/<id>/knowledge/diary`, stacked for mobile): the
@@ -262,9 +263,9 @@ class _KbDiaryPageState extends ConsumerState<KbDiaryPage> {
                   title: Text(d.overview.isNotEmpty ? d.overview : d.date,
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   subtitle: Text(
-                      l.diaryListMeta(
-                          d.date, d.themes.length, d.blindspots.length),
+                      l.diaryListMeta(d.themes.length, d.blindspots.length),
                       maxLines: 1),
+                  trailing: RowMetaTime.day(d.date),
                   onTap: () => setState(() {
                     _genDate = d.date;
                     _selected = d.date;

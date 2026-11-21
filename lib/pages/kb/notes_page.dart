@@ -16,6 +16,7 @@ import '../../ui/chevron_list_tile.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
@@ -118,7 +119,9 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
                         selected: _selectedId == n.id,
                         title: Text(n.title.isEmpty ? l.noteUntitled : n.title,
                             maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(n.updatedAt, maxLines: 1),
+                        subtitle: Text(n.contentMd,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: RowMetaTime.iso(n.updatedAt),
                         onTap: () => _view(context, ref, agentId!, n),
                         onLongPress: () => showRowActionsMenu(context, [
                           RowAction(

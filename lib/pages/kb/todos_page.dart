@@ -16,6 +16,7 @@ import '../../ui/fling_detector.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../util/dates.dart';
 import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
@@ -387,9 +388,9 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
               )
             : null,
       ),
-      subtitle: todo.startAt == null
-            ? null
-            : Text(formatShortDate(todo.startAt!, withTime: true), maxLines: 1),
+      trailing: todo.startAt == null
+          ? null
+          : RowMetaTime(tsMs: todo.startAt!.millisecondsSinceEpoch),
       onLongPress: () => showRowActionsMenu(context, [
         RowAction(
           icon: LucideIcons.penLine,

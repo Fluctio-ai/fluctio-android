@@ -797,8 +797,8 @@ abstract class AppLocalizations {
   /// No description provided for @diaryListMeta.
   ///
   /// In zh, this message translates to:
-  /// **'{date} · {themes} 主题 · {blindspots} 盲区'**
-  String diaryListMeta(Object date, int themes, int blindspots);
+  /// **'{themes} 主题 · {blindspots} 盲区'**
+  String diaryListMeta(int themes, int blindspots);
 
   /// No description provided for @diaryShelved.
   ///

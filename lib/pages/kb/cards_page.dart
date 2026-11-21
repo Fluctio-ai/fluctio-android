@@ -14,6 +14,7 @@ import '../../ui/form_editor_page.dart';
 import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/master_detail.dart';
 import '../../theme/tokens.dart';
@@ -261,9 +262,8 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                     maxLines: 1, overflow: TextOverflow.ellipsis),
                                 trailing: c.dueAt == null
                                     ? null
-                                    : Text(formatShortDate(c.dueAt!.toLocal()),
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(color: theme.colorScheme.outline)),
+                                    : RowMetaTime(
+                                        tsMs: c.dueAt!.millisecondsSinceEpoch),
                                 onTap: () {
                                   // Wide: select into the detail pane;
                                   // phone: push the read-only card view.

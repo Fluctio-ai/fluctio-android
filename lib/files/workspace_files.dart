@@ -14,7 +14,7 @@ import '../share/share_out.dart';
 import '../ui/dialogs.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
-import '../util/dates.dart';
+import '../ui/row_meta.dart';
 import 'agent_files.dart';
 
 /// Session-scoped workspace listing — the ONE data source behind both
@@ -295,14 +295,21 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
                           size: 20, color: theme.colorScheme.outline),
                       title: Text(node.name,
                           maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: Text(
-                        '${formatWorkspaceSize(node.size)} · ${formatShortDate(DateTime.fromMillisecondsSinceEpoch(node.modTimeMs))}',
-                        maxLines: 1),
-                      trailing: IconButton(
-                        tooltip: l.shareFileOut,
-                        icon: Icon(LucideIcons.share2,
-                            size: 18, color: theme.colorScheme.outline),
-                        onPressed: () => _share(node.file!),
+                      subtitle: Text(formatWorkspaceSize(node.size), maxLines: 1),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: RowMetaTime(tsMs: node.modTimeMs),
+                          ),
+                          IconButton(
+                            tooltip: l.shareFileOut,
+                            icon: Icon(LucideIcons.share2,
+                                size: 18, color: theme.colorScheme.outline),
+                            onPressed: () => _share(node.file!),
+                          ),
+                        ],
                       ),
                       onTap: () => widget.onOpen(node.file!),
                       onLongPress: () => showRowActionsMenu(context, [

@@ -147,8 +147,10 @@ Mono（随 gpt_markdown fork 打包）——代码、时间戳、会话计数、
 - **Label** (500, 13, 1.4)：分段控件、按钮、行主文案。
 - **Caption** (400, 12, 1.4)：辅助说明、时间戳（配 mono）。
 - **Transcript** (400, 13.5, **1.7**)：聊天 markdown 正文（web chat-md
-  对齐；行高 1.7 是 zh 铁律）。聊天标题档 h1/h2/h3 = 16/15/14（既有的
-  doc 阶梯内插值），h4+ 收回正文字号——聊天里层级要"低声"。
+  对齐；行高 1.7 是 zh 铁律）。**markdown 标题档全表面一致**（user sync
+  call 2026-11-21，取代 per-surface doc 大阶梯 22/18/16，与 web doc 阅读
+  面有意分离）：h1/h2/h3 = 16/15/14，h4+ 收回各表面正文字号（聊天
+  13.5、阅读面 15）——层级一律"低声"。
 - **Data annotation** (12, `AppType.chart`)：仅图表/日历格内部刻度，是
   唯一豁免字号档同步的表面（固定几何格）。
 
@@ -159,7 +161,8 @@ fork 把硬编码 w700 降到 w600——CJK w700 是一坨黑）。层级先到 
 **The One Scale Rule.** 字号三档（小 1.10 / 中 1.19 / 大 1.30，中档锚
 定微信标准聊天字 16sp）经 root `TextScaler` 全树同步：正文、标题、输入
 框、时间戳一起呼吸，**禁止逐点冻结**（re_editor 不读 ambient scaler——代码
-查看器在 `code_viewer.dart` 输入端显式乘档）。段落间距天然同比：fork 把
+查看器与 Markdown 编辑器（`code_viewer.dart`/`markdown_field.dart`）在输入
+端显式乘档）。段落间距天然同比：fork 把
 spacing 渲染成 em 高度 span，TextScaler 随字一起缩，无需额外系数
 （`fontLayoutScale` 只给需要膨胀的盒模型边距用），行高是字号倍数天然同比。
 元信息（工具卡名 labelMedium、caption 时间戳）靠**更小的角色**保持安静，
@@ -217,9 +220,11 @@ Rule.** 表面静止即平；层级确需抬升才用分组卡，高密度列表
 ### Chat 消息（签名表面）
 - **助手气泡**：secondaryContainer 底 + 发丝边，发送侧内角收回；内边距
   12/10 × 字号档系数。**用户气泡**：primaryContainer 底同构。
-- **markdown 渲染**（`lib/chat/markdown.dart` 单出口）：段落距 f² 呼吸；
-  引用块 = 竖条 + 浅青灰底卡；行内代码 = 0.9× 浅底无边框；标题 16/15/14
-  递降 + 大档阻尼（有效缩放 1+(f−1)/2）。
+- **markdown 渲染**（`lib/chat/markdown.dart` 单出口，文章/笔记/wiki/
+  卡片等阅读面同走此出口）：段落距随档线性呼吸（fork em-span）；引用块 =
+  竖条 + 浅青灰底卡；行内代码 = 0.9× 浅底无边框；标题 16/15/14 递降
+  （h4+ 收回正文）+ 大档阻尼（有效缩放 1+(f−1)/2），代码块/引用钉在
+  表面正文档（user sync call 2026-11-21 阅读面加入）。
 - **工具卡**：名字 = JetBrains Mono labelMedium（比正文小的元数据角色），
   完成态 caption + ✓；展开的输出是内容，随档缩放。
 

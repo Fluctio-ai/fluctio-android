@@ -15,8 +15,8 @@ import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../theme/tokens.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
-import '../../util/dates.dart';
 
 /// One session row (used in the navigation drawer): title/preview/time,
 /// per-item menu (rename / delete / chat-only toggle).
@@ -44,8 +44,6 @@ class SessionTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context)!;
-    final time = formatSessionTime(session.updatedAt,
-        locale: Localizations.localeOf(context).toString());
     final tile = ListTile(
       dense: true,
       selected: selected,
@@ -54,10 +52,11 @@ class SessionTile extends ConsumerWidget {
       leading: leading ??
           Icon(LucideIcons.chevronRight,
               size: 16, color: Theme.of(context).colorScheme.outline),
-      horizontalTitleGap: 8,
-      // Right gutter narrowed — the ⋯ menu hugs the row edge (its own
-      // box adds a few px); left stays at the standard 16.
-      contentPadding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
+      horizontalTitleGap: 4,
+      // Tight gutters like the KB rows (user feedback 2026-11-21);
+      // right stays 8 — the ⋯ menu hugs the row edge (its own box adds
+      // a few px).
+      contentPadding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
       title: Text.rich(
         TextSpan(
           text: session.title.isEmpty ? l.chatNew : session.title,
@@ -82,15 +81,17 @@ class SessionTile extends ConsumerWidget {
         // smaller and the sidebar read disconnected from the chat.
         style: const TextStyle(fontSize: AppType.transcript),
       ),
-      subtitle: switch ((session.preview, time)) {
-        ('', '') => null,
-        ('', _) => Text(time, maxLines: 1),
-        (_, '') => Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
-        (_, _) => Text('${session.preview} · $time', maxLines: 1, overflow: TextOverflow.ellipsis),
-      },
+      // Subtitle is the content preview only — the timestamp lives in
+      // trailing (RowMetaTime family, user sync call 2026-11-21) so a
+      // long preview can never ellipsize it away.
+      subtitle: session.preview.isEmpty
+          ? null
+          : Text(session.preview, maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          RowMetaTime(tsMs: session.updatedAt),
+          const SizedBox(width: 6),
           // IM-channel mark (web parity: ChannelIcon next to the title).
           // No brand assets on the app side — a text chip names the
           // channel and flags the read-only chat.
