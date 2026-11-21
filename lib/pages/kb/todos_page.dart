@@ -445,12 +445,20 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
           ),
         ],
       ),
-      child: Container(
-        // WeChat-style hairline between rows (user feedback 2026-11-21).
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-        ),
-        child: tile,
+      child: Stack(
+        children: [
+          tile,
+          // WeChat-style hairline between rows (user feedback
+          // 2026-11-21) — from the title's left edge (12 pad + 24
+          // checkbox + 8 gap) to the row's right end; the leading
+          // zone stays clean.
+          Positioned(
+            left: 44,
+            right: 0,
+            bottom: 0,
+            child: Container(height: 1, color: scheme.outlineVariant),
+          ),
+        ],
       ),
     );
   }

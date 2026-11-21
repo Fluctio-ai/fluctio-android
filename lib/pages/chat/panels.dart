@@ -101,14 +101,12 @@ class SessionTile extends ConsumerWidget {
         ),
       ]),
       child: Container(
-        // WeChat-style hairline between rows (user feedback 2026-11-21)
-        // — full-bleed, painted at the container edge past the padding.
-        decoration: BoxDecoration(
-          color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
-          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-        ),
-        padding: EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
-        child: Row(
+        color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+        child: Stack(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
+              child: Row(
           children: [
             // Chevron rhythm shared with the KB lists (ChevronListTile).
             leading ??
@@ -166,10 +164,15 @@ class SessionTile extends ConsumerWidget {
                                 ),
                                 child: Text(
                                   channelLabel(session.channel),
+                                  // Chart step like the row timestamp —
+                                  // the channel tag is row metadata, not
+                                  // content (user feedback 2026-11-21).
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall
-                                      ?.copyWith(color: scheme.outline),
+                                      ?.copyWith(
+                                          fontSize: AppType.chart,
+                                          color: scheme.outline),
                                 ),
                               ),
                             ),
@@ -180,6 +183,19 @@ class SessionTile extends ConsumerWidget {
               ),
             ),
             ?trailing,
+          ],
+              ),
+            ),
+            // WeChat-style hairline between rows (user feedback
+            // 2026-11-21) — starts at the TITLE's left edge (12+16+4,
+            // the chevron zone stays clean) and runs to the row's right
+            // end.
+            Positioned(
+              left: 32,
+              right: 0,
+              bottom: 0,
+              child: Container(height: 1, color: scheme.outlineVariant),
+            ),
           ],
         ),
       ),

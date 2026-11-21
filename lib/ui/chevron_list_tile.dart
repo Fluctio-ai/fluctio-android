@@ -53,57 +53,70 @@ class ChevronListTile extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
-        // WeChat-style hairline between rows (user feedback 2026-11-21)
-        // — full-bleed, painted at the container edge past the padding.
-        decoration: BoxDecoration(
-          color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
-          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
-        ),
-        padding: padding ?? EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
-        child: Row(
+        color: selected ? scheme.primary.withValues(alpha: 0.08) : null,
+        child: Stack(
           children: [
-            // Tight chevron gutters (user feedback 2026-11-21: the
-            // pointer is an affordance, not content) — 12px edges like
-            // the session rows, 4px to the title.
-            Icon(LucideIcons.chevronRight, size: 16, color: scheme.outline),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: padding ?? EdgeInsets.fromLTRB(12, 10 * s, 12, 10 * s),
+              child: Row(
                 children: [
-                  // Title line: title + timestamp at the right, like
-                  // WeChat's time-on-the-title-line; start-aligned so a
-                  // wrapping title (flash/cards) keeps the time on the
-                  // first line.
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        // merge, not replace: only the size is pinned,
-                        // color/weight stay ambient (like ListTile did).
-                        child: DefaultTextStyle.merge(
-                          style: const TextStyle(fontSize: AppType.transcript),
-                          child: title,
+                  // Tight chevron gutters (user feedback 2026-11-21: the
+                  // pointer is an affordance, not content) — 12px edges
+                  // like the session rows, 4px to the title.
+                  Icon(LucideIcons.chevronRight,
+                      size: 16, color: scheme.outline),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Title line: title + timestamp at the right, like
+                        // WeChat's time-on-the-title-line; start-aligned so a
+                        // wrapping title (flash/cards) keeps the time on the
+                        // first line.
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              // merge, not replace: only the size is pinned,
+                              // color/weight stay ambient (like ListTile did).
+                              child: DefaultTextStyle.merge(
+                                style: const TextStyle(
+                                    fontSize: AppType.transcript),
+                                child: title,
+                              ),
+                            ),
+                            if (trailing != null)
+                              Padding(
+                                padding: EdgeInsets.only(left: 8, top: 2 * s),
+                                child: trailing,
+                              ),
+                          ],
                         ),
-                      ),
-                      if (trailing != null)
-                        Padding(
-                          padding: EdgeInsets.only(left: 8, top: 2 * s),
-                          child: trailing,
-                        ),
-                    ],
-                  ),
-                  if (subtitle != null)
-                    Padding(
-                      padding: EdgeInsets.only(top: 2 * s),
-                      child: DefaultTextStyle(
-                        style: AppTheme.listSubtitleStyle(scheme),
-                        child: subtitle!,
-                      ),
+                        if (subtitle != null)
+                          Padding(
+                            padding: EdgeInsets.only(top: 2 * s),
+                            child: DefaultTextStyle(
+                              style: AppTheme.listSubtitleStyle(scheme),
+                              child: subtitle!,
+                            ),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
+            ),
+            // WeChat-style hairline between rows (user feedback
+            // 2026-11-21) — starts at the TITLE's left edge (12+16+4,
+            // the chevron zone stays clean) and runs to the row's right
+            // end.
+            Positioned(
+              left: 32,
+              right: 0,
+              bottom: 0,
+              child: Container(height: 1, color: scheme.outlineVariant),
             ),
           ],
         ),

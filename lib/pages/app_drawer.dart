@@ -534,12 +534,12 @@ class _ProjectRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // WeChat-style hairline between rows (user feedback 2026-11-21).
-        Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant)),
-          ),
-          child: ListTile(
+        // WeChat-style hairline between rows (user feedback 2026-11-21)
+        // — from the title's left edge (12 pad + 18 icon + 16 default
+        // gap) to the row's right end; the leading zone stays clean.
+        Stack(
+          children: [
+            ListTile(
           dense: true,
           visualDensity: VisualDensity.compact,
           // Same 12px gutters as the session rows below (user feedback
@@ -588,6 +588,15 @@ class _ProjectRow extends StatelessWidget {
           ),
           onTap: onToggle,
         ),
+            Positioned(
+              left: 46,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                  height: 1,
+                  color: Theme.of(context).colorScheme.outlineVariant),
+            ),
+          ],
         ),
         if (expanded)
           Padding(
