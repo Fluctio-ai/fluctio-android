@@ -680,7 +680,7 @@ class _UserBubble extends ConsumerWidget {
             // is owned by the day-divider pills, not the per-bubble label.
             if (entry.ts > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 2, right: 6),
+                padding: const EdgeInsets.only(top: 5, right: 6),
                 child: Text(
                   formatTimeOfDay(
                       DateTime.fromMillisecondsSinceEpoch(entry.ts)),
@@ -818,11 +818,12 @@ class _AssistantBubble extends ConsumerWidget {
             // whether or not the regenerate button joins the row —
             // center-aligned, the button's taller box floated the whole
             // meta line away from the bubble on the last reply (user
-            // report 2026-11-23; the distance itself was tuned back
-            // to the original rhythm after the same call). The 6px inset
-            // nudges the row toward the center ("half a char").
+            // report 2026-11-23). top: 5 keeps the gap at the
+            // pre-polish breathing the smaller chatMeta glyphs asked
+            // for (2px read cramped after the 12→11 step). The 6px
+            // inset nudges the row toward the center ("half a char").
             Padding(
-              padding: const EdgeInsets.only(top: 2, left: 6),
+              padding: const EdgeInsets.only(top: 5, left: 6),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
