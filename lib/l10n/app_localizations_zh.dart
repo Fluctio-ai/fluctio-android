@@ -196,6 +196,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatToolDone => '完成';
 
   @override
+  String chatToolsUsed(int tools, int rounds) {
+    return '在 $rounds 轮中使用了 $tools 个工具';
+  }
+
+  @override
+  String chatToolsRunning(int done, int total, int rounds) {
+    return '正在运行工具…（$done/$total，共 $rounds 轮）';
+  }
+
+  @override
   String get chatNoAgent => '没有可用的 Agent';
 
   @override

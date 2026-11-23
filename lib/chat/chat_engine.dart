@@ -95,6 +95,7 @@ class ToolEntry extends UiEntry {
     this.arguments = '',
     this.result,
     this.expanded = false,
+    this.round = 1,
     super.seq,
   });
 
@@ -103,12 +104,27 @@ class ToolEntry extends UiEntry {
   final String? result;
   final bool expanded;
 
-  ToolEntry copyWith({String? name, String? arguments, String? result, bool? expanded}) => ToolEntry(
+  /// 1-based round within the current tool run (web ToolRoundsBundle's
+  /// "across N rounds"). History: one per assistant toolCalls batch. Live:
+  /// a call that lands after every prior call in the run has its result
+  /// starts a new round — the agent loop waits for all results before the
+  /// next round, so that boundary is exact.
+  final int round;
+
+  ToolEntry copyWith({
+    String? name,
+    String? arguments,
+    String? result,
+    bool? expanded,
+    int? round,
+  }) =>
+      ToolEntry(
         key: key,
         name: name ?? this.name,
         arguments: arguments ?? this.arguments,
         result: result ?? this.result,
         expanded: expanded ?? this.expanded,
+        round: round ?? this.round,
         seq: seq,
       );
 }
@@ -161,6 +177,7 @@ class ChatUiState {
     this.historyHasMore = false,
     this.earliestSeq,
     this.loadMoreRunning = false,
+    this.openToolGroups = const {},
     this.debugFrames = 0,
     this.debugLastEvent = '',
     this.debugLastBus = '',
@@ -175,6 +192,11 @@ class ChatUiState {
   final bool historyHasMore;
   final int? earliestSeq;
   final bool loadMoreRunning;
+
+  /// Tool-group cards the user opened (keyed by the group's first tool
+  /// key) — UI state riding with the transcript so it survives list
+  /// recycling and rebuilds, same contract as [ToolEntry.expanded].
+  final Set<String> openToolGroups;
 
   /// On-screen diagnostics (debug builds): raw SSE frames seen by this
   /// session's engine and the last frame's type@seq.
@@ -225,6 +247,9 @@ class ChatEngine {
   bool _loadMoreRunning = false;
   int _counter = 0;
 
+  /// Tool groups the user expanded (see [ChatUiState.openToolGroups]).
+  final Set<String> _openGroups = <String>{};
+
   /// Streaming-bubble accumulator: deltas append into [_streamBuf]
   /// (O(delta)); the materialized string is cached in [_streamText] until
   /// the next append invalidates it.
@@ -248,6 +273,7 @@ class ChatEngine {
         historyHasMore: _hasMore,
         earliestSeq: _earliestSeq,
         loadMoreRunning: _loadMoreRunning,
+        openToolGroups: Set.unmodifiable(_openGroups),
         debugFrames: _debugFrames,
         debugLastEvent: _debugLastEvent,
         debugLastBus: _debugLastBus,
@@ -398,6 +424,12 @@ class ChatEngine {
     }
   }
 
+  /// Expand/collapse a tool-group card ([groupId] = the first tool key —
+  /// stable across streaming because the group only ever grows forward).
+  void toggleToolGroup(String groupId) {
+    if (!_openGroups.add(groupId)) _openGroups.remove(groupId);
+  }
+
   // ---- history ----
 
   void beginHistoryLoad() {
@@ -408,8 +440,11 @@ class ChatEngine {
 
   void loadHistory(HistoryPage page, {required bool older}) {
     final batch = <UiEntry>[];
+    // Round continuity across an older page's seam: the predecessor of
+    // the page's first message is the oldest already-loaded entry.
+    final boundary = older && _entries.isNotEmpty ? _entries.first : null;
     for (final m in page.messages) {
-      _mapHistoryMessage(m, batch);
+      _mapHistoryMessage(m, batch, boundary: boundary);
     }
     if (older) {
       _entries.insertAll(0, batch);
@@ -466,7 +501,7 @@ class ChatEngine {
     _phase = TurnPhase.idle;
   }
 
-  void _mapHistoryMessage(HistoryMessage m, List<UiEntry> batch) {
+  void _mapHistoryMessage(HistoryMessage m, List<UiEntry> batch, {UiEntry? boundary}) {
     switch (m.kind) {
       case 'turn_aborted_notice':
         batch.add(NoticeEntry(key: _key('n'), kind: NoticeKind.turnAborted, text: m.content, tone: NoticeTone.warn));
@@ -487,7 +522,12 @@ class ChatEngine {
           // Same dirty-row defense as applyFrame: a nameless tool call
           // renders as a card stuck running forever.
           if (tc.name.isEmpty) continue;
-          batch.add(ToolEntry(key: 'tc-${tc.id}', name: tc.name, arguments: tc.arguments));
+          batch.add(ToolEntry(
+            key: 'tc-${tc.id}',
+            name: tc.name,
+            arguments: tc.arguments,
+            round: _roundForNextTool(batch.isNotEmpty ? batch.last : boundary),
+          ));
         }
       case 'tool':
         // Pair with the call card the preceding assistant entry created;
@@ -570,6 +610,7 @@ class ChatEngine {
           key: 'tc-${id ?? _key('t')}',
           name: name,
           arguments: map['arguments'] as String? ?? '',
+          round: _roundForNextTool(_entries.isEmpty ? null : _entries.last),
         ));
       case 'tool_result':
         final id = map['id'];
@@ -687,6 +728,13 @@ class ChatEngine {
     }
     _entries.add(ToolEntry(key: key, name: name, result: result));
   }
+
+  /// Round for the next tool call given the run's current last entry —
+  /// the parallel-vs-serial rule lives on [ToolEntry.round].
+  int _roundForNextTool(UiEntry? last) => switch (last) {
+        ToolEntry t => t.result == null ? t.round : t.round + 1,
+        _ => 1,
+      };
 
   void _echoSteer(String content) {
     if (content.isEmpty) return;

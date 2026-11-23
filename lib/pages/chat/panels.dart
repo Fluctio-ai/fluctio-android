@@ -18,6 +18,7 @@ import '../../theme/font_scale.dart';
 import '../../theme/tokens.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
+import '../../ui/slide_action.dart';
 import '../../ui/load_states.dart';
 
 /// One session row (drawer, chat list, share picker): WeChat layout —
@@ -209,26 +210,21 @@ class SessionTile extends ConsumerWidget {
         // edge, ~80dp per pane at phone widths.
         extentRatio: 0.6,
         children: [
-          SlidableAction(
-            onPressed: (_) => _SessionMenu.run(context, ref, session, 'rename'),
-            backgroundColor: scheme.primary,
-            foregroundColor: scheme.onPrimary,
+          SlideActionTile(
             icon: LucideIcons.penLine,
             label: l.chatRename,
+            onPressed: () => _SessionMenu.run(context, ref, session, 'rename'),
           ),
-          SlidableAction(
-            onPressed: (_) => _SessionMenu.run(context, ref, session, 'pin'),
-            backgroundColor: scheme.secondary,
-            foregroundColor: scheme.onSecondary,
+          SlideActionTile(
             icon: session.pinned ? LucideIcons.pinOff : LucideIcons.pin,
             label: session.pinned ? l.chatUnpin : l.chatPin,
+            onPressed: () => _SessionMenu.run(context, ref, session, 'pin'),
           ),
-          SlidableAction(
-            onPressed: (_) => _SessionMenu.run(context, ref, session, 'delete'),
-            backgroundColor: scheme.error,
-            foregroundColor: scheme.onError,
+          SlideActionTile(
             icon: LucideIcons.trash2,
             label: l.chatDelete,
+            destructive: true,
+            onPressed: () => _SessionMenu.run(context, ref, session, 'delete'),
           ),
         ],
       ),

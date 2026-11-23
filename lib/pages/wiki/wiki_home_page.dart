@@ -11,6 +11,7 @@ import '../../ui/chevron_list_tile.dart';
 import '../../ui/load_states.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
+import '../../ui/slide_action.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
 import '../../wiki/wiki_actions.dart';
@@ -187,12 +188,11 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
               motion: const DrawerMotion(),
               extentRatio: 0.25,
               children: [
-                SlidableAction(
-                  backgroundColor: Theme.of(context).colorScheme.errorContainer,
-                  foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+                SlideActionTile(
                   icon: LucideIcons.trash2,
                   label: l.chatDelete,
-                  onPressed: (_) => _delete(p),
+                  destructive: true,
+                  onPressed: () => _delete(p),
                 ),
               ],
             ),

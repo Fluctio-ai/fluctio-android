@@ -164,8 +164,18 @@ GptMarkdownConfig markdownConfig(
       imageBuilder: imageBuilder,
       latexWorkaround: _normalizeTex,
       blockComponents: markdownBlockComponents,
+      // Dark steps the BODY down, not just the bold up (user call
+      // 2026-11-23: +100 on the bold alone still read flat) —
+      // contrast is what reads on deep-water surfaces. 375 vs 575
+      // gives the bold a 200-unit landing. Light keeps bodyMedium's
+      // w400. Variable families interpolate the wght axis; static
+      // ones snap to their nearest face.
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontSize: AppType.transcript, height: AppTheme.zhBodyHeight(context)),
+          fontSize: AppType.transcript,
+          height: AppTheme.zhBodyHeight(context),
+          fontWeight: Theme.of(context).brightness == Brightness.dark
+              ? const FontWeight(375)
+              : null),
     );
 
 /// The shared GptMarkdown construction — every boxed surface in this

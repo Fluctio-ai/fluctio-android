@@ -17,6 +17,7 @@ import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
+import '../../ui/slide_action.dart';
 import 'article_detail_page.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
@@ -168,12 +169,11 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
                                     motion: const DrawerMotion(),
                                     extentRatio: 0.25,
                                     children: [
-                                      SlidableAction(
-                                        onPressed: (_) => delete(),
-                                        backgroundColor: scheme.error,
-                                        foregroundColor: scheme.onError,
+                                      SlideActionTile(
                                         icon: LucideIcons.trash2,
                                         label: l.chatDelete,
+                                        destructive: true,
+                                        onPressed: delete,
                                       ),
                                     ],
                                   ),

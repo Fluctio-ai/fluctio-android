@@ -1001,11 +1001,13 @@ class BoldMd extends InlineMd {
     final GptMarkdownConfig config,
   ) {
     var match = exp.firstMatch(text.trim());
-    // fluctio-patch: TUNE HERE — see plusparse/renderer.dart MdBold.
+    // fluctio-patch: TUNE HERE — see plusparse/renderer.dart MdBold
+    // (fluctioBoldVariations carries the dark-mode step on both
+    // pipelines).
     var conf = config.copyWith(
       style: config.style?.copyWith(
         fontWeight: FontWeight.w500,
-        fontVariations: const [FontVariation('wght', kFluctioBoldWeight)],
+        fontVariations: fluctioBoldVariations(context),
       ),
     );
     return TextSpan(

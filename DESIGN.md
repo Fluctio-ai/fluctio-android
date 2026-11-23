@@ -162,7 +162,12 @@ Mono（随 gpt_markdown fork 打包）——代码、时间戳、会话计数、
 
 **The Quiet Bold Rule.** 强调 = w600 的"自信的轻"（gpt_markdown 本地
 fork 把硬编码 w700 降到 w600——CJK w700 是一坨黑）。层级先到 w600 为止，
-更大的对比交给尺寸梯度或颜色，不到 w700。
+更大的对比交给尺寸梯度或颜色，不到 w700。正文行内粗体（`**…**`）单独
+一挡：变量字体 wght 轴 **475**（静字族回落 w500 面），经 700→600→500→
+450→475 阶梯定稿；**深色面吃笔画对比，且对比度而非绝对字重才读得
+出来——深档双向调节：正文降到 375，粗体升到 575**（500/525/550 单加
+粗均偏淡；`fluctioBoldVariations` + markdownConfig/readerBody 按主题亮
+度取档，2026-11-23）。
 
 **The One Scale Rule.** 字号三档（小 1.10 / 中 1.19 / 大 1.30，中档锚
 定微信标准聊天字 16sp）经 root `TextScaler` 全树同步：正文、标题、输入
@@ -171,8 +176,8 @@ fork 把硬编码 w700 降到 w600——CJK w700 是一坨黑）。层级先到 
 端显式乘档）。段落间距天然同比：fork 把
 spacing 渲染成 em 高度 span，TextScaler 随字一起缩，无需额外系数
 （`fontLayoutScale` 只给需要膨胀的盒模型边距用），行高是字号倍数天然同比。
-元信息（工具卡名 labelMedium、caption 时间戳）靠**更小的角色**保持安静，
-不靠不缩放。
+元信息（工具卡名 labelMedium、气泡下时间戳/重新生成 chatMeta 11）靠
+**更小的角色**保持安静，不靠不缩放。
 
 ### 动效（两个家族，参数在 `AppMotion`）
 - **Entrance（一次性）** 160ms expo-out + 4px 上浮淡入，只编排实时新内
@@ -247,11 +252,21 @@ Rule.** 表面静止即平；层级确需抬升才用分组卡，高密度列表
   （h4+ 收回正文）+ 大档阻尼（有效缩放 1+(f−1)/2），代码块/引用钉在
   transcript 档（全表面一致，user sync call 2026-11-21）。
 - **工具卡**：名字 = JetBrains Mono labelMedium（比正文小的元数据角色），
-  完成态 caption + ✓；展开的输出是内容，随档缩放。
+  完成态 caption + ✓；展开的输出是内容，随档缩放。**连续工具调用合并为
+  一张分组卡**（web ToolRoundsBundle parity，2026-11-23）：聚合头行
+  "在 N 轮中使用了 M 个工具"（labelSmall）+ 整组折叠；展开后是逐调用行
+  （发丝线分隔，非嵌套盒）；单个调用保持平卡。分组展开状态与单卡一样
+  存引擎（`openToolGroups`），不随滚动回收丢失。
 
 ### Cards / Lists
 - **分组卡** = 12px + tinted 面 + 发丝边；列表行高密度 = 分隔线 + 负空
   间，行内操作常显或长按呼出（触屏无 hover）。
+- **行操作菜单**（长按弹出 / ⋯）统一走 `AppTheme.popupMenuTheme`：卡片
+  面与 12px 圆角、文案 = labelMedium 13 w500（M3 labelLarge 默认比 13.5
+  的行正文大一圈，2026-11-23）。**左滑面板**统一 `SlideActionTile`
+  （`ui/slide_action.dart`）：中性 secondaryContainer 底 + onSecondaryContainer
+  前景，仅删除（destructive）用 error 红；图标 20 / 标签 labelSmall。青
+  与金不进滑动面板（One Voice Rule）。
 
 ### Navigation
 - 抽屉（手机）/ 常驻侧栏（宽屏）：agent 头 + 工具九宫格 + 项目 + 最近对

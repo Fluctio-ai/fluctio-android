@@ -16,6 +16,7 @@ import '../ui/dialogs.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
 import '../ui/row_meta.dart';
+import '../ui/slide_action.dart';
 import 'agent_files.dart';
 
 /// Session-scoped workspace listing — the ONE data source behind both
@@ -279,12 +280,11 @@ class _WorkspaceFilesViewState extends ConsumerState<WorkspaceFilesView> {
                       motion: const DrawerMotion(),
                       extentRatio: 0.25,
                       children: [
-                        SlidableAction(
-                          onPressed: (_) => _delete(node.file!),
-                          backgroundColor: theme.colorScheme.error,
-                          foregroundColor: theme.colorScheme.onError,
+                        SlideActionTile(
                           icon: LucideIcons.trash2,
                           label: l.chatDelete,
+                          destructive: true,
+                          onPressed: () => _delete(node.file!),
                         ),
                       ],
                     ),

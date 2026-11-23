@@ -1,11 +1,26 @@
 part of '../gpt_markdown.dart';
 
 /// fluctio-patch knob: the inline-bold weight, in true variable-font
-/// units (any int 400..500 lands exactly on a variable family; a static
-/// family falls back to the nearest installed face — see MdBold below).
-/// Landed at 475 after the user ladder 700 -> 600 -> 500 -> 450 (never
-/// reached a device build) -> 475.
+/// units (a variable family interpolates the wght axis directly; a
+/// static family falls back to the nearest installed face — see MdBold
+/// below). Landed at 475 after the user ladder 700 -> 600 -> 500 -> 450
+/// (never reached a device build) -> 475.
 const double kFluctioBoldWeight = 475;
+
+/// fluctio-patch: dark surfaces eat stroke contrast — the 475 bold that
+/// whispers correctly on white turns muddy on the deep-water canvas, so
+/// the dark theme steps the axis up (user ladder 500/525/550 all read
+/// flat, landed on 575). THEME brightness, not the platform's: the app
+/// ships a manual ThemeMode override (system/light/dark), and the
+/// platform value would put the dark step on a forced-light surface
+/// (and vice versa). Two const lists — zero per-span allocation.
+const _boldVariationsLight = [FontVariation('wght', kFluctioBoldWeight)];
+const _boldVariationsDark = [FontVariation('wght', 575.0)];
+
+List<FontVariation> fluctioBoldVariations(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? _boldVariationsDark
+        : _boldVariationsLight;
 
 /// Renders a plusparse [MdDocument] AST into the same `InlineSpan` tree the
 /// regex pipeline (`MarkdownComponent.generate`) produces — same custom
@@ -674,11 +689,12 @@ class PlusparseRenderer {
       case MdBold(:final children):
         // fluctio-patch: TUNE HERE — the emphasis weight. The
         // fontWeight hint picks the face on a static family; the wght
-        // axis delivers the true intermediate value on a variable one.
+        // axis delivers the true intermediate value on a variable one
+        // (dark mode rides the axis up, see fluctioBoldVariations).
         final conf = config.copyWith(
           style: config.style?.copyWith(
             fontWeight: FontWeight.w500,
-            fontVariations: const [FontVariation('wght', kFluctioBoldWeight)],
+            fontVariations: fluctioBoldVariations(context),
           ),
         );
         return TextSpan(

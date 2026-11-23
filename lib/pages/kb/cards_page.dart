@@ -18,6 +18,7 @@ import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/master_detail.dart';
+import '../../ui/slide_action.dart';
 import '../../theme/tokens.dart';
 import '../../ui/labeled_section.dart';
 import '../../util/dates.dart';
@@ -234,21 +235,16 @@ class _KbCardsPageState extends ConsumerState<KbCardsPage> {
                                 motion: const DrawerMotion(),
                                 extentRatio: 0.4,
                                 children: [
-                                  SlidableAction(
-                                    onPressed: (_) => _archiveCard(c),
-                                    // Gold (warning) — distinct from the red
-                                    // delete block.
-                                    backgroundColor: paletteOf(context).warning,
-                                    foregroundColor: paletteOf(context).warningForeground,
+                                  SlideActionTile(
                                     icon: LucideIcons.archive,
                                     label: l.kbArchive,
+                                    onPressed: () => _archiveCard(c),
                                   ),
-                                  SlidableAction(
-                                    onPressed: (_) => _deleteCard(c),
-                                    backgroundColor: theme.colorScheme.error,
-                                    foregroundColor: theme.colorScheme.onError,
+                                  SlideActionTile(
                                     icon: LucideIcons.trash2,
                                     label: l.chatDelete,
+                                    destructive: true,
+                                    onPressed: () => _deleteCard(c),
                                   ),
                                 ],
                               ),

@@ -19,6 +19,7 @@ import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
+import '../../ui/slide_action.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
 
@@ -39,7 +40,6 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     final notes = agentId == null ? null : ref.watch(kbNotesProvider(agentId));
     final split = MasterDetailScaffold.isSplit(context);
@@ -93,26 +93,22 @@ class _KbNotesPageState extends ConsumerState<KbNotesPage> {
                     itemCount: list.length,
                     itemBuilder: (context, i) {
                       final n = list[i];
-                      final scheme = theme.colorScheme;
                       return Slidable(
                         key: ValueKey('note-${n.id}'),
                         endActionPane: ActionPane(
                           motion: const DrawerMotion(),
                           extentRatio: 0.4,
                           children: [
-                            SlidableAction(
-                              onPressed: (_) => _edit(context, ref, agentId!, n),
-                              backgroundColor: scheme.primary,
-                              foregroundColor: scheme.onPrimary,
+                            SlideActionTile(
                               icon: LucideIcons.penLine,
                               label: l.kbEdit,
+                              onPressed: () => _edit(context, ref, agentId!, n),
                             ),
-                            SlidableAction(
-                              onPressed: (_) => _delete(context, ref, agentId!, n),
-                              backgroundColor: scheme.error,
-                              foregroundColor: scheme.onError,
+                            SlideActionTile(
                               icon: LucideIcons.trash2,
                               label: l.chatDelete,
+                              destructive: true,
+                              onPressed: () => _delete(context, ref, agentId!, n),
                             ),
                           ],
                         ),

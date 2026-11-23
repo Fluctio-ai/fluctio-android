@@ -141,6 +141,60 @@ void main() {
     });
   });
 
+  group('tool rounds (ToolRoundsBundle parity)', () {
+    test('live: parallel calls share a round, post-result call starts the next', () {
+      final e = _primed();
+      e.beginSend('q', const []);
+      e.applyFrame(1, {'seq': 1, 'type': 'tool_call', 'data': {'id': 'a', 'name': 'exec'}});
+      e.applyFrame(2, {'seq': 2, 'type': 'tool_call', 'data': {'id': 'b', 'name': 'exec'}});
+      // The agent loop waits for the whole round's results before the
+      // next call — c can only land after both.
+      e.applyFrame(3, {'seq': 3, 'type': 'tool_result', 'data': {'id': 'a', 'name': 'exec', 'result': 'r'}});
+      e.applyFrame(4, {'seq': 4, 'type': 'tool_result', 'data': {'id': 'b', 'name': 'exec', 'result': 'r'}});
+      e.applyFrame(5, {'seq': 5, 'type': 'tool_call', 'data': {'id': 'c', 'name': 'write_file'}});
+      final tools = e.snapshot().entries.whereType<ToolEntry>().toList();
+      expect(tools.map((t) => t.round), [1, 1, 2]);
+    });
+
+    test('history: one round per assistant toolCalls batch, results pair in place', () {
+      final e = ChatEngine();
+      e.loadHistory(
+          HistoryPage(
+            earliestSeq: 0,
+            hasMore: false,
+            messages: [
+              HistoryMessage(role: 'user', seq: 1, content: 'q'),
+              HistoryMessage(role: 'assistant', seq: 2, content: '', toolCalls: [
+                ToolCallData(id: 'a', name: 'exec'),
+                ToolCallData(id: 'b', name: 'exec'),
+              ]),
+              HistoryMessage(role: 'tool', toolCallId: 'a', name: 'exec', content: 'r1'),
+              HistoryMessage(role: 'tool', toolCallId: 'b', name: 'exec', content: 'r2'),
+              HistoryMessage(role: 'assistant', seq: 3, content: '', toolCalls: [
+                ToolCallData(id: 'c', name: 'write_file'),
+              ]),
+              HistoryMessage(role: 'tool', toolCallId: 'c', name: 'write_file', content: 'r3'),
+              HistoryMessage(role: 'assistant', seq: 4, content: 'done'),
+            ],
+          ),
+          older: false);
+      final tools = e.snapshot().entries.whereType<ToolEntry>().toList();
+      expect(tools.length, 3);
+      expect(tools.map((t) => t.round), [1, 1, 2]);
+      expect(tools.map((t) => t.result), ['r1', 'r2', 'r3']);
+    });
+
+    test('toggleToolGroup rides the snapshot as openToolGroups', () {
+      final e = _primed();
+      e.applyFrame(1, {'seq': 1, 'type': 'tool_call', 'data': {'id': 'a', 'name': 'exec'}});
+      e.applyFrame(2, {'seq': 2, 'type': 'tool_call', 'data': {'id': 'b', 'name': 'exec'}});
+      e.toggleToolGroup('tc-a');
+      expect(e.snapshot().openToolGroups, {'tc-a'});
+      e.toggleToolGroup('tc-a');
+      expect(e.snapshot().openToolGroups, isEmpty);
+    });
+  });
+
   group('steer / auth / notices', () {
     test('steer echo dedups the optimistic pending bubble', () {
       final e = _primed();

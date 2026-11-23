@@ -15,6 +15,7 @@ import '../../ui/master_detail.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
+import '../../ui/slide_action.dart';
 import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
 import 'kb_text_view_page.dart';
@@ -37,7 +38,6 @@ class _KbFlashPageState extends ConsumerState<KbFlashPage> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final agentId = ref.watch(agentsProvider.select((a) => a.selectedId));
     final sources = agentId == null ? null : ref.watch(kbSourcesProvider(agentId));
     final split = MasterDetailScaffold.isSplit(context);
@@ -93,26 +93,22 @@ class _KbFlashPageState extends ConsumerState<KbFlashPage> {
                     itemCount: flashes.length,
                     itemBuilder: (context, i) {
                       final s = flashes[i];
-                      final scheme = theme.colorScheme;
                       return Slidable(
                         key: ValueKey('flash-${s.id}'),
                         endActionPane: ActionPane(
                           motion: const DrawerMotion(),
                           extentRatio: 0.4,
                           children: [
-                            SlidableAction(
-                              onPressed: (_) => _edit(context, ref, agentId!, s),
-                              backgroundColor: scheme.primary,
-                              foregroundColor: scheme.onPrimary,
+                            SlideActionTile(
                               icon: LucideIcons.penLine,
                               label: l.kbEdit,
+                              onPressed: () => _edit(context, ref, agentId!, s),
                             ),
-                            SlidableAction(
-                              onPressed: (_) => _delete(context, ref, agentId!, s),
-                              backgroundColor: scheme.error,
-                              foregroundColor: scheme.onError,
+                            SlideActionTile(
                               icon: LucideIcons.trash2,
                               label: l.chatDelete,
+                              destructive: true,
+                              onPressed: () => _delete(context, ref, agentId!, s),
                             ),
                           ],
                         ),

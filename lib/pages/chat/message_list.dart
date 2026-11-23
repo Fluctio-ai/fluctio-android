@@ -192,6 +192,47 @@ class _MessageListState extends ConsumerState<MessageList> {
       lastDay = day;
     }
 
+    // Tool groups (web ToolRoundsBundle parity, chat-screen.tsx:3638): a
+    // maximal run of consecutive tool entries renders as ONE collapsible
+    // card — a long ReAct turn must not carpet the transcript with
+    // per-call boxes. Runs of a single entry keep the flat per-call card
+    // (the extra layer only shows up when it earns its keep). Mapped by
+    // entry index; itemCount stays 1:1 with entries so the seq-jump
+    // index mapping is untouched (non-first members render nothing).
+    final toolGroups = <int, List<ToolEntry>>{};
+    {
+      var idx = 0;
+      final entries = widget.state.entries;
+      while (idx < entries.length) {
+        if (entries[idx] is! ToolEntry) {
+          idx++;
+          continue;
+        }
+        var end = idx;
+        while (end < entries.length && entries[end] is ToolEntry) {
+          end++;
+        }
+        if (end - idx >= 2) {
+          final group = entries.sublist(idx, end).cast<ToolEntry>();
+          for (var k = idx; k < end; k++) {
+            toolGroups[k] = group;
+          }
+        }
+        idx = end;
+      }
+    }
+
+    // Quick-reply staleness is ONE fact per build, not a per-row
+    // predicate (each row probing the list tail would rescan it per
+    // streaming rebuild): the latest user entry's index. Any assistant
+    // entry before it belongs to an earlier turn, so its option chips
+    // must not fire — worst case, tapping an old chip mid-turn would
+    // STEER the new, unrelated turn with a stale label (user call
+    // 2026-11-23). Same-turn mid-text chips (index > lastUserIdx)
+    // stay live (their tap = steer, by design).
+    final lastUserIdx =
+        widget.state.entries.lastIndexWhere((e) => e is UserEntry);
+
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
@@ -266,10 +307,25 @@ class _MessageListState extends ConsumerState<MessageList> {
           }
           final showRegenerate =
               entry is AssistantEntry && i == 0 && !widget.state.turnActive;
+          final optionsStale =
+              entry is AssistantEntry && entryIndex < lastUserIdx;
+          final group = toolGroups[entryIndex];
           Widget row = switch (entry) {
             UserEntry() => _UserBubble(entry: entry),
-            AssistantEntry() => _AssistantBubble(entry: entry, isLast: i == 0),
-            ToolEntry() => _ToolCard(entry: entry),
+            AssistantEntry() => _AssistantBubble(
+                entry: entry,
+                isLast: i == 0,
+                optionsStale: optionsStale,
+              ),
+            // Grouped tools render once at the run's first entry; the
+            // remaining members are zero-height placeholders that keep
+            // the reverse-list indices aligned (seq-jump anchors, day
+            // dividers).
+            ToolEntry() => group == null
+                ? _ToolCard(entry: entry)
+                : entry.key == group.first.key
+                    ? _ToolGroupCard(tools: group, open: widget.state.openToolGroups.contains(group.first.key))
+                    : const SizedBox.shrink(),
             NoticeEntry() => _NoticeChip(entry: entry),
             AuthPromptEntry() => _AuthCard(entry: entry),
           };
@@ -609,8 +665,9 @@ class _UserBubble extends ConsumerWidget {
                           foregroundColor: scheme.error,
                         ),
                         onPressed: () => ref.read(chatStoreProvider.notifier).resendFailed(),
-                        icon: const Icon(LucideIcons.refreshCw, size: 14),
-                        label: Text(l.chatResend),
+                        icon: const Icon(LucideIcons.refreshCw, size: 12),
+                        label: Text(l.chatResend,
+                            style: const TextStyle(fontSize: AppType.chatMeta)),
                       ),
                     ),
                 ],
@@ -623,16 +680,19 @@ class _UserBubble extends ConsumerWidget {
             // is owned by the day-divider pills, not the per-bubble label.
             if (entry.ts > 0)
               Padding(
-                padding: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.only(top: 2, right: 6),
                 child: Text(
                   formatTimeOfDay(
                       DateTime.fromMillisecondsSinceEpoch(entry.ts)),
-                  // Mono metadata per DESIGN §3; scales with the tier
-                  // like everything else.
+                  // Mono metadata per DESIGN §3; the chatMeta step keeps
+                  // auxiliary labels a rung under the body (user call
+                  // 2026-11-23: 附加信息不抢视线); the 6px right inset
+                  // mirrors the assistant side's center-ward nudge.
                   style: TextStyle(
-                      fontSize: AppType.caption,
+                      fontSize: AppType.chatMeta,
                       fontFamily: codeMonoFamily,
                       color: scheme.outline),
+                  strutStyle: _metaStrut,
                 ),
               ),
           ],
@@ -642,11 +702,33 @@ class _UserBubble extends ConsumerWidget {
   }
 }
 
+/// One forced line box for every meta-row label: with forceStrutHeight
+/// the mono time and the CJK button label get IDENTICAL line metrics
+/// (the strut pins its own mono family so the box can't follow each
+/// text's font), so top-aligned boxes share a single baseline —
+/// mixed-script baseline drift (CJK ascents run taller than Latin
+/// ones) can never split them apart (user call 2026-11-23: 重新生成
+/// 要和 09:18 齐平). Guessed translate constants were tried twice
+/// and missed by a device-font hair each time; the strut pins it by
+/// construction instead.
+const _metaStrut = StrutStyle(
+    fontSize: AppType.chatMeta,
+    height: 1.2,
+    fontFamily: codeMonoFamily,
+    forceStrutHeight: true);
+
 class _AssistantBubble extends ConsumerWidget {
-  const _AssistantBubble({required this.entry, required this.isLast});
+  const _AssistantBubble(
+      {required this.entry,
+      required this.isLast,
+      required this.optionsStale});
 
   final AssistantEntry entry;
   final bool isLast;
+
+  /// The conversation has moved into a newer user turn after this
+  /// bubble — its quick-reply chips render disabled (see itemBuilder).
+  final bool optionsStale;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -702,6 +784,8 @@ class _AssistantBubble extends ConsumerWidget {
                 // Web's under-text chip row (mt-3 flex-wrap gap-2): tapping
                 // sends the label through the composer path — steer while a
                 // turn runs, send otherwise (same split as answerAuth).
+                // Stale chips (a newer user turn exists) render disabled —
+                // see itemBuilder for why they must not fire.
                 if (reply.options.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
@@ -712,10 +796,13 @@ class _AssistantBubble extends ConsumerWidget {
                         for (final opt in reply.options)
                           _OptionButton(
                             label: opt,
-                            onPressed: () {
-                              final store = ref.read(chatStoreProvider.notifier);
-                              turnActive ? store.steer(opt) : store.send(opt);
-                            },
+                            onPressed: optionsStale
+                                ? null
+                                : () {
+                                    final store =
+                                        ref.read(chatStoreProvider.notifier);
+                                    turnActive ? store.steer(opt) : store.send(opt);
+                                  },
                           ),
                       ],
                     ),
@@ -727,19 +814,29 @@ class _AssistantBubble extends ConsumerWidget {
           // hover actions (copy/fork) map to our long-press sheet. The
           // mobile-only regenerate joins the row instead of standing alone.
           if (entry.ts > 0 || canRegenerate)
+            // crossAxisAlignment.start keeps the time's top identical
+            // whether or not the regenerate button joins the row —
+            // center-aligned, the button's taller box floated the whole
+            // meta line away from the bubble on the last reply (user
+            // report 2026-11-23; the distance itself was tuned back
+            // to the original rhythm after the same call). The 6px inset
+            // nudges the row toward the center ("half a char").
             Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.only(top: 2, left: 6),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (entry.ts > 0)
                     Text(
                       formatTimeOfDay(
                           DateTime.fromMillisecondsSinceEpoch(entry.ts)),
                       style: TextStyle(
-                          fontSize: AppType.caption,
+                          fontSize: AppType.chatMeta,
                           fontFamily: codeMonoFamily,
                           color: theme.colorScheme.outline),
+                      strutStyle: _metaStrut,
                     ),
+                  if (entry.ts > 0 && canRegenerate) const SizedBox(width: 8),
                   if (canRegenerate) _RegenerateButton(),
                 ],
               ),
@@ -753,16 +850,31 @@ class _AssistantBubble extends ConsumerWidget {
 class _RegenerateButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
-    return TextButton.icon(
-      style: TextButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        foregroundColor: theme.colorScheme.outline,
+    final color = Theme.of(context).colorScheme.outline;
+    // Hand-rolled InkWell, NOT TextButton: a Material button enforces a
+    // density-based minimumSize (~28dp tall) and centers its content,
+    // which sank this label ~9.5px below the time text on the
+    // top-aligned meta row — the strut alone can't cross widget
+    // boundaries (measured: user report 2026-11-23 "重新生成像掉
+    // 到下一行"). The InkWell hugs the content so the shared _metaStrut
+    // baseline lands exactly on the time's.
+    return InkWell(
+      onTap: () => ref.read(chatStoreProvider.notifier).regenerate(),
+      borderRadius: AppRadius.controlBorder,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(LucideIcons.rotateCcw, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(l.chatRegenerate,
+                style: TextStyle(fontSize: AppType.chatMeta, color: color),
+                strutStyle: _metaStrut),
+          ],
+        ),
       ),
-      onPressed: () => ref.read(chatStoreProvider.notifier).regenerate(),
-      icon: const Icon(LucideIcons.rotateCcw, size: 14),
-      label: Text(l.chatRegenerate, style: const TextStyle(fontSize: AppType.caption)),
     );
   }
 }
@@ -802,54 +914,16 @@ class _MarkdownImage extends ConsumerWidget {
   }
 }
 
-class _ToolCard extends ConsumerStatefulWidget {
+class _ToolCard extends ConsumerWidget {
   const _ToolCard({required this.entry});
 
   final ToolEntry entry;
 
   @override
-  ConsumerState<_ToolCard> createState() => _ToolCardState();
-}
-
-class _ToolCardState extends ConsumerState<_ToolCard> {
-  /// Memoized extraction: arguments/result are immutable after settle and
-  /// the listing only changes on turn-end invalidate — re-running
-  /// jsonDecode (write_file arguments can carry 100KB+) on every
-  /// streaming delta for every visible card is pure waste. Re-extract
-  /// only when either input's identity changes.
-  String? _cachedResult;
-  AgentFileListing? _cachedListing;
-  List<ProducedFile> _producedFiles = const [];
-
-  List<ProducedFile> _produced() {
-    final entry = widget.entry;
-    // Running tools carry no result yet — nothing could have landed.
-    if (entry.result == null || !toolCallProducesFiles(entry.name)) {
-      return const [];
-    }
-    final parts = splitSessionKey(ref.read(chatStoreProvider).activeKey);
-    if (parts == null) return const [];
-    final listing =
-        ref.watch(workspaceFilesProvider((parts.agentId, parts.sessionId))).value;
-    if (listing == null) return const [];
-    if (identical(entry.result, _cachedResult) && identical(listing, _cachedListing)) {
-      return _producedFiles;
-    }
-    _cachedResult = entry.result;
-    _cachedListing = listing;
-    return _producedFiles = extractProducedFiles(
-        entry.name, entry.arguments, entry.result, listing.scopePrefixes,
-        exists: listing.pathSet.contains);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ref = this.ref;
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final l = AppLocalizations.of(context)!;
-    final entry = widget.entry;
     final running = entry.result == null;
-    final produced = _produced();
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
@@ -902,49 +976,234 @@ class _ToolCardState extends ConsumerState<_ToolCard> {
               ),
             ),
           ),
-          if (produced.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+          _ToolDetail(entry: entry),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tool-group card (web ToolRoundsBundle parity): one collapsible card
+/// wrapping a run of tool calls — the aggregate header carries totals,
+/// expanding reveals one row per call (each itself expandable into
+/// arguments/result). Grouped rows stay a flat hairline-separated list,
+/// not nested boxes (DESIGN.md 盒中盒 ban).
+class _ToolGroupCard extends ConsumerWidget {
+  const _ToolGroupCard({required this.tools, required this.open});
+
+  final List<ToolEntry> tools;
+  final bool open;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final l = AppLocalizations.of(context)!;
+    final store = ref.read(chatStoreProvider.notifier);
+    final groupId = tools.first.key;
+    final total = tools.length;
+    final done = tools.where((t) => t.result != null).length;
+    var rounds = 0;
+    for (final t in tools) {
+      if (t.round > rounds) rounds = t.round;
+    }
+    final running = done < total;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: AppRadius.cardBorder,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => store.toggleToolGroup(groupId),
+            borderRadius: BorderRadius.vertical(top: AppRadius.card),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+              child: Row(
                 children: [
-                  for (final f in produced) _ProducedFileRow(file: f),
+                  if (running)
+                    // Same running-affordance family as the flat card
+                    // (DESIGN §4/§6 TypingDots; reduced-motion freezes
+                    // it for free) — the info tint is the header's
+                    // in-progress signal, matching the old spinner.
+                    TypingDots(color: paletteOf(context).info)
+                  else
+                    Icon(LucideIcons.wrench, size: 14, color: theme.colorScheme.outline),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      running
+                          ? l.chatToolsRunning(done, total, rounds)
+                          : l.chatToolsUsed(total, rounds),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(open ? LucideIcons.chevronDown : LucideIcons.chevronRight,
+                      size: 16, color: theme.colorScheme.outline),
                 ],
               ),
             ),
-          if (entry.expanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (entry.arguments.isNotEmpty)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.secondaryContainer,
-                        borderRadius: AppRadius.controlBorder,
-                      ),
-                      child: SelectableText(
-                        entry.arguments,
-                        style:
-                            theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.caption),
-                      ),
+          ),
+          if (open)
+            for (var i = 0; i < tools.length; i++) ...[
+              Divider(height: 1, color: theme.colorScheme.outlineVariant),
+              _ToolGroupRow(entry: tools[i], last: i == tools.length - 1),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One tool call inside a [_ToolGroupCard]: status glyph + mono name,
+/// tapping expands into arguments/result via the shared [_ToolDetail].
+class _ToolGroupRow extends ConsumerWidget {
+  const _ToolGroupRow({required this.entry, this.last = false});
+
+  final ToolEntry entry;
+
+  /// The run's final row — its ripple clips to the card's bottom radius.
+  final bool last;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final running = entry.result == null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => ref.read(chatStoreProvider.notifier).toggleTool(entry.key),
+          borderRadius: last ? BorderRadius.vertical(bottom: AppRadius.card) : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+            child: Row(
+              children: [
+                if (running) const TypingDots(size: 4)
+                else
+                  Icon(LucideIcons.check, size: 12, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    entry.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelMedium
+                        ?.copyWith(fontFamily: codeMonoFamily),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(entry.expanded ? LucideIcons.chevronDown : LucideIcons.chevronRight,
+                    size: 14, color: theme.colorScheme.outline),
+              ],
+            ),
+          ),
+        ),
+        _ToolDetail(entry: entry),
+      ],
+    );
+  }
+}
+
+/// Shared per-call payload under a tool card's header: produced-file rows
+/// (always surfaced once the result lands) and the expandable
+/// arguments/result blocks. Memoization lives here so the jsonDecode /
+/// listing walks run once per settled result, not per streaming delta.
+class _ToolDetail extends ConsumerStatefulWidget {
+  const _ToolDetail({required this.entry});
+
+  final ToolEntry entry;
+
+  @override
+  ConsumerState<_ToolDetail> createState() => _ToolDetailState();
+}
+
+class _ToolDetailState extends ConsumerState<_ToolDetail> {
+  /// Memoized extraction: arguments/result are immutable after settle and
+  /// the listing only changes on turn-end invalidate — re-running
+  /// jsonDecode (write_file arguments can carry 100KB+) on every
+  /// streaming delta for every visible card is pure waste. Re-extract
+  /// only when either input's identity changes.
+  String? _cachedResult;
+  AgentFileListing? _cachedListing;
+  List<ProducedFile> _producedFiles = const [];
+
+  List<ProducedFile> _produced() {
+    final entry = widget.entry;
+    // Running tools carry no result yet — nothing could have landed.
+    if (entry.result == null || !toolCallProducesFiles(entry.name)) {
+      return const [];
+    }
+    final parts = splitSessionKey(ref.read(chatStoreProvider).activeKey);
+    if (parts == null) return const [];
+    final listing =
+        ref.watch(workspaceFilesProvider((parts.agentId, parts.sessionId))).value;
+    if (listing == null) return const [];
+    if (identical(entry.result, _cachedResult) && identical(listing, _cachedListing)) {
+      return _producedFiles;
+    }
+    _cachedResult = entry.result;
+    _cachedListing = listing;
+    return _producedFiles = extractProducedFiles(
+        entry.name, entry.arguments, entry.result, listing.scopePrefixes,
+        exists: listing.pathSet.contains);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final entry = widget.entry;
+    final produced = _produced();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (produced.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final f in produced) _ProducedFileRow(file: f),
+              ],
+            ),
+          ),
+        if (entry.expanded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (entry.arguments.isNotEmpty)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer,
+                      borderRadius: AppRadius.controlBorder,
                     ),
-                  if (entry.arguments.isNotEmpty && entry.result != null)
-                    Divider(height: 12, color: theme.colorScheme.outlineVariant),
-                  if (entry.result != null)
-                    SelectableText(
-                      entry.result!,
+                    child: SelectableText(
+                      entry.arguments,
                       style:
                           theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.caption),
                     ),
-                ],
-              ),
+                  ),
+                if (entry.arguments.isNotEmpty && entry.result != null)
+                  Divider(height: 12, color: theme.colorScheme.outlineVariant),
+                if (entry.result != null)
+                  SelectableText(
+                    entry.result!,
+                    style:
+                        theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace', fontSize: AppType.caption),
+                  ),
+              ],
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }

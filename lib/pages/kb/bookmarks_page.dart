@@ -10,13 +10,13 @@ import '../../kb/kb_repo.dart';
 import '../../api/api_client.dart';
 import '../../l10n/app_localizations.dart';
 import '../../ui/form_editor_page.dart';
-import '../../theme/tokens.dart';
 import '../../ui/app_fab.dart';
 import '../../ui/chevron_list_tile.dart';
 import '../../ui/fling_detector.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
+import '../../ui/slide_action.dart';
 import '../../util/open_url.dart';
 import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
@@ -84,32 +84,25 @@ class KbBookmarksPage extends ConsumerWidget {
                             motion: const DrawerMotion(),
                             extentRatio: b.promoted ? 0.4 : 0.58,
                             children: [
-                              SlidableAction(
-                                onPressed: (_) =>
-                                    _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
-                                backgroundColor: scheme.primary,
-                                foregroundColor: scheme.onPrimary,
+                              SlideActionTile(
                                 icon: LucideIcons.penLine,
                                 label: l.kbEdit,
+                                onPressed: () =>
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'edit'),
                               ),
                               if (!b.promoted)
-                                SlidableAction(
-                                  onPressed: (_) =>
-                                      _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
-                                  // Gold (warning) — distinct from the cyan
-                                  // edit block and the red delete block.
-                                  backgroundColor: paletteOf(context).warning,
-                                  foregroundColor: paletteOf(context).warningForeground,
+                                SlideActionTile(
                                   icon: LucideIcons.trendingUp,
                                   label: l.kbPromote,
+                                  onPressed: () =>
+                                      _BookmarkActions.run(context, ref, agentId!, b, 'promote'),
                                 ),
-                              SlidableAction(
-                                onPressed: (_) =>
-                                    _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
-                                backgroundColor: scheme.error,
-                                foregroundColor: scheme.onError,
+                              SlideActionTile(
                                 icon: LucideIcons.trash2,
                                 label: l.chatDelete,
+                                destructive: true,
+                                onPressed: () =>
+                                    _BookmarkActions.run(context, ref, agentId!, b, 'delete'),
                               ),
                             ],
                           ),

@@ -478,6 +478,14 @@ class ChatStoreController extends Notifier<ChatStore> {
     _publish();
   }
 
+  void toggleToolGroup(String groupId) {
+    final activeKey = state.activeKey;
+    if (activeKey == null) return;
+    _engines[activeKey]?.toggleToolGroup(groupId);
+    _markDirty(activeKey);
+    _publish();
+  }
+
   /// Manual pull-up-at-bottom refresh — the escape hatch for "sent but
   /// no reply ever rendered". The usual cause is a silently-dead
   /// subscribe socket (no close event, no frames): the server finished

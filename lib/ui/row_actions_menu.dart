@@ -53,13 +53,9 @@ Future<void> showRowActionsMenu(BuildContext context, List<RowAction> actions) {
     context: context,
     position:
         RelativeRect.fromLTRB(left, top, size.width - left, size.height - top),
-    // Card-family surface and radius — the default M3 menu container
-    // tint doesn't match the theme's cool-cyan dark surfaces.
-    color: scheme.surface,
-    surfaceTintColor: Colors.transparent,
-    elevation: 6,
-    shape:
-        const RoundedRectangleBorder(borderRadius: BorderRadius.all(AppRadius.card)),
+    // Surface / radius / label rung come from AppTheme's popupMenuTheme
+    // (every menu in the app shares that chrome); the entrance cadence
+    // is a showMenu-only parameter so it stays here.
     popUpAnimationStyle: AnimationStyle(duration: AppMotion.entrance),
     items: [
       for (var i = 0; i < actions.length; i++)
@@ -70,7 +66,7 @@ Future<void> showRowActionsMenu(BuildContext context, List<RowAction> actions) {
           child: Row(
             children: [
               Icon(actions[i].icon,
-                  size: 20,
+                  size: 18,
                   color: actions[i].destructive
                       ? scheme.error
                       : scheme.onSurfaceVariant),
@@ -88,12 +84,11 @@ Future<void> showRowActionsMenu(BuildContext context, List<RowAction> actions) {
   });
 }
 
-/// The trailing ⋯ row-menu affordance: a ~44px-tall hit box hugging the
-/// row's right edge. The PopupMenuButton icon variant centers the 18px
-/// glyph in a 48dp box with wide gutters on both sides — this plain
-/// child hugs the glyph while the padding grows the tap target. Shared
-/// by the session rows (chat list, drawer) and drawer project rows so
-/// the spacing can't drift between them.
+/// The trailing ⋯ row-menu affordance: a 44×44dp hit box hugging the
+/// row's right edge — the padding is asymmetric (wide left, ~0 right) so
+/// the glyph sits ~14px from the edge instead of the default 24
+/// (right-thumb reach, user call 2026-11-23). Used by the drawer's
+/// project rows.
 class RowMenuButton extends StatelessWidget {
   const RowMenuButton({super.key, required this.itemBuilder, this.onSelected});
 
@@ -107,7 +102,7 @@ class RowMenuButton extends StatelessWidget {
       padding: EdgeInsets.zero,
       itemBuilder: itemBuilder,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        padding: const EdgeInsets.fromLTRB(24, 13, 2, 13),
         child: Icon(LucideIcons.ellipsisVertical,
             size: 18, color: Theme.of(context).colorScheme.outline),
       ),

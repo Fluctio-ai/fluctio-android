@@ -124,6 +124,20 @@ abstract final class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder, side: BorderSide(color: colors.border)),
       ),
       dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder)),
+      // Every popup menu in the app shares one chrome: card-family
+      // surface/radius (the M3 default container tint doesn't match the
+      // cool-cyan dark surfaces) and the ladder's row-copy rung
+      // (labelMedium 13 w500) — M3's labelLarge default read a step
+      // above the 13.5 rows the menus act on (user call 2026-11-23).
+      popupMenuTheme: PopupMenuThemeData(
+        color: colors.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 6,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(AppRadius.card)),
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500, color: colors.cardForeground),
+        ),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colors.secondary,
@@ -187,10 +201,17 @@ abstract final class AppTheme {
   /// transcriptMarkdown would. Derived from the SAME bodyMedium base
   /// markdownConfig starts from, plus the transcript size and zh
   /// leading — the two "identical" styles can't drift apart (user call
-  /// 2026-11-21: readers join the chat size).
+  /// 2026-11-21: readers join the chat size). The dark-mode body
+  /// step-down (375, see markdownConfig) applies here too — the two
+  /// sides of the contract move together.
   static TextStyle? readerBody(BuildContext context, {Color? color}) =>
       Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontSize: AppType.transcript, height: zhBodyHeight(context), color: color);
+          fontSize: AppType.transcript,
+          height: zhBodyHeight(context),
+          color: color,
+          fontWeight: Theme.of(context).brightness == Brightness.dark
+              ? const FontWeight(375)
+              : null);
 
   /// Chat chrome metadata line (chat header's agent·model, drawer agent
   /// header's model) — the chatMeta step in the outline color. Single

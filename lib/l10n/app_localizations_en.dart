@@ -200,6 +200,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatToolDone => 'done';
 
   @override
+  String chatToolsUsed(int tools, int rounds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      rounds,
+      locale: localeName,
+      other: '$rounds rounds',
+      one: '1 round',
+    );
+    String _temp2 = intl.Intl.pluralLogic(
+      tools,
+      locale: localeName,
+      other: 'Used $tools tools across $_temp0',
+      one: 'Used $tools tool across $_temp1',
+    );
+    return '$_temp2';
+  }
+
+  @override
+  String chatToolsRunning(int done, int total, int rounds) {
+    return 'Running tools… ($done/$total across $rounds rounds)';
+  }
+
+  @override
   String get chatNoAgent => 'No agents available';
 
   @override

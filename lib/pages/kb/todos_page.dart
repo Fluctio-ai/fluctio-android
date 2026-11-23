@@ -20,6 +20,7 @@ import '../../ui/load_states.dart';
 import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
+import '../../ui/slide_action.dart';
 import '../../util/dates.dart';
 import '../../util/app_toast.dart';
 import 'kb_editor_page.dart';
@@ -430,19 +431,16 @@ class _TodoTileState extends ConsumerState<_TodoTile> {
         motion: const DrawerMotion(),
         extentRatio: 0.4,
         children: [
-          SlidableAction(
-            onPressed: (_) => _edit(context, ref, widget.agentId, todo),
-            backgroundColor: scheme.primary,
-            foregroundColor: scheme.onPrimary,
+          SlideActionTile(
             icon: LucideIcons.penLine,
             label: l.kbEdit,
+            onPressed: () => _edit(context, ref, widget.agentId, todo),
           ),
-          SlidableAction(
-            onPressed: (_) => _deleteTodo(context, ref, widget.agentId, todo),
-            backgroundColor: scheme.error,
-            foregroundColor: scheme.onError,
+          SlideActionTile(
             icon: LucideIcons.trash2,
             label: l.chatDelete,
+            destructive: true,
+            onPressed: () => _deleteTodo(context, ref, widget.agentId, todo),
           ),
         ],
       ),

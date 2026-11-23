@@ -470,6 +470,18 @@ abstract class AppLocalizations {
   /// **'完成'**
   String get chatToolDone;
 
+  /// No description provided for @chatToolsUsed.
+  ///
+  /// In zh, this message translates to:
+  /// **'在 {rounds} 轮中使用了 {tools} 个工具'**
+  String chatToolsUsed(int tools, int rounds);
+
+  /// No description provided for @chatToolsRunning.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在运行工具…（{done}/{total}，共 {rounds} 轮）'**
+  String chatToolsRunning(int done, int total, int rounds);
+
   /// No description provided for @chatNoAgent.
   ///
   /// In zh, this message translates to:

@@ -136,9 +136,19 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
                   for (final s in loose.take(10)) _sessionRow(s),
                   // Always visible (not only past the 10-row fold): the
                   // full page is also where chat search lives.
+                  // Session-row rhythm (user feedback 2026-11-23): the M3
+                  // ListTile defaults (minLeadingWidth 40 + title gap 16)
+                  // floated the ⋯ icon ~38px from the text — pin the
+                  // leading box to the glyph and close the gap like the
+                  // chevron rows above.
                   ListTile(
                     dense: true,
-                    leading: const Icon(LucideIcons.ellipsis, size: 18),
+                    contentPadding:
+                        const EdgeInsets.fromLTRB(AppSpace.md, 0, AppSpace.md, 0),
+                    minLeadingWidth: 16,
+                    horizontalTitleGap: AppSpace.xs,
+                    leading: Icon(LucideIcons.ellipsis,
+                        size: 16, color: theme.colorScheme.outline),
                     title: Text(l.seeAllChats),
                     onTap: () {
                       _closeIfModal(context);
