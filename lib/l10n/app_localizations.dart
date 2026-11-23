@@ -1055,13 +1055,13 @@ abstract class AppLocalizations {
   /// No description provided for @chatImReadOnlyHint.
   ///
   /// In zh, this message translates to:
-  /// **'只读——此对话来自 IM 渠道'**
-  String get chatImReadOnlyHint;
+  /// **'只读——此对话来自 {channel} 渠道'**
+  String chatImReadOnlyHint(String channel);
 
   /// No description provided for @chatImChannelBadge.
   ///
   /// In zh, this message translates to:
-  /// **'IM 渠道会话（只读）'**
+  /// **'渠道会话（只读）'**
   String get chatImChannelBadge;
 
   /// No description provided for @kbEmpty.

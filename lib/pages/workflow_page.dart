@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../api/api_client.dart';
 import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/dialogs.dart';
 import '../webview/web_container.dart';
 
 /// Workflows: native list of the agent's workflows; the editor itself is
@@ -36,12 +37,14 @@ class _WorkflowPageState extends ConsumerState<WorkflowPage> {
           decoration: InputDecoration(hintText: l.workflowNewHint),
           onSubmitted: (v) => Navigator.of(dialogContext).pop(v.trim()),
         ),
+        actionsPadding: EdgeInsets.zero,
         actions: [
-          TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(), child: Text(l.cancel)),
-          FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: Text(l.workflowNew)),
+          dialogActionsBar(
+            dialogContext,
+            onCancel: () => Navigator.of(dialogContext).pop(),
+            confirmLabel: l.workflowNew,
+            onConfirm: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+          ),
         ],
       ),
     );

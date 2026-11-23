@@ -84,6 +84,35 @@ Future<void> showRowActionsMenu(BuildContext context, List<RowAction> actions) {
   });
 }
 
+/// One entry of an anchored [PopupMenuButton] that shows the same kind
+/// of row actions — same icon/gap/destructive tint as the
+/// [showRowActionsMenu] items, so every row-action menu in the app
+/// renders one row shape (the drawer project rows were the iconless
+/// outlier, user call 2026-11-23).
+PopupMenuItem<String> rowActionPopupItem(
+  BuildContext context, {
+  required IconData icon,
+  required String label,
+  required String value,
+  bool destructive = false,
+}) {
+  final scheme = Theme.of(context).colorScheme;
+  return PopupMenuItem(
+    value: value,
+    height: 48,
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Row(
+      children: [
+        Icon(icon,
+            size: 18,
+            color: destructive ? scheme.error : scheme.onSurfaceVariant),
+        const SizedBox(width: 12),
+        Text(label, style: destructive ? TextStyle(color: scheme.error) : null),
+      ],
+    ),
+  );
+}
+
 /// The trailing ⋯ row-menu affordance: a 44×44dp hit box hugging the
 /// row's right edge — the padding is asymmetric (wide left, ~0 right) so
 /// the glyph sits ~14px from the edge instead of the default 24

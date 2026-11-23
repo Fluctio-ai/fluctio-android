@@ -27,7 +27,7 @@ void main() {
     expect(s.chatOnly, isFalse);
     expect(s.projectId, '');
     expect(s.channel, '');
-    expect(s.isImChannel, isFalse);
+    expect(s.isReadOnlyChannel, isFalse);
     final full = ChatSessionInfo.fromJson({
       'id': 's-1',
       'title': '',
@@ -42,12 +42,15 @@ void main() {
     expect(full.thumbnailUrl, 'https://x/y.png');
   });
 
-  test('ChatSessionInfo channel marks IM sessions read-only', () {
-    // Empty and 'web' compose normally; anything else is an IM channel
-    // (web parity, chat-screen.tsx:1408).
-    expect((const ChatSessionInfo(id: 'a')).isImChannel, isFalse);
-    expect((const ChatSessionInfo(id: 'a', channel: 'web')).isImChannel, isFalse);
-    expect((const ChatSessionInfo(id: 'a', channel: 'wechat')).isImChannel, isTrue);
+  test('ChatSessionInfo channel marks non-web sessions read-only', () {
+    // Empty and 'web' compose normally; anything else — IM channels,
+    // the heartbeat cron channel, plugin IDs — is read-only (web
+    // parity, chat-screen.tsx:1549).
+    expect((const ChatSessionInfo(id: 'a')).isReadOnlyChannel, isFalse);
+    expect((const ChatSessionInfo(id: 'a', channel: 'web')).isReadOnlyChannel, isFalse);
+    expect((const ChatSessionInfo(id: 'a', channel: 'wechat')).isReadOnlyChannel, isTrue);
+    expect((const ChatSessionInfo(id: 'a', channel: 'heartbeat')).isReadOnlyChannel,
+        isTrue);
     expect(ChatSessionInfo.fromJson(
             {'id': 'b', 'channel': 'telegram', 'accountId': 'u1', 'chatId': 'c1'}).channel,
         'telegram');
@@ -63,7 +66,10 @@ void main() {
     expect(channelLabel('line'), 'LINE');
     expect(channelLabel(''), 'Web');
     expect(channelLabel('web'), 'Web');
-    expect(channelLabel('mystery'), 'Web');
+    // heartbeat / unknown channels echo raw, never masked as Web
+    // (channel-icon.tsx:79).
+    expect(channelLabel('heartbeat'), 'heartbeat');
+    expect(channelLabel('mystery'), 'mystery');
   });
 
   test('read-only slash gate matches the web READ_ONLY_SLASH_COMMANDS', () {

@@ -436,12 +436,12 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ?.where((s) => s.id == activeSessionId)
             .firstOrNull;
     final sessionTitle = activeSession?.title;
-    // Web parity (chat-screen.tsx:1549): a session whose channel is an
-    // IM (wechat/telegram/…) opens read-only — this app's send path
-    // can't deliver into the upstream messenger, so composing here would
-    // write an orphan turn the IM user never sees. Empty / web /
-    // heartbeat compose normally (contract §sessions).
-    final readOnly = activeSession?.isImChannel ?? false;
+    // Web parity (chat-screen.tsx:1549): a session on any non-web
+    // channel (IM, the heartbeat cron channel, …) opens read-only —
+    // this app's send path can't deliver into the originating channel,
+    // so composing here would write an orphan turn nobody sees. Empty /
+    // web compose normally (contract §sessions).
+    final readOnly = activeSession?.isReadOnlyChannel ?? false;
     final chatOnly = activeSessionId == null
         ? false
         : (_chatOnlyLocal[activeSessionId] ?? (activeSession?.chatOnly ?? false));
@@ -602,6 +602,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
                         pendingFiles: _pendingFiles,
                         chatOnly: chatOnly,
                         readOnly: readOnly,
+                        readOnlyChannel: activeSession?.channel ?? '',
                         onToggleChatOnly: (on) => _toggleChatOnly(context, on),
                         onChanged: () => setState(() {}),
                         onPickAttachments: _pickAttachments,

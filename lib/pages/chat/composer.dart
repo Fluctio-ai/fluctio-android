@@ -24,6 +24,7 @@ class Composer extends StatelessWidget {
     required this.pendingFiles,
     required this.chatOnly,
     required this.readOnly,
+    required this.readOnlyChannel,
     required this.onToggleChatOnly,
     required this.onChanged,
     required this.onPickAttachments,
@@ -43,13 +44,17 @@ class Composer extends StatelessWidget {
   /// LLM); toggled in-place like the web composer.
   final bool chatOnly;
 
-  /// Open session belongs to an IM channel — the app can't deliver into
-  /// upstream messengers, so input/attach/toggle go inert and only the
-  /// read-only-safe slash commands still send (web parity,
-  /// chat-screen.tsx:1408-1414). This card alone carries the notice (its
-  /// hint text plus inert controls); a dedicated banner above it was
-  /// dropped as redundant (user feedback).
+  /// Open session runs on a non-web channel (IM, heartbeat, …) — the
+  /// app can't deliver into the originating channel, so input/attach/
+  /// toggle go inert and only the read-only-safe slash commands still
+  /// send (web parity, chat-screen.tsx:1549). This card alone carries
+  /// the notice (its hint text plus inert controls); a dedicated banner
+  /// above it was dropped as redundant (user feedback).
   final bool readOnly;
+
+  /// Owning channel of the read-only session — names the hint ("此对话
+  /// 来自 WeChat 渠道"). Ignored when [readOnly] is false.
+  final String readOnlyChannel;
   final ValueChanged<bool> onToggleChatOnly;
   final VoidCallback onChanged;
   final VoidCallback onPickAttachments;
@@ -136,7 +141,9 @@ class Composer extends StatelessWidget {
               // match (user call 2026-11-19).
               style: const TextStyle(fontSize: AppType.transcript, height: 1.5),
               decoration: InputDecoration(
-                hintText: readOnly ? l.chatImReadOnlyHint : l.chatEmpty,
+                hintText: readOnly
+                    ? l.chatImReadOnlyHint(channelLabel(readOnlyChannel))
+                    : l.chatEmpty,
                 border: InputBorder.none,
                 isDense: true,
                 // Web composer rhythm (px-4 py-3, min-height 24px text):

@@ -3,6 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:re_editor/re_editor.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
+import '../../ui/dialogs.dart';
 import '../../util/dates.dart';
 import 'markdown_field.dart';
 import 'todo_views.dart';
@@ -208,6 +210,7 @@ class _KbEditorPageState extends State<KbEditorPage> {
     final picked = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
+      barrierColor: AppTheme.scrimColor,
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
         final l = AppLocalizations.of(sheetContext)!;
@@ -277,15 +280,11 @@ class _KbEditorPageState extends State<KbEditorPage> {
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final discard = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            content: Text(l.noteDiscard),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-            ],
-          ),
+        final discard = await confirmDialog(
+          context,
+          content: l.noteDiscard,
+          confirmLabel: l.chatDelete,
+          destructive: true,
         );
         if (discard != true) return;
         if (!context.mounted) return;

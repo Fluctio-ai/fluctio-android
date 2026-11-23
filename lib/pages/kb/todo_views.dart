@@ -6,6 +6,7 @@ import '../../chat/chat_controller.dart';
 import '../../kb/kb_models.dart';
 import '../../kb/kb_repo.dart';
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../ui/load_states.dart';
 import '../../util/dates.dart';
@@ -800,6 +801,7 @@ void _openDaySheet(
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    barrierColor: AppTheme.scrimColor,
     builder: (sheetContext) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,

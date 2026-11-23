@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api/api_client.dart';
 import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/dialogs.dart';
 import 'wiki_models.dart';
 import 'wiki_repo.dart';
 
@@ -15,18 +16,12 @@ Future<bool> deleteWikiPageWithConfirm(
     BuildContext context, WidgetRef ref, WikiPageInfo page) async {
   final l = AppLocalizations.of(context)!;
   final agentId = ref.read(agentsProvider).selectedId;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: Text(l.wikiDeleteTitle),
-      content: Text(l.wikiDeleteConfirm(page.title)),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false), child: Text(l.cancel)),
-        FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true), child: Text(l.chatDelete)),
-      ],
-    ),
+  final ok = await confirmDialog(
+    context,
+    title: l.wikiDeleteTitle,
+    content: l.wikiDeleteConfirm(page.title),
+    confirmLabel: l.chatDelete,
+    destructive: true,
   );
   if (ok != true || agentId == null) return false;
   try {

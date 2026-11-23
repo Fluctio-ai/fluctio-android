@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../chat/chat_routes.dart';
 import '../l10n/app_localizations.dart';
+import '../ui/dialogs.dart';
 import '../util/app_toast.dart';
 import 'diary_models.dart';
 import 'diary_repo.dart';
@@ -39,19 +40,10 @@ void confirmShelved(
 Future<void> stopRemindingShelved(
     BuildContext context, WidgetRef ref, String agentId, DiaryShelved item) async {
   final l = AppLocalizations.of(context)!;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(l.shelvedStopRemind),
-      content: Text(l.shelvedStopRemindBody(item.topic)),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-        FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l.shelvedStopRemind)),
-      ],
-    ),
+  final ok = await confirmDialog(
+    context,
+    content: l.shelvedStopRemindBody(item.topic),
+    confirmLabel: l.shelvedStopRemind,
   );
   if (ok != true) return;
   if (!context.mounted) return;

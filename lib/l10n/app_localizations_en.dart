@@ -531,11 +531,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chatOnlyChip => 'Chat only';
 
   @override
-  String get chatImReadOnlyHint =>
-      'Read-only — this chat came in from an IM channel';
+  String chatImReadOnlyHint(String channel) {
+    return 'Read-only — this chat came in from the $channel channel';
+  }
 
   @override
-  String get chatImChannelBadge => 'IM channel session (read-only)';
+  String get chatImChannelBadge => 'Channel session (read-only)';
 
   @override
   String get kbEmpty => 'Nothing here yet';

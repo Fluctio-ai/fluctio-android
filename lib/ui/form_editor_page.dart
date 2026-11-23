@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../api/api_client.dart';
 import '../l10n/app_localizations.dart';
+import 'dialogs.dart';
 
 /// One field of a [FormEditorPage]: label on top (DESIGN.md §4 inputs),
 /// multi-line growth via [maxLines], input traits, and [obscure] for
@@ -95,15 +96,11 @@ class _FormEditorPageState extends State<FormEditorPage> {
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        final discard = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            content: Text(l.noteDiscard),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-            ],
-          ),
+        final discard = await confirmDialog(
+          context,
+          content: l.noteDiscard,
+          confirmLabel: l.chatDelete,
+          destructive: true,
         );
         if (discard != true) return;
         if (!context.mounted) return;

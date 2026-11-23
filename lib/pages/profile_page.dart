@@ -10,10 +10,12 @@ import 'agents/agent_settings_page.dart';
 import '../l10n/app_localizations.dart';
 import '../notify/notify_service_controller.dart';
 import '../theme/font_scale.dart';
+import '../theme/app_theme.dart';
 import '../theme/theme_mode.dart';
 import '../theme/tokens.dart';
 import 'chat/chat_image.dart';
 import '../ui/settings_list.dart';
+import '../ui/dialogs.dart';
 import '../util/app_toast.dart';
 
 /// Me tab per the prototype: profile header + grouped settings. Absorbs
@@ -50,14 +52,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       final go = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('${l.updateAvailable} ${update.tag}'),
           content: Text(update.notes.isEmpty
               ? '${update.current} → ${update.tag.substring(1)}'
               : update.notes, maxLines: 6, overflow: TextOverflow.ellipsis),
+          actionsPadding: EdgeInsets.zero,
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-            if (update.apkUrl != null)
-              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.updateDownload)),
+            dialogActionsBar(
+              context,
+              onCancel: () => Navigator.of(context).pop(false),
+              confirmLabel: update.apkUrl != null ? l.updateDownload : null,
+              onConfirm: () => Navigator.of(context).pop(true),
+            ),
           ],
         ),
       );
@@ -96,12 +101,18 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Page-head title rides the AppBar rule (body 15 +
+                      // w600, "标题同正文尺寸只加字重") — not titleMedium 17,
+                      // which read as a second headline above 13.5 rows
+                      // (user call 2026-11-23).
                       Text(auth.userLabel ?? l.appName,
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleMedium),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(l.signedInAs,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.colorScheme.outline)),
+                          style: AppTheme.listSubtitleStyle(theme.colorScheme)),
                     ],
                   ),
                 ),
@@ -229,15 +240,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref, AppLocalizations l) async {
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: Text(l.confirmSignOut),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.signOut)),
-        ],
-      ),
+    final yes = await confirmDialog(
+      context,
+      content: l.confirmSignOut,
+      confirmLabel: l.signOut,
+      destructive: true,
     );
     if (yes == true) {
       await ref.read(authControllerProvider.notifier).logout();

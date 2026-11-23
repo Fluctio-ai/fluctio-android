@@ -506,10 +506,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chatOnlyChip => '仅对话';
 
   @override
-  String get chatImReadOnlyHint => '只读——此对话来自 IM 渠道';
+  String chatImReadOnlyHint(String channel) {
+    return '只读——此对话来自 $channel 渠道';
+  }
 
   @override
-  String get chatImChannelBadge => 'IM 渠道会话（只读）';
+  String get chatImChannelBadge => '渠道会话（只读）';
 
   @override
   String get kbEmpty => '暂无内容';

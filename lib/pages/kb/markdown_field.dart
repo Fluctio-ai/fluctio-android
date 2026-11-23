@@ -7,6 +7,7 @@ import 'package:re_highlight/styles/atom-one-dark.dart';
 import 'package:re_highlight/styles/atom-one-light.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../theme/app_theme.dart';
 import '../../theme/tokens.dart';
 import '../../util/markdown_lint.dart';
 
@@ -173,6 +174,7 @@ class _MarkdownFieldState extends State<MarkdownField> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      barrierColor: AppTheme.scrimColor,
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
         return SafeArea(

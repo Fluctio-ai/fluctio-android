@@ -57,7 +57,7 @@ List<SlashCommand> matchSlashCommands(String text, {List<SkillInfo> skills = con
   ];
 }
 
-/// Commands still sendable from an IM-channel (read-only) session —
+/// Commands still sendable from a non-web-channel (read-only) session —
 /// pure status queries that don't mutate the transcript. 1:1 mirror of
 /// the web READ_ONLY_SLASH_COMMANDS (chat-screen.tsx:155).
 const readOnlySafeSlashCommands = {'help', 'status', 'usage', 'insights', 'version'};

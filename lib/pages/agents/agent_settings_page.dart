@@ -657,9 +657,14 @@ class _McpTabState extends State<_McpTab> {
             TextField(controller: url, decoration: const InputDecoration(hintText: 'https://…')),
           ],
         ),
+        actionsPadding: EdgeInsets.zero,
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatSend)),
+          dialogActionsBar(
+            context,
+            onCancel: () => Navigator.of(context).pop(false),
+            confirmLabel: l.chatSend,
+            onConfirm: () => Navigator.of(context).pop(true),
+          ),
         ],
       ),
     );

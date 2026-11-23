@@ -8,6 +8,7 @@ import '../chat/chat_repo.dart';
 import '../chat/models.dart';
 import '../l10n/app_localizations.dart';
 import '../ui/form_editor_page.dart';
+import '../ui/dialogs.dart';
 import '../ui/load_states.dart';
 import '../ui/row_actions_menu.dart';
 import '../ui/settings_list.dart';
@@ -282,16 +283,12 @@ class _AppDrawerState extends ConsumerState<AppDrawer> {
 
   Future<void> _deleteProject(BuildContext context, ProjectInfo project) async {
     final l = AppLocalizations.of(context)!;
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.deleteProjectTitle),
-        content: Text(l.deleteProjectConfirm(project.name)),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.deleteProject)),
-        ],
-      ),
+    final yes = await confirmDialog(
+      context,
+      title: l.deleteProjectTitle,
+      content: l.deleteProjectConfirm(project.name),
+      confirmLabel: l.deleteProject,
+      destructive: true,
     );
     if (yes != true) return;
     try {
@@ -587,13 +584,23 @@ class _ProjectRow extends StatelessWidget {
               _ => onDelete(),
             },
             itemBuilder: (_) => [
-              // Pin first — mirrors the web project row menu.
-              PopupMenuItem(
-                  value: 'pin',
-                  child: Text(project.pinned ? l.chatUnpin : l.chatPin)),
-              PopupMenuItem(value: 'new', child: Text(l.newChatInProject)),
-              PopupMenuItem(value: 'edit', child: Text(l.editProject)),
-              PopupMenuItem(value: 'delete', child: Text(l.deleteProject)),
+              // Pin first — mirrors the web project row menu. Icon row
+              // shape shared with the long-press menus (rowActionPopupItem).
+              rowActionPopupItem(context,
+                  icon: project.pinned ? LucideIcons.pinOff : LucideIcons.pin,
+                  label: project.pinned ? l.chatUnpin : l.chatPin,
+                  value: 'pin'),
+              rowActionPopupItem(context,
+                  icon: LucideIcons.messageSquarePlus,
+                  label: l.newChatInProject,
+                  value: 'new'),
+              rowActionPopupItem(context,
+                  icon: LucideIcons.penLine, label: l.editProject, value: 'edit'),
+              rowActionPopupItem(context,
+                  icon: LucideIcons.trash2,
+                  label: l.deleteProject,
+                  value: 'delete',
+                  destructive: true),
             ],
           ),
           onTap: onToggle,

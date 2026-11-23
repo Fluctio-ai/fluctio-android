@@ -16,6 +16,7 @@ import '../../l10n/app_localizations.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/font_scale.dart';
 import '../../theme/tokens.dart';
+import '../../ui/dialogs.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/slide_action.dart';
@@ -128,7 +129,7 @@ class SessionTile extends ConsumerWidget {
                   // Descriptor line: preview + the channel / chat-only
                   // marks in WeChat's mute-icon slot.
                   if (session.preview.isNotEmpty ||
-                      session.isImChannel ||
+                      session.isReadOnlyChannel ||
                       session.chatOnly)
                     Padding(
                       padding: EdgeInsets.only(top: 2 * s),
@@ -148,7 +149,7 @@ class SessionTile extends ConsumerWidget {
                                   size: 12, color: scheme.outline),
                             ),
                           ),
-                        if (session.isImChannel)
+                        if (session.isReadOnlyChannel)
                           Padding(
                             padding: const EdgeInsets.only(left: 6),
                             child: Tooltip(
@@ -253,16 +254,7 @@ abstract final class _SessionMenu {
       case 'rename':
         await promptRename(context, ref, l, session);
       case 'delete':
-        final yes = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            content: Text(l.chatDeleteConfirm),
-            actions: [
-              TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(l.cancel)),
-              FilledButton(onPressed: () => Navigator.of(context).pop(true), child: Text(l.chatDelete)),
-            ],
-          ),
-        );
+        final yes = await confirmDelete(context);
         if (yes != true) return;
         try {
           final wasActive = ref.read(chatStoreProvider).activeKey ==
@@ -307,6 +299,7 @@ Future<void> showTodoSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    barrierColor: AppTheme.scrimColor,
     builder: (_) => const _TodoSheet(),
   );
 }
@@ -413,6 +406,7 @@ Future<void> showFilesSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
+    barrierColor: AppTheme.scrimColor,
     builder: (_) => const _FilesSheet(),
   );
 }

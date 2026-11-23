@@ -10,7 +10,10 @@ import 'package:fluctio_android/pages/chat/composer.dart';
 /// web read-only-safe slash commands still send (chat-screen.tsx:1408-1414).
 void main() {
   Future<void> pumpComposer(WidgetTester tester,
-      {String text = '', required bool readOnly, VoidCallback? onSend}) async {
+      {String text = '',
+      required bool readOnly,
+      String readOnlyChannel = 'wechat',
+      VoidCallback? onSend}) async {
     await tester.pumpWidget(MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
@@ -22,6 +25,7 @@ void main() {
           pendingFiles: const [],
           chatOnly: false,
           readOnly: readOnly,
+          readOnlyChannel: readOnlyChannel,
           onToggleChatOnly: (_) {},
           onChanged: () {},
           onPickAttachments: () {},
@@ -36,12 +40,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('read-only composer shows the IM hint, send stays inert for plain text',
+  testWidgets('read-only composer names the channel in the hint, send stays inert for plain text',
       (tester) async {
     var sent = false;
     await pumpComposer(tester, text: 'hello', readOnly: true, onSend: () => sent = true);
     final l = AppLocalizations.of(tester.element(find.byType(Composer)))!;
-    expect(find.text(l.chatImReadOnlyHint), findsOneWidget);
+    expect(find.text(l.chatImReadOnlyHint('WeChat')), findsOneWidget);
 
     await tester.tap(find.byIcon(LucideIcons.send));
     await tester.pump();
@@ -61,6 +65,6 @@ void main() {
     await pumpComposer(tester, readOnly: false);
     final l = AppLocalizations.of(tester.element(find.byType(Composer)))!;
     expect(find.text(l.chatEmpty), findsOneWidget);
-    expect(find.text(l.chatImReadOnlyHint), findsNothing);
+    expect(find.text(l.chatImReadOnlyHint('WeChat')), findsNothing);
   });
 }

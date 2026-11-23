@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../theme/app_theme.dart';
 import '../theme/tokens.dart';
 
 /// Grouped-list kit — the single implementation of "section label +
@@ -8,6 +9,15 @@ import '../theme/tokens.dart';
 /// settings center, and the app drawer (UI optimization decision 2).
 /// One row rhythm: 20px icon at 16px inset, 16px icon-label gap, 14px
 /// vertical padding, hairline dividers indented past the icon.
+/// Row copy rides the list-row rung (title transcript 13.5, meta
+/// caption 12 — the RowMetaTime family baseline), not body 15: a
+/// settings surface is a list, and its rows must not read a step above
+/// every other list row in the app (user call 2026-11-23).
+
+/// Row-title rung shared by the settings rows: the transcript 13.5 list
+/// baseline (settings rows ARE list rows — see the file header).
+TextStyle? _rowTitleStyle(ThemeData theme) =>
+    theme.textTheme.bodyMedium?.copyWith(fontSize: AppType.transcript);
 
 /// Section label above a [SettingsGroup] (or the drawer's lists). The
 /// default padding is the page variant — the label sits 4px inside the
@@ -115,7 +125,7 @@ class SettingsSegmentedTile<T> extends StatelessWidget {
           Row(children: [
             Icon(icon, size: 20, color: theme.colorScheme.primary),
             const SizedBox(width: AppSpace.lg),
-            Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+            Expanded(child: Text(label, style: _rowTitleStyle(theme))),
           ]),
           const SizedBox(height: 8),
           // Full-width segment row on its own line: at the 大 tier the
@@ -183,14 +193,10 @@ class SettingsTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label, style: theme.textTheme.bodyMedium),
+                  Text(label, style: _rowTitleStyle(theme)),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.outline),
-                    ),
+                    Text(subtitle!, style: AppTheme.listSubtitleStyle(theme.colorScheme)),
                   ],
                 ],
               ),
@@ -202,7 +208,7 @@ class SettingsTile extends StatelessWidget {
                   value!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                  style: AppTheme.listSubtitleStyle(theme.colorScheme),
                 ),
               ),
             if (trailing != null)

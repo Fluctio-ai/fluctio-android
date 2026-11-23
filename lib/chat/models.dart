@@ -53,22 +53,18 @@ class ChatSessionInfo {
   final bool pinned;
   final String projectId;
 
-  /// Owning channel (contract §sessions, 2026-11-19 revision): empty /
-  /// `web` / `heartbeat` compose normally — heartbeat sessions run on
-  /// their own cron channel and compose lands IN the session
-  /// (internal/cron/scheduler.go:340-344; the backend has no channel
-  /// guard, read-only is client policy). Everything else — real IM
-  /// channels, plugin manifest IDs, `api`, `subagent`, unknown — is
-  /// read-only: the app/web send path can't deliver upstream, so
-  /// composing would write an orphan turn (web lags on heartbeat,
-  /// chat-screen.tsx:1549 still read-only there).
+  /// Owning channel (contract §sessions): only empty / `web` compose —
+  /// the app/web send path can't deliver into upstream channels, so
+  /// composing anywhere else (IM channels, the heartbeat cron channel,
+  /// plugin manifest IDs, `api`, `subagent`, unknown) would write an
+  /// orphan turn nobody sees. Web parity: read-only is anything but web
+  /// (chat-screen.tsx:1549, heartbeat included).
   final String channel;
   final String thumbnailUrl;
   final int createdAt;
   final int updatedAt;
 
-  bool get isImChannel =>
-      channel.isNotEmpty && channel != 'web' && channel != 'heartbeat';
+  bool get isReadOnlyChannel => channel.isNotEmpty && channel != 'web';
 
   factory ChatSessionInfo.fromJson(Map<String, dynamic> json) => ChatSessionInfo(
         id: json['id'] as String? ?? '',
@@ -94,7 +90,10 @@ String channelLabel(String channel) => switch (channel) {
       'discord' => 'Discord',
       'slack' => 'Slack',
       'line' => 'LINE',
-      _ => 'Web',
+      'web' || '' => 'Web',
+      // heartbeat / plugin IDs / unknown echo raw, like the web
+      // (channel-icon.tsx:79) — never masked as Web.
+      _ => channel,
     };
 
 /// One row of `GET /api/skills` / `GET /api/agents/{id}/skills`

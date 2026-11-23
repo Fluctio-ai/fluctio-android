@@ -560,17 +560,18 @@ class ChatStoreController extends Notifier<ChatStore> {
 
   // ---- sending ----
 
-  /// Open session belongs to an IM channel — read-only over the app
-  /// compose path (web parity, chat-screen.tsx:1408).
+  /// Open session runs on a non-web channel (IM, heartbeat, …) —
+  /// read-only over the app compose path (web parity,
+  /// chat-screen.tsx:1549).
   bool _isReadOnlySession(String sessionId) =>
       ref.read(sessionsProvider).value
           ?.where((s) => s.id == sessionId)
           .firstOrNull
-          ?.isImChannel ??
+          ?.isReadOnlyChannel ??
       false;
 
-  /// IM-channel sessions reject sends — a write here would land in the
-  /// session but never reach the upstream messenger. Only the
+  /// Non-web channel sessions reject sends — a write here would land in
+  /// the session but never reach the originating channel. Only the
   /// read-only-safe slash commands pass (chat-screen.tsx:1832-1841).
   bool _blockedByReadOnly(String sessionId, String text) =>
       _isReadOnlySession(sessionId) && !isReadOnlySafeSlashCommand(text);

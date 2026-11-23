@@ -11,6 +11,14 @@ abstract final class AppTheme {
 
   static ThemeData dark() => _build(Brightness.dark, appPaletteDark);
 
+  /// Modal scrim (dialogs + bottom sheets) — web parity, the shadcn
+  /// overlay is black/80 (globals.css-free: web/src/components/ui
+  /// DialogOverlay/SheetOverlay). The Material default black/54 leaves
+  /// the page text legible behind a confirm dialog (user call
+  /// 2026-11-23). No blur: the web has none and BackdropFilter costs a
+  /// full-screen per-frame sample for a surface that opens on a tap.
+  static const scrimColor = Color(0xCC000000);
+
   static ThemeData _build(Brightness brightness, AppPalette colors) {
     final scheme = ColorScheme(
       brightness: brightness,
@@ -109,21 +117,58 @@ abstract final class AppTheme {
         ),
       ),
       splashFactory: InkSparkle.splashFactory,
+      // Button copy is the Label rung (13 w500), not M3's labelLarge 15
+      // — same logic as popupMenuTheme below: action labels must not
+      // read a step above the 13.5 content they act on (user call
+      // 2026-11-23). Colors stay the M3 state-resolved defaults.
       filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder)),
+        style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
+            textStyle: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500)),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder)),
+        style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
+            textStyle: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500)),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder)),
+        style: TextButton.styleFrom(
+            shape: RoundedRectangleBorder(borderRadius: AppRadius.controlBorder),
+            textStyle: TextStyle(fontSize: AppType.secondary, fontWeight: FontWeight.w500)),
       ),
       cardTheme: CardThemeData(
         color: colors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder, side: BorderSide(color: colors.border)),
       ),
-      dialogTheme: DialogThemeData(shape: RoundedRectangleBorder(borderRadius: AppRadius.cardBorder)),
+      // One dialog chrome for every confirm/popover (the app's dialogs
+      // are confirmation-class only, DESIGN.md): card surface + hairline
+      // border, flat like the web shadcn AlertDialog (no elevation
+      // shadow — depth comes from the scrim, not drop shadows). Title =
+      // the AppBar rule (body 15 + w600, "标题同正文尺寸只加字重");
+      // content and button copy share the body 15 rung (WeChat dialog
+      // parity, user reference 2026-11-23 — button copy above content
+      // read top-heavy at the 13 rung). The scrim rides the theme too
+      // (black/80, see scrimColor).
+      dialogTheme: DialogThemeData(
+        backgroundColor: colors.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        barrierColor: scrimColor,
+        shape: RoundedRectangleBorder(
+            borderRadius: AppRadius.cardBorder, side: BorderSide(color: colors.border)),
+        titleTextStyle: TextStyle(
+          fontSize: AppType.body,
+          fontWeight: FontWeight.w600,
+          height: 1.45,
+          color: colors.cardForeground,
+        ),
+        contentTextStyle: TextStyle(
+          fontSize: AppType.body,
+          height: 1.5,
+          color: colors.cardForeground,
+        ),
+      ),
       // Every popup menu in the app shares one chrome: card-family
       // surface/radius (the M3 default container tint doesn't match the
       // cool-cyan dark surfaces) and the ladder's row-copy rung
