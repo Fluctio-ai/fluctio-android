@@ -106,7 +106,10 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
             ? null
             // Keyed by page: detail holds pageId-scoped state (provider
             // family + Future loads), so switching selection rebuilds it.
-            : WikiPageDetail(key: ValueKey(_selectedId), pageId: _selectedId!),
+            : WikiPageDetail(
+                key: ValueKey(_selectedId),
+                pageId: _selectedId!,
+                embedded: true),
         listPane: Column(
           children: [
             Padding(
