@@ -7,6 +7,7 @@ import '../chat/chat_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../ui/fling_detector.dart';
 import '../ui/load_states.dart';
+import '../ui/tap_to_unfocus.dart';
 import '../theme/tokens.dart';
 import 'app_drawer.dart';
 import 'chat/panels.dart';
@@ -119,7 +120,10 @@ class SessionListPage extends ConsumerWidget {
       ),
       // DrawerFling: the rows are Slidables that eat the Scaffold's
       // arena drag — fling fallback keeps swipe-right-drawer alive.
-      body: DrawerFling(child: _SessionListView(agentId: selected.id)),
+      // TapToUnfocus: search field is the only input — taps on the
+      // list's empty space drop the keyboard (chat transcript parity).
+      body: DrawerFling(
+          child: TapToUnfocus(child: _SessionListView(agentId: selected.id))),
     );
   }
 }
@@ -175,7 +179,7 @@ class _SessionListViewState extends ConsumerState<_SessionListView> {
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: () => ref.read(sessionsProvider.notifier).reload(),
+            onRefresh: () => ref.read(sessionsProvider.notifier).reload(keep: true),
             child: sessions.when(
               loading: () => const SkeletonListView(),
               error: (e, _) => ListView( // keep the indicator draggable
@@ -214,6 +218,9 @@ class _SessionListViewState extends ConsumerState<_SessionListView> {
                               '${widget.agentId}|${s.id}',
                       onTap: () {
                         if (_debounceTap()) return;
+                        // Row taps win the arena over TapToUnfocus —
+                        // drop the keyboard before navigating.
+                        FocusManager.instance.primaryFocus?.unfocus();
                         ref
                             .read(chatStoreProvider.notifier)
                             .openSession(widget.agentId, s.id);

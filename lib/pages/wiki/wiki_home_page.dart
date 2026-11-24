@@ -12,6 +12,7 @@ import '../../ui/load_states.dart';
 import '../../ui/master_detail.dart';
 import '../../ui/row_actions_menu.dart';
 import '../../ui/slide_action.dart';
+import '../../ui/tap_to_unfocus.dart';
 import '../../wiki/wiki_models.dart';
 import '../../wiki/wiki_repo.dart';
 import '../../wiki/wiki_actions.dart';
@@ -49,6 +50,9 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
 
   /// Row tap: wide selects into the detail pane, phone pushes the route.
   void _open(String pageId) {
+    // Row taps win the arena over TapToUnfocus — drop the keyboard
+    // before selecting/navigating.
+    FocusManager.instance.primaryFocus?.unfocus();
     if (MasterDetailScaffold.isSplit(context)) {
       setState(() => _selectedId = pageId);
     } else {
@@ -110,33 +114,35 @@ class _WikiHomePageState extends ConsumerState<WikiHomePage> {
                 key: ValueKey(_selectedId),
                 pageId: _selectedId!,
                 embedded: true),
-        listPane: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: TextField(
-                onChanged: (v) => setState(() => _query = v),
-                decoration: InputDecoration(
-                  hintText: l.wikiSearchHint,
-                  prefixIcon: const Icon(LucideIcons.search),
-                  isDense: true,
+        listPane: TapToUnfocus(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: TextField(
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: l.wikiSearchHint,
+                    prefixIcon: const Icon(LucideIcons.search),
+                    isDense: true,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: inv == null
-                  ? const SizedBox.shrink()
-                  : inv.when(
-                      loading: () => const SkeletonListView(),
-                      error: (e, _) => ErrorPane(message: l.wikiLoadFailed),
-                      data: (data) => TabBarView(
-                        children: [
-                          for (final t in _tabs) _typeList(context, data.pages, t),
-                        ],
+              Expanded(
+                child: inv == null
+                    ? const SizedBox.shrink()
+                    : inv.when(
+                        loading: () => const SkeletonListView(),
+                        error: (e, _) => ErrorPane(message: l.wikiLoadFailed),
+                        data: (data) => TabBarView(
+                          children: [
+                            for (final t in _tabs) _typeList(context, data.pages, t),
+                          ],
+                        ),
                       ),
-                    ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -14,13 +14,16 @@ import '../../l10n/app_localizations.dart';
 import '../../settings/settings_repo.dart';
 import '../../theme/tokens.dart';
 import '../../ui/row_meta.dart';
+import '../../util/cache_for.dart';
 import '../../util/dates.dart';
 import 'chat_image.dart';
 
 /// Card-review stats for the fresh-chat board (one provider; the review
-/// page keeps its own).
+/// page keeps its own). Cached past the fresh-chat board's own visits
+/// ([cacheTtl]) — the panes are a landing surface, not a live feed.
 final _cardStatsProvider =
     FutureProvider.autoDispose.family<KbCardStats, String>((ref, agentId) {
+  ref.cacheFor();
   return ref.watch(kbRepoProvider).cardStats(agentId);
 });
 
@@ -29,6 +32,7 @@ final _cardStatsProvider =
 /// bare count.
 final _dueCardsProvider =
     FutureProvider.autoDispose.family<List<KbCard>, String>((ref, agentId) {
+  ref.cacheFor();
   return ref.watch(kbRepoProvider).cardQueue(agentId, limit: 4);
 });
 
@@ -37,6 +41,7 @@ final _dueCardsProvider =
 /// typed surface.
 final _cronJobsProvider =
     FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, agentId) async {
+  ref.cacheFor();
   final jobs = await ref.watch(settingsRepoProvider).cronJobs(agentId);
   return jobs.where((j) => j['enabled'] == true).toList();
 });
@@ -48,6 +53,24 @@ final _cronJobsProvider =
 /// transcript is empty and the composer untouched.
 class ChatDashboard extends ConsumerWidget {
   const ChatDashboard({super.key});
+
+  /// Pull-to-refresh: force every pane's fetch plus the drawer's session
+  /// and project lists past the cache window. Errors are swallowed per
+  /// fetch — a failed pane keeps its cached rows (the panes' error
+  /// states surface persistent offline, not a transient refresh
+  /// failure).
+  Future<void> _refreshAll(WidgetRef ref, String agentId) async {
+    Future<void> quiet(Future<Object?> f) => f.then<void>((_) {}, onError: (_) {});
+    await Future.wait([
+      quiet(ref.refresh(diaryShelvedProvider(agentId).future)),
+      quiet(ref.refresh(_cardStatsProvider(agentId).future)),
+      quiet(ref.refresh(_dueCardsProvider(agentId).future)),
+      quiet(ref.refresh(kbTodosProvider(agentId).future)),
+      quiet(ref.refresh(_cronJobsProvider(agentId).future)),
+      quiet(ref.read(sessionsProvider.notifier).reload(keep: true)),
+      quiet(ref.refresh(projectsProvider(agentId).future)),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,19 +122,28 @@ class ChatDashboard extends ConsumerWidget {
       _CronPane(agentId: agent.id),
     ];
 
-    return ListView(
-      // Horizontal 12 matches the composer card's margin and the transcript
-      // list padding — the panes and the input box share one edge line.
-      padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
-      children: [
-        // Hero: who you're talking to (web fresh-chat header).
-        _DashIn(index: 0, child: hero),
-        const SizedBox(height: 20),
-        for (var i = 0; i < panes.length; i++) ...[
-          if (i > 0) const SizedBox(height: 12),
-          _DashIn(index: i + 1, child: panes[i]),
+    return RefreshIndicator(
+      // Manual refresh is the escape hatch past [cacheTtl] — the cached
+      // copy stays on screen while every fetch reruns.
+      onRefresh: () => _refreshAll(ref, agent.id),
+      child: ListView(
+        // The board can render shorter than the viewport (few panes,
+        // empty states) — keep overscroll alive so pull-to-refresh
+        // always works.
+        physics: const AlwaysScrollableScrollPhysics(),
+        // Horizontal 12 matches the composer card's margin and the transcript
+        // list padding — the panes and the input box share one edge line.
+        padding: const EdgeInsets.fromLTRB(12, 24, 12, 16),
+        children: [
+          // Hero: who you're talking to (web fresh-chat header).
+          _DashIn(index: 0, child: hero),
+          const SizedBox(height: 20),
+          for (var i = 0; i < panes.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _DashIn(index: i + 1, child: panes[i]),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

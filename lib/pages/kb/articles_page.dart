@@ -18,6 +18,7 @@ import '../../ui/row_actions_menu.dart';
 import '../../ui/row_meta.dart';
 import '../../ui/load_states.dart';
 import '../../ui/slide_action.dart';
+import '../../ui/tap_to_unfocus.dart';
 import 'article_detail_page.dart';
 
 /// KB articles: server-side semantic search over the whole knowledge
@@ -50,6 +51,9 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
 
   /// Row tap: wide selects into the detail pane, phone pushes the route.
   void _open(String id, String title) {
+    // Row taps win the arena over TapToUnfocus — drop the keyboard
+    // before selecting/navigating.
+    FocusManager.instance.primaryFocus?.unfocus();
     if (MasterDetailScaffold.isSplit(context)) {
       setState(() {
         _selectedId = id;
@@ -105,120 +109,122 @@ class _KbArticlesPageState extends ConsumerState<KbArticlesPage> {
               title: _selectedTitle,
               embedded: true,
             ),
-      listPane: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _search,
-              onChanged: _onQuery,
-              decoration: InputDecoration(
-                hintText: l.kbSearchHint,
-                prefixIcon: const Icon(LucideIcons.search),
-                isDense: true,
+      listPane: TapToUnfocus(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: TextField(
+                controller: _search,
+                onChanged: _onQuery,
+                decoration: InputDecoration(
+                  hintText: l.kbSearchHint,
+                  prefixIcon: const Icon(LucideIcons.search),
+                  isDense: true,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: _results != null || _searching
-                ? _searchResults(context)
-                : (sources == null
-                    ? const SizedBox.shrink()
-                    : sources.when(
-                        loading: () => const SkeletonListView(),
-                        error: (e, _) => ErrorPane(message: l.chatHistoryError),
-                        data: (list) {
-                          final articles = list.where((s) => s.type == 'article').toList();
-                          if (articles.isEmpty) {
-                            return EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty);
-                          }
-                          return RefreshIndicator(
-                            onRefresh: () => agentId == null
-                                ? Future.value()
-                                : ref.refresh(kbSourcesProvider(agentId).future),
-                            child: ListView.builder(
-                              itemCount: articles.length,
-                              itemBuilder: (context, i) {
-                                final s = articles[i];
-                                final scheme = theme.colorScheme;
-                                // Character count localized like a human
-                                // would say it — a bare "12345 · 10-07"
-                                // reads as an ID, not a size.
-                                final chars = l.localeName.startsWith('zh') &&
-                                        s.totalChars >= 10000
-                                    ? l.articleCharsWan(
-                                        (s.totalChars / 10000).toStringAsFixed(1))
-                                    : l.articleCharsCount(s.totalChars);
-                                Future<void> delete() async {
-                                  if (!await confirmDelete(context)) return;
-                                  try {
-                                    await ref.read(kbRepoProvider).deleteSource(agentId!, s.id);
-                                    ref.invalidate(kbSourcesProvider(agentId));
-                                    // A deleted article can't stay open in
-                                    // the detail pane.
-                                    if (_selectedId == s.id) {
-                                      setState(() => _selectedId = null);
+            Expanded(
+              child: _results != null || _searching
+                  ? _searchResults(context)
+                  : (sources == null
+                      ? const SizedBox.shrink()
+                      : sources.when(
+                          loading: () => const SkeletonListView(),
+                          error: (e, _) => ErrorPane(message: l.chatHistoryError),
+                          data: (list) {
+                            final articles = list.where((s) => s.type == 'article').toList();
+                            if (articles.isEmpty) {
+                              return EmptyState(icon: LucideIcons.newspaper, message: l.kbEmpty);
+                            }
+                            return RefreshIndicator(
+                              onRefresh: () => agentId == null
+                                  ? Future.value()
+                                  : ref.refresh(kbSourcesProvider(agentId).future),
+                              child: ListView.builder(
+                                itemCount: articles.length,
+                                itemBuilder: (context, i) {
+                                  final s = articles[i];
+                                  final scheme = theme.colorScheme;
+                                  // Character count localized like a human
+                                  // would say it — a bare "12345 · 10-07"
+                                  // reads as an ID, not a size.
+                                  final chars = l.localeName.startsWith('zh') &&
+                                          s.totalChars >= 10000
+                                      ? l.articleCharsWan(
+                                          (s.totalChars / 10000).toStringAsFixed(1))
+                                      : l.articleCharsCount(s.totalChars);
+                                  Future<void> delete() async {
+                                    if (!await confirmDelete(context)) return;
+                                    try {
+                                      await ref.read(kbRepoProvider).deleteSource(agentId!, s.id);
+                                      ref.invalidate(kbSourcesProvider(agentId));
+                                      // A deleted article can't stay open in
+                                      // the detail pane.
+                                      if (_selectedId == s.id) {
+                                        setState(() => _selectedId = null);
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) showApiError(context, e);
                                     }
-                                  } catch (e) {
-                                    if (context.mounted) showApiError(context, e);
                                   }
-                                }
-                                return Slidable(
-                                  key: ValueKey('art-${s.id}'),
-                                  endActionPane: ActionPane(
-                                    motion: const DrawerMotion(),
-                                    extentRatio: 0.25,
-                                    children: [
-                                      SlideActionTile(
+                                  return Slidable(
+                                    key: ValueKey('art-${s.id}'),
+                                    endActionPane: ActionPane(
+                                      motion: const DrawerMotion(),
+                                      extentRatio: 0.25,
+                                      children: [
+                                        SlideActionTile(
+                                          icon: LucideIcons.trash2,
+                                          label: l.chatDelete,
+                                          destructive: true,
+                                          onPressed: delete,
+                                        ),
+                                      ],
+                                    ),
+                                    child: ChevronListTile(
+                                    selected: _selectedId == s.id,
+                                    title: Text(s.title,
+                                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    // The sparkles are a status mark, not an
+                                    // action: it appears only on articles the
+                                    // deep-reading pass has processed (user
+                                    // correction 2026-11-21 — generation
+                                    // stays in the detail view's button).
+                                    subtitle: Row(
+                                      children: [
+                                        Expanded(child: Text(chars, maxLines: 1)),
+                                        if (s.insightsGeneratedAt.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: 6),
+                                            child: Tooltip(
+                                              message: l.kbInsights,
+                                              child: Icon(LucideIcons.sparkles,
+                                                  size: 12, color: scheme.outline),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    trailing: RowMetaTime.iso(s.updatedAt),
+                                    onTap: () => _open(s.id, s.title),
+                                    onLongPress: () => showRowActionsMenu(context, [
+                                      RowAction(
                                         icon: LucideIcons.trash2,
                                         label: l.chatDelete,
                                         destructive: true,
-                                        onPressed: delete,
+                                        onRun: delete,
                                       ),
-                                    ],
+                                    ]),
                                   ),
-                                  child: ChevronListTile(
-                                  selected: _selectedId == s.id,
-                                  title: Text(s.title,
-                                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  // The sparkles are a status mark, not an
-                                  // action: it appears only on articles the
-                                  // deep-reading pass has processed (user
-                                  // correction 2026-11-21 — generation
-                                  // stays in the detail view's button).
-                                  subtitle: Row(
-                                    children: [
-                                      Expanded(child: Text(chars, maxLines: 1)),
-                                      if (s.insightsGeneratedAt.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(left: 6),
-                                          child: Tooltip(
-                                            message: l.kbInsights,
-                                            child: Icon(LucideIcons.sparkles,
-                                                size: 12, color: scheme.outline),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  trailing: RowMetaTime.iso(s.updatedAt),
-                                  onTap: () => _open(s.id, s.title),
-                                  onLongPress: () => showRowActionsMenu(context, [
-                                    RowAction(
-                                      icon: LucideIcons.trash2,
-                                      label: l.chatDelete,
-                                      destructive: true,
-                                      onRun: delete,
-                                    ),
-                                  ]),
-                                ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      )),
-          ),
-        ],
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        )),
+            ),
+          ],
+        ),
       ),
     );
   }

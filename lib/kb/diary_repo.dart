@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
+import '../util/cache_for.dart';
 import 'diary_models.dart';
 
 final diaryRepoProvider = Provider<DiaryRepo>((ref) => DiaryRepo(ref.watch(apiClientProvider)));
@@ -22,6 +23,7 @@ final diaryEntryProvider = FutureProvider.autoDispose
 /// (GET /api/agents/{id}/diary/shelved).
 final diaryShelvedProvider =
     FutureProvider.autoDispose.family<DiaryShelvedView, String>((ref, agentId) {
+  ref.cacheFor();
   return ref.watch(diaryRepoProvider).shelved(agentId);
 });
 

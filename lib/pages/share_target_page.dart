@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../share/share_receiver.dart';
 import '../theme/tokens.dart';
 import '../ui/load_states.dart';
+import '../ui/tap_to_unfocus.dart';
 import '../util/app_toast.dart';
 import '../util/text.dart';
 import 'chat/panels.dart';
@@ -103,6 +104,9 @@ class _ShareTargetPageState extends ConsumerState<ShareTargetPage> {
   }
 
   void _deliverToSession(String agentId, String sessionId) {
+    // Row taps win the arena over TapToUnfocus — drop the keyboard
+    // before delivering.
+    FocusManager.instance.primaryFocus?.unfocus();
     // Open first, stamp second — ChatPage's absorb listener matches on
     // activeKey == targetKey; stamping before the store settles absorbs
     // into whatever session is still open (stale text in the composer).
@@ -112,6 +116,7 @@ class _ShareTargetPageState extends ConsumerState<ShareTargetPage> {
   }
 
   void _deliverNewChat(String agentId) {
+    FocusManager.instance.primaryFocus?.unfocus();
     unawaited(() async {
       final sid = await ref.read(chatStoreProvider.notifier).newChat();
       if (sid.isEmpty || !mounted) return;
@@ -153,34 +158,36 @@ class _ShareTargetPageState extends ConsumerState<ShareTargetPage> {
             icon: const Icon(LucideIcons.x, size: 20),
           ),
         ),
-        body: Column(
-          children: [
-            _ShareHeader(share: share),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, AppSpace.xl),
-                children: [
-                  _DestinationList(
-                    targets: targets,
-                    saving: _saving,
-                    busyTarget: _busyTarget,
-                    onPick: _pickTarget,
-                  ),
-                  if (chatExpanded) ...[
-                    const SizedBox(height: AppSpace.sm),
-                    _ChatDestination(
-                      search: _search,
-                      query: _search.text,
-                      agentId: agentId,
-                      onSearchChanged: () => setState(() {}),
-                      onNewChat: () => _deliverNewChat(agentId ?? ''),
-                      onPickSession: _deliverToSession,
+        body: TapToUnfocus(
+          child: Column(
+            children: [
+              _ShareHeader(share: share),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(AppSpace.lg, AppSpace.sm, AppSpace.lg, AppSpace.xl),
+                  children: [
+                    _DestinationList(
+                      targets: targets,
+                      saving: _saving,
+                      busyTarget: _busyTarget,
+                      onPick: _pickTarget,
                     ),
+                    if (chatExpanded) ...[
+                      const SizedBox(height: AppSpace.sm),
+                      _ChatDestination(
+                        search: _search,
+                        query: _search.text,
+                        agentId: agentId,
+                        onSearchChanged: () => setState(() {}),
+                        onNewChat: () => _deliverNewChat(agentId ?? ''),
+                        onPickSession: _deliverToSession,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

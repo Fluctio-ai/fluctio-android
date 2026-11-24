@@ -5,7 +5,6 @@ import '../../chat/chat_engine.dart';
 import '../../chat/models.dart';
 import '../../chat/slash_commands.dart';
 import '../../l10n/app_localizations.dart';
-import 'typing_dots.dart';
 import '../../theme/tokens.dart';
 import '../../ui/press_scale.dart';
 
@@ -170,21 +169,13 @@ class Composer extends StatelessWidget {
                   onTap: readOnly ? null : () => onToggleChatOnly(!chatOnly),
                 ),
                 // "Thinking…" while the turn runs but the first delta
-                // hasn't arrived — lives in the tool row next to the
-                // chat-only chip (user feedback: every layered take
-                // above the card read as a bar behind the text; here
-                // it's plain text inside the card, clear of the fade
-                // band).
+                // hasn't arrived — same 36px chip as the paperclip next
+                // to it, a brain glyph breathing on the typing loop
+                // (user call: the plain-text take read as message
+                // content; the icon chip reads as a status).
                 if (turnActive && state.awaitingFirstDelta) ...[
-                  const SizedBox(width: 10),
-                  const TypingDots(),
-                  const SizedBox(width: 6),
-                  Text(
-                    l.chatThinking,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.outline,
-                    ),
-                  ),
+                  const SizedBox(width: 8),
+                  _ThinkingBadge(hint: l.chatThinking),
                 ],
                 const Spacer(),
                 _ActionButton(
@@ -278,6 +269,66 @@ class _ToolButton extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Status-only twin of [_ToolButton]: the same 36px chip shape, but not
+/// a control — it carries the awaiting-first-delta "thinking" state as
+/// the whole chip (1px cyan border + brain glyph) blinking together on
+/// the 1.4s typing loop (user calls 2026-11-24: the sweeping light arc
+/// never read; a chip-wide pulse is visible at a glance). Cyan is what
+/// tells it apart from the grey paperclip/chip next to it. Reduced
+/// motion rests at full opacity.
+class _ThinkingBadge extends StatefulWidget {
+  const _ThinkingBadge({required this.hint});
+
+  /// Long-press tooltip ("Thinking…") — the state stays legible without
+  /// on-screen text.
+  final String hint;
+
+  @override
+  State<_ThinkingBadge> createState() => _ThinkingBadgeState();
+}
+
+class _ThinkingBadgeState extends State<_ThinkingBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c =
+      AnimationController(vsync: this, duration: AppMotion.typing);
+  late final Animation<double> _fade = Tween<double>(begin: 0.35, end: 1.0)
+      .animate(CurvedAnimation(parent: _c, curve: AppMotion.flowCurve));
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (reduce) {
+      if (_c.isAnimating) _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+    return Tooltip(
+      message: widget.hint,
+      child: FadeTransition(
+        opacity: reduce ? const AlwaysStoppedAnimation(1.0) : _fade,
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.controlBorder,
+            border: Border.all(color: theme.colorScheme.primary),
+          ),
+          alignment: Alignment.center,
+          child: Icon(LucideIcons.brain,
+              size: 16, color: theme.colorScheme.primary),
         ),
       ),
     );

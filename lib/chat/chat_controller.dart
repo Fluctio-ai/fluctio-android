@@ -12,6 +12,7 @@ import '../api/sse.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_state.dart';
 import '../files/workspace_files.dart';
+import '../util/cache_for.dart';
 import 'chat_engine.dart';
 import 'chat_repo.dart';
 import 'chat_routes.dart';
@@ -120,13 +121,17 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
 
   String get _agentId => ref.read(agentsProvider).selectedId ?? '';
 
-  Future<void> reload() async {
+  /// [keep] leaves the current list on screen while the fetch runs —
+  /// for refreshes of an already-rendered list (turn finished, rename/
+  /// pin, pull-to-refresh) swapping to a skeleton reads as data loss.
+  /// Cold entries (agent switch, login) still load from blank.
+  Future<void> reload({bool keep = false}) async {
     final agentId = _agentId;
     if (agentId.isEmpty) {
       state = const AsyncValue.data([]);
       return;
     }
-    state = const AsyncValue.loading();
+    if (!keep) state = const AsyncValue.loading();
     try {
       final sessions = await ref.read(chatRepoProvider).sessions(agentId);
       state = AsyncValue.data(sessions);
@@ -172,24 +177,24 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
 
   Future<void> rename(String key, String title) async {
     await ref.read(chatRepoProvider).renameSession(_agentId, key, title);
-    await reload();
+    await reload(keep: true);
   }
 
   Future<void> delete(String key) async {
     await ref.read(chatRepoProvider).deleteSession(_agentId, key);
-    await reload();
+    await reload(keep: true);
   }
 
   Future<void> setChatOnly(String key, bool on) async {
     await ref.read(chatRepoProvider).setChatOnly(_agentId, key, on);
-    await reload();
+    await reload(keep: true);
   }
 
   /// Pin toggle reorders the list server-side (pinned DESC) — reload is
   /// the re-sort, same as the web refetch-on-success flow.
   Future<void> setPinned(String key, bool on) async {
     await ref.read(chatRepoProvider).setPinned(_agentId, key, on);
-    await reload();
+    await reload(keep: true);
   }
 }
 
@@ -197,7 +202,12 @@ class SessionsController extends Notifier<AsyncValue<List<ChatSessionInfo>>> {
 // Projects (per selected agent) — powers the drawer section + projects tab.
 // ---------------------------------------------------------------------------
 
-final projectsProvider = FutureProvider.family<List<ProjectInfo>, String>((ref, agentId) {
+/// Cached like the fresh-chat panes ([cacheTtl]): the drawer opens often,
+/// and the list only changes through this app's own writes (which all
+/// invalidate) — reopening within the window shows the cached copy.
+final projectsProvider =
+    FutureProvider.autoDispose.family<List<ProjectInfo>, String>((ref, agentId) {
+  ref.cacheFor();
   return ref.watch(chatRepoProvider).projects(agentId);
 });
 
@@ -442,7 +452,7 @@ class ChatStoreController extends Notifier<ChatStore> {
         await ref.read(chatRepoProvider).forkSession(parts.agentId, parts.sessionId, seq);
     if (!ref.mounted || newKey == null || newKey.isEmpty) return false;
     await openSession(parts.agentId, newKey);
-    ref.read(sessionsProvider.notifier).reload();
+    ref.read(sessionsProvider.notifier).reload(keep: true);
     return true;
   }
 
@@ -862,7 +872,7 @@ class ChatStoreController extends Notifier<ChatStore> {
             route: chatSessionRoute(sessionId),
           );
     }
-    if (effects.titleChanged) ref.read(sessionsProvider.notifier).reload();
+    if (effects.titleChanged) ref.read(sessionsProvider.notifier).reload(keep: true);
     _schedulePublish();
   }
 
@@ -901,7 +911,7 @@ class ChatStoreController extends Notifier<ChatStore> {
   }
 
   void _onTurnDone(String agentId, String sessionId) {
-    ref.read(sessionsProvider.notifier).reload();
+    ref.read(sessionsProvider.notifier).reload(keep: true);
     ref.invalidate(todoProvider((agentId, sessionId)));
     // The turn may have written workspace files (write_file /
     // deliver_file / image_gen) — refresh the files surfaces (sheet /

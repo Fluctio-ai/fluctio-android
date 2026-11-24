@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../todo/todo_reminders.dart';
+import '../util/cache_for.dart';
 import 'kb_models.dart';
 
 final kbRepoProvider = Provider<KbRepo>((ref) => KbRepo(
@@ -18,6 +19,7 @@ final kbSourcesProvider =
 
 final kbTodosProvider =
     FutureProvider.autoDispose.family<List<KbSource>, String>((ref, agentId) async {
+  ref.cacheFor();
   return ref.watch(kbRepoProvider).todos(agentId);
 });
 

@@ -646,14 +646,17 @@ class _UserBubble extends ConsumerWidget {
                         // pinned at 1.7 here while assistant text ran 1.5).
                         style: AppTheme.readerBody(context,
                             color: scheme.onPrimaryContainer)),
+                  // Awaiting the server's steer echo — dots only: the old
+                  // "Thinking…" caption inside the bubble read as text
+                  // the user had sent (user report); the wire never
+                  // carries it back, so the refreshed transcript never
+                  // showed it either.
                   if (entry.pendingSteer)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        l.chatThinking,
-                        style: TextStyle(
-                            fontSize: AppType.caption,
-                            color: scheme.onPrimaryContainer.withValues(alpha: 0.7)),
+                      padding: const EdgeInsets.only(top: 4),
+                      child: TypingDots(
+                        size: 4,
+                        color: scheme.onPrimaryContainer.withValues(alpha: 0.7),
                       ),
                     ),
                   if (entry.failed)
